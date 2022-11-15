@@ -106,6 +106,7 @@ export const vector3ToLngLat = (v3: THREE.Vector3) => {
   };
 };
 
+// https://api.mapbox.com/raster/v1/mapbox.mapbox-terrain-dem-v1/9/511/511.webp?sku=101Tt60mCQMaF&access_token=pk.eyJ1IjoiZGluZ2xlaTIwMjEiLCJhIjoiY2wxbHh1aW54MDl6NDNrcGcwODNtaXNtbSJ9.6G649bdbNApupw2unoY0Yg
 export function getSatelliteUrl(x: number, y: number, z: number) {
   return `https://api.mapbox.com/v4/mapbox.satellite/${z}/${x}/${y}@2x.webp?sku=1015N1AhJztkE&access_token=pk.eyJ1IjoiZGluZ2xlaTIwMjEiLCJhIjoiY2wxbHh1aW54MDl6NDNrcGcwODNtaXNtbSJ9.6G649bdbNApupw2unoY0Yg`;
 }
