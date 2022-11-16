@@ -1,5 +1,5 @@
 import { Button } from 'antd'
-import { ReactComponent } from '../react-to-solid-component/src'
+import { ReactComponent } from 'react-to-solid-component'
 import { Component } from 'solid-js'
 
 const ReactExample: Component = () => {

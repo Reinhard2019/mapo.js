@@ -2,7 +2,6 @@ import { defineConfig } from 'vite'
 import solidPlugin from 'vite-plugin-solid'
 import UnocssPlugin from '@unocss/vite'
 import mdx from '@mdx-js/rollup'
-import path from 'path'
 
 export default defineConfig({
   plugins: [
@@ -17,10 +16,5 @@ export default defineConfig({
   },
   build: {
     target: 'esnext'
-  },
-  resolve: {
-    alias: {
-      'mapo.js': path.resolve(__dirname, './src')
-    }
   }
 })

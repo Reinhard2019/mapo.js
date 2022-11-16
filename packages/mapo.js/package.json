@@ -1,0 +1,16 @@
+{
+  "name": "mapo.js",
+  "version": "0.0.0",
+  "description": "",
+  "main": "src/index.ts",
+  "type": "module",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/lodash-es": "^4.17.6",
+    "@types/three": "^0.146.0"
+  },
+  "dependencies": {
+    "lodash-es": "^4.17.21",
+    "three": "^0.146.0"
+  }
+}

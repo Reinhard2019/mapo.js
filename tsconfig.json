@@ -10,10 +10,6 @@
     "types": ["vite/client", "mdx"],
     "noEmit": true,
     "isolatedModules": true,
-    "strictNullChecks": true,
-    "baseUrl": "./",
-    "paths": {
-      "mapo.js": ["./src"],
-    }
+    "strictNullChecks": true
   }
 }

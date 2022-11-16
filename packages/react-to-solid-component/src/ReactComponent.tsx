@@ -1,4 +1,4 @@
-import React, { FunctionComponent } from 'react'
+import React, { ClassicComponent, ClassicComponentClass, ClassType, ComponentClass, ComponentState, FunctionComponent } from 'react'
 import { createRoot } from 'react-dom/client'
 import { JSXElement, onMount } from 'solid-js'
 import ReactChildren from './ReactChildren'
@@ -7,9 +7,9 @@ import ReactChildren from './ReactChildren'
 //   [P in keyof Obj]: Obj[P] extends ReplaceType ? NewType : Obj[P];
 // }
 
-interface ReactComponentProps<T> {
-  type: FunctionComponent<T>
-  props: T
+interface ReactComponentProps<P> {
+  type: FunctionComponent<P> | ClassType<P, ClassicComponent<P, ComponentState>, ClassicComponentClass<P>> | ComponentClass<P>
+  props: P
   children: JSXElement
 }
 

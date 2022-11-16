@@ -14,10 +14,8 @@
   "devDependencies": {
     "@mdx-js/mdx": "2.0.0-rc.2",
     "@mdx-js/rollup": "^2.1.5",
-    "@types/lodash-es": "^4.17.6",
     "@types/mdx": "^2.0.3",
     "@types/node": "^18.11.9",
-    "@types/three": "^0.146.0",
     "@typescript-eslint/eslint-plugin": "^5.0.0",
     "@unocss/preset-mini": "^0.45.13",
     "@unocss/reset": "^0.46.5",
@@ -36,9 +34,10 @@
     "vitest": "^0.25.2"
   },
   "dependencies": {
-    "lodash-es": "^4.17.21",
-    "solid-js": "^1.6.2",
-    "three": "^0.146.0"
+    "antd": "^4.24.2",
+    "mapo.js": "workspace:^0.0.0",
+    "react-to-solid-component": "workspace:^0.0.1",
+    "solid-js": "^1.6.2"
   },
   "lint-staged": {
     "**/*.{js,jsx,ts,tsx}": [
