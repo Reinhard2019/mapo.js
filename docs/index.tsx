@@ -1,7 +1,7 @@
-import 'uno.css';
+import 'uno.css'
 import '@unocss/reset/tailwind.css'
-import { render } from 'solid-js/web';
+import { render } from 'solid-js/web'
 
-import App from './App.mdx';
+import App from './App.mdx'
 
-render(() => <App />, document.getElementById('root') as HTMLElement);
+render(() => <App />, document.getElementById('root') as HTMLElement)
