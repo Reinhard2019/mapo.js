@@ -1,7 +1,9 @@
 import 'uno.css'
 import '@unocss/reset/tailwind.css'
+import 'antd/dist/antd.css'
 import { render } from 'solid-js/web'
 
-import App from './App.mdx'
+// import App from './App'
+import ReactExample from './ReactExample'
 
-render(() => <App />, document.getElementById('root') as HTMLElement)
+render(() => <ReactExample />, document.getElementById('root') as HTMLElement)
