@@ -34,7 +34,7 @@
     "vitest": "^0.25.2"
   },
   "dependencies": {
-    "antd": "^4.24.2",
+    "antd": "^5.0.0",
     "mapo.js": "workspace:^0.0.0",
     "react-to-solid-component": "workspace:^0.0.1",
     "solid-js": "^1.6.2"

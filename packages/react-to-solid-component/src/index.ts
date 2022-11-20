@@ -1,4 +1,4 @@
-import ReactChildren from './ReactChildren'
-import ReactComponent from './ReactComponent'
+import ReactToSolid from './ReactToSolid'
+import SolidToReact, { solidToReact } from './SolidToReact'
 
-export { ReactChildren, ReactComponent }
+export { ReactToSolid, SolidToReact, solidToReact }

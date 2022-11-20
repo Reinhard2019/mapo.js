@@ -1,6 +1,6 @@
 import 'uno.css'
 import '@unocss/reset/tailwind.css'
-import 'antd/dist/antd.css'
+import 'antd/dist/reset.css'
 import { render } from 'solid-js/web'
 
 import App from './App'
