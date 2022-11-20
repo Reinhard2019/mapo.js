@@ -1,4 +1,4 @@
-import ReactToSolid from './ReactToSolid'
+import ReactToSolid, { reactToSolid } from './ReactToSolid'
 import SolidToReact, { solidToReact } from './SolidToReact'
 
-export { ReactToSolid, SolidToReact, solidToReact }
+export { ReactToSolid, reactToSolid, SolidToReact, solidToReact }

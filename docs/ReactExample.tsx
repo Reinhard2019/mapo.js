@@ -1,5 +1,5 @@
 import { Button, message, Table } from 'antd'
-import { ReactToSolid, solidToReact } from 'react-to-solid-component'
+import { reactToSolid, solidToReact } from 'react-to-solid-component'
 import { Component, createSignal } from 'solid-js'
 
 const ReactExample: Component = () => {
@@ -45,16 +45,16 @@ const ReactExample: Component = () => {
 
   return (
     <>
-    <ReactToSolid type={Button} props={{
-      children: solidToReact(index()),
-      onClick () {
-        setIndex(v => v + 1)
-      }
-    }} />
-    <ReactToSolid type={Table} props={{
-      dataSource,
-      columns
-    }} />
+      {reactToSolid(Button, {
+        children: solidToReact(index()),
+        onClick () {
+          setIndex(v => v + 1)
+        }
+      })}
+      {reactToSolid(Table, {
+        dataSource,
+        columns
+      })}
     </>
   )
 }
