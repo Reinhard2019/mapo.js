@@ -1,6 +1,5 @@
-import { debounce, floor, range, round } from 'lodash-es'
+import { floor, range, round } from 'lodash-es'
 import * as THREE from 'three'
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls'
 import Stats from 'three/examples/jsm/libs/stats.module'
 import { degToRad } from 'three/src/math/MathUtils'
 import {
@@ -11,13 +10,15 @@ import {
 } from './utils/map'
 import { MapOptions, XYZ } from './types'
 import equirectangularTile from './utils/equirectangularTile'
-import { multiply } from './utils/array'
+import { inflate, multiply } from './utils/array'
+import MapOrbitControls from './MapOrbitControls'
 
 // 地球半径 6371km
 const earthRadius = 6371
 const fov = 60
 
 class Mapo {
+  renderer = new THREE.WebGLRenderer()
   scene = new THREE.Scene()
   ro = new ResizeObserver(() => {})
   camera = new THREE.PerspectiveCamera()
@@ -33,10 +34,9 @@ class Mapo {
       return
     }
     const pixelRatio = container.clientWidth / container.clientHeight
-    const renderer = new THREE.WebGLRenderer()
-    renderer.setSize(container.clientWidth, container.clientHeight)
-    renderer.setPixelRatio(pixelRatio)
-    container.appendChild(renderer.domElement)
+    this.renderer.setSize(container.clientWidth, container.clientHeight)
+    this.renderer.setPixelRatio(pixelRatio)
+    container.appendChild(this.renderer.domElement)
 
     const near = Math.pow(10, -10)
     const camera = new THREE.PerspectiveCamera(
@@ -45,17 +45,16 @@ class Mapo {
       earthRadius * near,
       earthRadius * 10
     )
-    camera.position.set(0, 0, earthRadius * 2)
+    camera.position.set(earthRadius * 3, 0, 0)
     camera.lookAt(0, 0, 0)
 
     const stats = Stats()
     container.appendChild(stats.dom)
 
-    const scene = new THREE.Scene()
-    scene.background = new THREE.Color(0x020924)
-    scene.fog = new THREE.Fog(0x020924, 200, 1000)
+    this.scene.background = new THREE.Color(0x020924)
+    this.scene.fog = new THREE.Fog(0x020924, 200, 1000)
 
-    scene.add(this.createMesh([0, 0, 0]))
+    this.scene.add(this.createMesh([0, 0, 0]))
 
     // const geom = new THREE.BufferGeometry();
     // const positions = [];
@@ -124,32 +123,33 @@ class Mapo {
     //   });
 
     // 镜头控制器
-    const controls = this.createOrbitControls(camera, renderer.domElement)
+    this.createOrbitControls(camera, this.renderer.domElement)
+    // controls.target = new THREE.Vector3(0, 6371, 0)
 
     // 页面重绘动画
     const tick = () => {
-      // console.log(controls.getDistance());
-      controls.update()
       stats.update()
       // 更新渲染器
-      renderer.render(scene, camera)
+      this.renderer.render(this.scene, camera)
       // 页面重绘时调用自身
+      // TODO dispose
       window.requestAnimationFrame(tick)
     }
     tick()
 
     const ro = new ResizeObserver(() => {
-      renderer.setSize(container.clientWidth, container.clientHeight)
+      this.renderer.setSize(container.clientWidth, container.clientHeight)
       const _pixelRatio = container.clientWidth / container.clientHeight
-      renderer.setPixelRatio(_pixelRatio)
+      this.renderer.setPixelRatio(_pixelRatio)
       camera.aspect = _pixelRatio
       camera.updateProjectionMatrix()
     })
     ro.observe(container)
 
     this.ro = ro
-    this.scene = scene
     this.camera = camera
+
+    this.openAuxiliaryLine()
   }
 
   openAuxiliaryLine () {
@@ -172,17 +172,10 @@ class Mapo {
     })
   }
 
-  createOrbitControls (camera: THREE.Camera, domElement?: HTMLElement) {
-    const controls = new OrbitControls(camera, domElement)
-    // TODO 阻尼
-    // controls.enableDamping = true;
-    // controls.dampingFactor = 0.1;
-    controls.enablePan = false
-    controls.minDistance = earthRadius * (1 + Math.pow(10, -5))
-    controls.maxDistance = earthRadius * 4
-    controls.zoomSpeed = 1
+  createOrbitControls (camera: THREE.PerspectiveCamera, domElement?: HTMLElement) {
+    const controls = new MapOrbitControls({ object: camera, domElement, earthRadius })
 
-    const changed = debounce(() => {
+    const changed = () => {
       const zoom = getZoom(controls.getDistance(), earthRadius, fov)
       const z = round(zoom)
       const lngLat = vector3ToLngLat(camera.position)
@@ -192,6 +185,8 @@ class Mapo {
         fov
       )
       const halfCentralAngle = centralAngle / 2
+      // TODO 先加载中间的
+      // TODO 宽度比高度更大时加载不全
       const bbox = [
         lngLat.lng - halfCentralAngle,
         lngLat.lat - halfCentralAngle,
@@ -224,6 +219,16 @@ class Mapo {
       // 移除 z 更大的 group
       this.scene.children.forEach((object) => {
         if (object instanceof THREE.Group && z < Number(object.name)) {
+          object.children.forEach(child => {
+            if (child instanceof THREE.Mesh) {
+              const _child = child as THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial | THREE.MeshBasicMaterial[]>
+              _child.geometry.dispose()
+              inflate(_child.material).forEach(material => {
+                material.dispose()
+                material.map?.dispose()
+              })
+            }
+          })
           this.scene.remove(object)
         }
       })
@@ -231,8 +236,7 @@ class Mapo {
       multiply(range(x1, x2 + 1), range(y2, y1 + 1)).forEach(([x, y]) => {
         const xyz: XYZ = [x, y, z]
         let group = this.scene.children.find(
-          (object) =>
-            object instanceof THREE.Group && object.name === String(z)
+          (object) => object instanceof THREE.Group && object.name === String(z)
         )
         if (group == null) {
           group = new THREE.Group()
@@ -246,14 +250,15 @@ class Mapo {
         mesh.name = xyz.join()
         group.add(mesh)
       })
-    }, 500)
+    }
 
-    // https://discourse.threejs.org/t/detect-changes-of-camera-properties-via-orbitcontrols/14921
     controls.addEventListener('change', () => {
-      const zoom = getZoom(controls.getDistance(), earthRadius, fov)
-      controls.zoomSpeed = 10 / Math.pow(2, zoom)
-
+      // const zoom = getZoom(this.getDistance(), earthRadius, object.fov)
+      // this.zoomSpeed = 10 / Math.pow(2, zoom)
+    })
+    controls.addEventListener('end', () => {
       changed()
+      console.log('end')
     })
     changed()
     return controls
@@ -261,11 +266,11 @@ class Mapo {
 
   createMesh (xyz: XYZ) {
     const mesh = new THREE.Mesh()
-    mesh.rotateY(degToRad(-90))
+    // mesh.rotateY(degToRad(-90))
 
     void createEquirectangularCanvas(xyz, this.tileSize).then((canvas) => {
       const [x, y, z] = xyz
-      console.log(xyz)
+      // console.log(xyz)
 
       // 某一行或某一列的瓦片数量
       const tileCount = Math.pow(2, z)
@@ -294,6 +299,7 @@ class Mapo {
 
   destroy () {
     this.ro.disconnect()
+    this.renderer.dispose()
   }
 }
 

@@ -1,7 +1,7 @@
 import { expect, test } from 'vitest'
 import { multiply } from './array'
 
-test('cross()', () => {
+test('multiply()', () => {
   expect(multiply([1, 2], [3, 4])).toStrictEqual([
     [1, 3],
     [1, 4],
