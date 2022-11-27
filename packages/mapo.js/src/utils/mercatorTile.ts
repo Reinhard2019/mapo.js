@@ -35,14 +35,7 @@ const mercatorTile = {
   latToY (lat: number, z: number) {
     const sin = Math.sin(degToRad(lat))
     const z2 = Math.pow(2, z)
-    const y = z2 * (0.5 - (0.25 * Math.log((1 + sin) / (1 - sin))) / Math.PI)
-    if (y < 0) {
-      return 0
-    }
-    if (y > z2) {
-      return z2
-    }
-    return y
+    return z2 * (0.5 - (0.25 * Math.log((1 + sin) / (1 - sin))) / Math.PI)
   },
 
   yToLat (y: number, z: number) {
