@@ -66,12 +66,20 @@ class MapOrbitControls extends THREE.EventDispatcher {
         console.log(this.bearing, this.object)
         this.object.rotation.z = degToRad(this.bearing)
       } else {
-        // TODO pitch
-        const movementDeg = -e.movementY / domElement.clientHeight * 180
+        // TODO pitch 处理有 bearing 的情况
+        const movementDeg = e.movementY / domElement.clientHeight * 180
         this.pitch = closestInRange(this.pitch + movementDeg, [0, 85])
-        // this.object.lookAt(0, 6371, 0)
-        // this.object.updateMatrixWorld()
-        // this.object.up = new THREE.Vector3(Math.sin(degToRad(this.bearing)), Math.cos(degToRad(this.bearing)) + Math.sin(degToRad(this.pitch)), Math.cos(degToRad(this.pitch)))
+        const negativePosition = this.object.position.clone()
+        negativePosition.x = -negativePosition.x
+        negativePosition.y = -negativePosition.y
+        negativePosition.z = -negativePosition.z
+        const spherical = new THREE.Spherical().setFromVector3(negativePosition)
+        spherical.phi -= degToRad(this.pitch)
+        const lookAtPosition = new THREE.Vector3().setFromSpherical(spherical)
+        lookAtPosition.x -= negativePosition.x
+        lookAtPosition.y -= negativePosition.y
+        lookAtPosition.z -= negativePosition.z
+        this.object.lookAt(lookAtPosition)
       }
     } else {
       // TODO 增加阻尼效果
