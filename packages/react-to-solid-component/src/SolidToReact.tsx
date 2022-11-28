@@ -9,9 +9,7 @@ interface SolidToReactProps {
 const SolidToReact: FunctionComponent<SolidToReactProps> = ({ children }) => {
   const ref = useRef<HTMLDivElement>()
 
-  useEffect(() => {
-    render(() => children, ref.current!)
-  }, [])
+  useEffect(() => render(() => children, ref.current!), [])
 
   return React.createElement('div', { ref, role: 'SolidToReact' })
 }

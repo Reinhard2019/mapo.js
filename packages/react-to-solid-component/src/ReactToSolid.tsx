@@ -1,6 +1,6 @@
 import React, { ClassicComponent, ClassicComponentClass, ClassType, ComponentClass, ComponentState, FunctionComponent } from 'react'
 import { createRoot, Root } from 'react-dom/client'
-import { createEffect, on, onCleanup } from 'solid-js'
+import { createEffect, onCleanup } from 'solid-js'
 
 type Component<P> = FunctionComponent<P> | ClassType<P, ClassicComponent<P, ComponentState>, ClassicComponentClass<P>> | ComponentClass<P>
 
@@ -12,13 +12,13 @@ interface ReactToSolidProps<P> {
 function ReactToSolid<P extends {}> (props: ReactToSolidProps<P>) {
   let root: Root
   let rootEle: HTMLDivElement | undefined
-  createEffect(on([() => props.type, () => props.props], () => {
+  createEffect(() => {
     root = createRoot(rootEle!)
     root.render(React.createElement<P>(
       props.type,
       props.props
     ))
-  }))
+  })
   onCleanup(() => {
     root.unmount()
   })
