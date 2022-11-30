@@ -1,3 +1,4 @@
+import React from 'react'
 import { Button, message, Table } from 'antd'
 import { reactToSolid, solidToReact } from 'react-to-solid-component'
 import { Component, createSignal } from 'solid-js'
@@ -28,7 +29,7 @@ const ReactExample: Component = () => {
       render (text: string) {
         return solidToReact(<div onClick={() => {
           void message.info(`点击了${text}`)
-        }}>{text}</div>)
+        }}>{text}</div>, React.createElement('span'))
       }
     },
     {
@@ -45,16 +46,16 @@ const ReactExample: Component = () => {
 
   return (
     <>
-      {reactToSolid(Button, {
+      {reactToSolid(React.createElement(Button, {
         children: solidToReact(index()),
         onClick () {
           setIndex(v => v + 1)
-        }
-      })}
-      {reactToSolid(Table, {
+        },
+      }), (<span /> as Element))}
+      {reactToSolid(React.createElement(Table, {
         dataSource,
         columns
-      })}
+      }))}
     </>
   )
 }

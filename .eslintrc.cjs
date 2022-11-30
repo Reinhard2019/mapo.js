@@ -15,6 +15,7 @@ module.exports = {
     '@typescript-eslint/explicit-function-return-type': 'off',
     '@typescript-eslint/no-non-null-assertion': 'off',
     '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', destructuredArrayIgnorePattern: '^_' }],
-    '@typescript-eslint/comma-dangle': ['error', 'only-multiline']
+    '@typescript-eslint/comma-dangle': ['error', 'only-multiline'],
+    '@typescript-eslint/strict-boolean-expressions': 'off'
   }
 }

@@ -1,32 +1,27 @@
-import React, { ClassicComponent, ClassicComponentClass, ClassType, ComponentClass, ComponentState, FunctionComponent } from 'react'
+import { ReactElement } from 'react'
 import { createRoot, Root } from 'react-dom/client'
-import { createEffect, onCleanup } from 'solid-js'
+import { createEffect, onCleanup, Component } from 'solid-js'
 
-type Component<P> = FunctionComponent<P> | ClassType<P, ClassicComponent<P, ComponentState>, ClassicComponentClass<P>> | ComponentClass<P>
-
-interface ReactToSolidProps<P> {
-  type: Component<P>
-  props?: P
+interface ReactToSolidProps {
+  children: ReactElement
+  container?: Element
 }
 
-function ReactToSolid<P extends {}> (props: ReactToSolidProps<P>) {
+const ReactToSolid: Component<ReactToSolidProps> = (props) => {
   let root: Root
-  let rootEle: HTMLDivElement | undefined
+  const rootEle = props.container ?? (<div role={'ReactToSolid' as any} /> as Element)
   createEffect(() => {
-    root = createRoot(rootEle!)
-    root.render(React.createElement<P>(
-      props.type,
-      props.props
-    ))
+    root = createRoot(rootEle)
+    root.render(props.children)
   })
   onCleanup(() => {
     root.unmount()
   })
-  return <div ref={rootEle} role={'ReactToSolid' as any} />
+  return rootEle
 }
 
-export function reactToSolid<P extends {}> (type: Component<P>, props?: P) {
-  return <ReactToSolid type={type} props={props} />
+export function reactToSolid (children: ReactElement, container?: Element) {
+  return <ReactToSolid children={children} container={container} />
 }
 
 export default ReactToSolid

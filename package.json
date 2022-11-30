@@ -18,6 +18,8 @@
     "@mdx-js/rollup": "^2.1.5",
     "@types/mdx": "^2.0.3",
     "@types/node": "^18.11.9",
+    "@types/react": "^18.0.25",
+    "@types/react-dom": "^18.0.9",
     "@typescript-eslint/eslint-plugin": "^5.0.0",
     "@unocss/preset-mini": "^0.45.13",
     "@unocss/reset": "^0.46.5",
@@ -29,6 +31,8 @@
     "eslint-plugin-promise": "^6.0.0",
     "husky": "^8.0.2",
     "lint-staged": "^13.0.3",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
     "solid-jsx": "^0.9.1",
     "typescript": "*",
     "vite": "^3.0.9",
@@ -38,7 +42,7 @@
   "dependencies": {
     "antd": "^5.0.0",
     "mapo.js": "workspace:^0.0.0",
-    "react-to-solid-component": "workspace:^0.0.1",
+    "react-to-solid-component": "workspace:^0.0.3",
     "solid-js": "^1.6.2"
   },
   "lint-staged": {
