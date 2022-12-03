@@ -1,7 +1,6 @@
 import * as THREE from 'three'
 import { degToRad, radToDeg } from 'three/src/math/MathUtils'
 import { getQuadraticEquationRes } from './math'
-import mercatorTile2equirectangularTileWorkerUrl from './mercatorTile2equirectangularTileWorker'
 import equirectangularTile from './equirectangularTile'
 import { XYZ } from '../types'
 import mercatorTile from './mercatorTile'
@@ -106,18 +105,15 @@ export const vector3ToLngLat = (v3: THREE.Vector3) => {
   }
 }
 
-// https://api.mapbox.com/raster/v1/mapbox.mapbox-terrain-dem-v1/9/511/511.webp?sku=101Tt60mCQMaF&access_token=pk.eyJ1IjoiZGluZ2xlaTIwMjEiLCJhIjoiY2wxbHh1aW54MDl6NDNrcGcwODNtaXNtbSJ9.6G649bdbNApupw2unoY0Yg
 export function getSatelliteUrl (x: number, y: number, z: number) {
   return `https://api.mapbox.com/v4/mapbox.satellite/${z}/${x}/${y}@2x.webp?sku=1015N1AhJztkE&access_token=pk.eyJ1IjoiZGluZ2xlaTIwMjEiLCJhIjoiY2wxbHh1aW54MDl6NDNrcGcwODNtaXNtbSJ9.6G649bdbNApupw2unoY0Yg`
 }
 
-/**
- * 创建包含 equirectangular 投影图片的 canvas
- * @param xyz
- * @param tileSize
- * @returns
- */
-export async function createEquirectangularCanvas (xyz: XYZ, tileSize = 512) {
+export function getTerrainUrl (x: number, y: number, z: number) {
+  return `https://api.mapbox.com/raster/v1/mapbox.mapbox-terrain-dem-v1/${z}/${x}/${y}.webp?sku=101Tt60mCQMaF&access_token=pk.eyJ1IjoiZGluZ2xlaTIwMjEiLCJhIjoiY2wxbHh1aW54MDl6NDNrcGcwODNtaXNtbSJ9.6G649bdbNApupw2unoY0Yg`
+}
+
+export function equirectangularXyzToMercatorXyz (xyz: XYZ) {
   const [x, y, z] = xyz
   const [w, n, _e, s] = equirectangularTile.tileToBBOX(xyz)
   const mercatorBbox = mercatorTile.tileToBBOX(xyz)
@@ -130,45 +126,10 @@ export async function createEquirectangularCanvas (xyz: XYZ, tileSize = 512) {
     y2 = mercatorTile.pointToTile(w, n, z)[1]
   }
 
-  return await Promise.all(
-    range(y1, y2 + 1).map(async (_y) => {
-      return await new Promise<HTMLImageElement>((resolve) => {
-        new THREE.ImageLoader().load(getSatelliteUrl(x, _y, z), resolve)
-      })
-    })
-  ).then(
-    async (imgs) =>
-      await new Promise<HTMLCanvasElement>((resolve) => {
-        const canvas = document.createElement('canvas')
-        canvas.width = tileSize
-        canvas.height = tileSize * imgs.length
+  return range(y1, y2 + 1).map(_y => [x, _y, z])
+}
 
-        const ctx = canvas.getContext('2d')
-        if (ctx === null) return
-
-        imgs.forEach((img, i) => {
-          ctx.drawImage(img, 0, i * tileSize, img.width, img.height)
-        })
-
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
-
-        const worker = new Worker(mercatorTile2equirectangularTileWorkerUrl)
-        // 主线程监听worker线程返回的数据
-        worker.addEventListener('message', function (e) {
-          canvas.width = tileSize * 2
-          canvas.height = tileSize
-          ctx.putImageData(new ImageData(e.data, canvas.width, canvas.height), 0, 0)
-
-          resolve(canvas)
-          worker.terminate() // 使用完后需关闭 Worker
-        })
-
-        worker.postMessage({
-          imageData,
-          tileSize,
-          xyz,
-          mercatorYRange: [y1, y2]
-        })
-      })
-  )
+// https://docs.mapbox.com/data/tilesets/guides/access-elevation-data/
+export function colorToHeight (color: number[]) {
+  return -10000 + ((color[0] * 256 * 256 + color[1] * 256 + color[2]) * 0.1)
 }

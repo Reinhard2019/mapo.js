@@ -5,13 +5,14 @@ import { degToRad } from 'three/src/math/MathUtils'
 import {
   getDisplayCentralAngle,
   getZoom,
-  createEquirectangularCanvas,
-  vector3ToLngLat
+  vector3ToLngLat,
+  getSatelliteUrl
 } from './utils/map'
 import { MapOptions, XYZ } from './types'
-import equirectangularTile from './utils/equirectangularTile'
 import { inflate, multiply } from './utils/array'
 import MapOrbitControls from './MapOrbitControls'
+import mercatorTile from './utils/mercatorTile'
+import mercatorTile2equirectangularTileWorkerUrl from './utils/mercatorTile2equirectangularTileWorker'
 
 // 地球半径 6371km
 const earthRadius = 6371
@@ -45,7 +46,7 @@ class Mapo {
       earthRadius * near,
       earthRadius * 10
     )
-    camera.position.set(earthRadius * 3, 0, 0)
+    camera.position.set(0, 0, earthRadius * 3)
     camera.lookAt(0, 0, 0)
 
     const stats = Stats()
@@ -54,7 +55,7 @@ class Mapo {
     this.scene.background = new THREE.Color(0x020924)
     this.scene.fog = new THREE.Fog(0x020924, 200, 1000)
 
-    this.scene.add(this.createMesh([0, 0, 0]))
+    this.scene.add(this.createMesh([0, 0, 0], true))
 
     // const geom = new THREE.BufferGeometry();
     // const positions = [];
@@ -179,6 +180,31 @@ class Mapo {
       const zoom = getZoom(controls.getDistance(), earthRadius, fov)
       const z = round(zoom)
       const lngLat = vector3ToLngLat(camera.position)
+
+      // const rotate = 0
+      // const pan = 0
+      location.hash = `${floor(zoom, 2)}/${floor(lngLat.lng, 3)}/${floor(
+        lngLat.lat,
+        3
+      )}`
+
+      // 移除 z 更大的 group
+      this.scene.children.forEach((object) => {
+        if (object instanceof THREE.Group && z < Number(object.name)) {
+          object.children.forEach(child => {
+            if (child instanceof THREE.Mesh) {
+              const _child = child as THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial | THREE.MeshBasicMaterial[]>
+              _child.geometry.dispose()
+              inflate(_child.material).forEach(material => {
+                material.map?.dispose()
+                material.dispose()
+              })
+            }
+          })
+          this.scene.remove(object)
+        }
+      })
+
       const centralAngle = getDisplayCentralAngle(
         controls.getDistance(),
         earthRadius,
@@ -206,33 +232,8 @@ class Mapo {
             return 0
         }
       })
-
-      // const rotate = 0
-      // const pan = 0
-      location.hash = `${floor(zoom, 2)}/${floor(lngLat.lng, 3)}/${floor(
-        lngLat.lat,
-        3
-      )}`
-      const [x1, y1] = equirectangularTile.pointToTile(bbox[0], bbox[1], z)
-      const [x2, y2] = equirectangularTile.pointToTile(bbox[2], bbox[3], z)
-
-      // 移除 z 更大的 group
-      this.scene.children.forEach((object) => {
-        if (object instanceof THREE.Group && z < Number(object.name)) {
-          object.children.forEach(child => {
-            if (child instanceof THREE.Mesh) {
-              const _child = child as THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial | THREE.MeshBasicMaterial[]>
-              _child.geometry.dispose()
-              inflate(_child.material).forEach(material => {
-                material.dispose()
-                material.map?.dispose()
-              })
-            }
-          })
-          this.scene.remove(object)
-        }
-      })
-
+      const [x1, y1] = mercatorTile.pointToTile(bbox[0], bbox[1], z)
+      const [x2, y2] = mercatorTile.pointToTile(bbox[2], bbox[3], z)
       multiply(range(x1, x2 + 1), range(y2, y1 + 1)).forEach(([x, y]) => {
         const xyz: XYZ = [x, y, z]
         let group = this.scene.children.find(
@@ -264,35 +265,66 @@ class Mapo {
     return controls
   }
 
-  createMesh (xyz: XYZ) {
+  createMesh (xyz: XYZ, baseMap?: boolean) {
+    const { tileSize } = this
     const mesh = new THREE.Mesh()
-    // mesh.rotateY(degToRad(-90))
+    mesh.userData.cancel = () => {}
 
-    void createEquirectangularCanvas(xyz, this.tileSize).then((canvas) => {
+    const updateMap = (canvas: HTMLCanvasElement) => {
       const [x, y, z] = xyz
-      // console.log(xyz)
 
       // 某一行或某一列的瓦片数量
       const tileCount = Math.pow(2, z)
       const lngGap = 360 / tileCount
-      const latGap = lngGap / 2
+      const n = 90 - mercatorTile.yToLat(y, z)
+      const s = 90 - mercatorTile.yToLat(y + 1, z)
       const geometry = new THREE.SphereGeometry(
         earthRadius,
         (2 * Math.pow(2, 10)) / tileCount,
         Math.pow(2, 10) / tileCount,
-        degToRad(lngGap * x),
+        degToRad(-90 + lngGap * x),
         degToRad(lngGap),
-        degToRad(latGap * y),
-        degToRad(latGap)
+        degToRad(n),
+        degToRad(s - n)
       )
 
       const material = new THREE.MeshBasicMaterial({
         fog: false,
-        map: new THREE.CanvasTexture(canvas)
+        map: new THREE.CanvasTexture(canvas),
+        depthWrite: !baseMap,
       })
 
       mesh.geometry = geometry
       mesh.material = material
+    }
+
+    new THREE.ImageLoader().load(getSatelliteUrl(...xyz), (img) => {
+      const canvas = document.createElement('canvas')
+      canvas.width = tileSize
+      canvas.height = tileSize
+
+      const ctx = canvas.getContext('2d')
+      if (ctx === null) return
+
+      ctx.drawImage(img, 0, 0, img.width, img.height)
+
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+
+      const worker = new Worker(mercatorTile2equirectangularTileWorkerUrl)
+      worker.postMessage({
+        imageData,
+        tileSize,
+        xyz,
+      })
+      // 主线程监听worker线程返回的数据
+      worker.addEventListener('message', function (e) {
+        canvas.width = tileSize * 2
+        canvas.height = tileSize
+        ctx.putImageData(new ImageData(e.data, canvas.width, canvas.height), 0, 0)
+        updateMap(canvas)
+
+        worker.terminate() // 使用完后需关闭 Worker
+      })
     })
     return mesh
   }

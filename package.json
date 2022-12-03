@@ -41,8 +41,8 @@
   },
   "dependencies": {
     "antd": "^5.0.0",
-    "mapo.js": "workspace:^0.0.0",
-    "react-to-solid-component": "workspace:^0.0.3",
+    "mapo.js": "workspace:*",
+    "react-to-solid-component": "workspace:*",
     "solid-js": "^1.6.2"
   },
   "lint-staged": {

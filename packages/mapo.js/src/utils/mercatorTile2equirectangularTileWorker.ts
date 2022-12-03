@@ -3,7 +3,6 @@ function mercatorTile2equirectangularTile (e: {
     imageData: ImageData
     tileSize: number
     xyz: number[]
-    mercatorYRange: number[]
   }
 }) {
   function chunk<T> (arr: ArrayLike<T>, count: number) {
@@ -24,23 +23,17 @@ function mercatorTile2equirectangularTile (e: {
     return (180 / Math.PI) * Math.atan(0.5 * (Math.exp(n) - Math.exp(-n)))
   }
 
-  function equirectangularTile2lat (y: number, tileSize: number) {
-    return 90 - (180 / tileSize) * y
-  }
-
-  const maxLat = (Math.atan(Math.sinh(Math.PI)) * 180) / Math.PI
-
-  const { imageData, tileSize, xyz, mercatorYRange } = e.data
+  const { imageData, tileSize, xyz } = e.data
   const [_x, y, z] = xyz
 
   const pixelList = chunk<number>(imageData.data, 4)
   const linePixelList = chunk(pixelList, tileSize)
   const mercatorLatArr = Array(linePixelList.length)
     .fill(0)
-    .map((_, pointY) => mercatorTile2lat(mercatorYRange[0] + pointY / tileSize, z))
+    .map((_, pointY) => mercatorTile2lat(y + pointY / tileSize, z))
 
-  const n = equirectangularTile2lat(y, Math.pow(2, z))
-  const s = equirectangularTile2lat(y + 1, Math.pow(2, z))
+  const n = mercatorTile2lat(y, z)
+  const s = mercatorTile2lat(y + 1, z)
   const latGap = (n - s) / tileSize
 
   /**
@@ -52,15 +45,12 @@ function mercatorTile2equirectangularTile (e: {
     .map((_, pointY) => {
       const lat = n - pointY * latGap
 
-      if (lat > maxLat) {
-        return linePixelList[0]
-      }
-      if (lat < -maxLat) {
-        return linePixelList[linePixelList.length - 1]
-      }
       const i = mercatorLatArr.findIndex((v) => v < lat)
       if (i === -1) {
         return linePixelList[linePixelList.length - 1]
+      }
+      if (i === 0) {
+        return linePixelList[0]
       }
       return linePixelList[i - 1]
     })
