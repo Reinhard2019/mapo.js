@@ -1,12 +1,12 @@
 import { defineConfig } from 'vite'
-import solidPlugin from 'vite-plugin-solid'
+import solid from 'solid-start/vite'
 import UnocssPlugin from '@unocss/vite'
 import mdx from '@mdx-js/rollup'
 
 export default defineConfig({
   plugins: [
     mdx({ jsxImportSource: 'solid-jsx' }),
-    solidPlugin(),
+    solid(),
     UnocssPlugin({
       // your config or in uno.config.ts
     })
