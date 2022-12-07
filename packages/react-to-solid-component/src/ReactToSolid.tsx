@@ -1,6 +1,6 @@
-import { ReactElement } from 'react'
+import React, { ReactElement, useState } from 'react'
 import { createRoot, Root } from 'react-dom/client'
-import { createEffect, onCleanup, Component } from 'solid-js'
+import { onMount, onCleanup, Component, createEffect, on } from 'solid-js'
 
 interface ReactToSolidProps {
   children: ReactElement
@@ -10,10 +10,25 @@ interface ReactToSolidProps {
 const ReactToSolid: Component<ReactToSolidProps> = (props) => {
   let root: Root
   const rootEle = props.container ?? (<div role={'ReactToSolid' as any} /> as Element)
-  createEffect(() => {
+  let update: () => void
+  const App: React.FunctionComponent = () => {
+    const [_, setState] = useState({})
+    update = () => setState({})
+    return props.children
+  }
+  onMount(() => {
     root = createRoot(rootEle)
-    root.render(props.children)
+    root.render(React.createElement(App))
   })
+  createEffect(
+    on(
+      () => props.children,
+      () => {
+        update?.()
+      },
+      { defer: true }
+    )
+  )
   onCleanup(() => {
     root.unmount()
   })

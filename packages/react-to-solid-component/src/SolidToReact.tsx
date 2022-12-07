@@ -10,7 +10,7 @@ interface SolidToReactProps {
 const SolidToReact: FunctionComponent<SolidToReactProps> = ({ children, container }) => {
   const ref = useRef<HTMLDivElement>()
 
-  useEffect(() => render(() => children, ref.current!), [])
+  useEffect(() => render(() => children, ref.current), [])
 
   return container
     ? React.cloneElement(container, {
