@@ -5,6 +5,7 @@ import equirectangularTile from './equirectangularTile'
 import { XYZ } from '../types'
 import mercatorTile from './mercatorTile'
 import { range } from 'lodash-es'
+import mercatorTile2equirectangularTileWorkerUrl from './mercatorTile2equirectangularTileWorker'
 
 /**
  * 获取当前位置的 zoom
@@ -132,4 +133,35 @@ export function equirectangularXyzToMercatorXyz (xyz: XYZ) {
 // https://docs.mapbox.com/data/tilesets/guides/access-elevation-data/
 export function colorToHeight (color: number[]) {
   return -10000 + ((color[0] * 256 * 256 + color[1] * 256 + color[2]) * 0.1)
+}
+
+export async function mercatorUrl2equirectangularCanvas (url: string, xyz: XYZ, tileSize: number) {
+  return await new Promise<HTMLCanvasElement>(resolve => {
+    new THREE.ImageLoader().load(url, img => {
+      const canvas = document.createElement('canvas')
+      canvas.width = tileSize
+      canvas.height = tileSize
+
+      const ctx = canvas.getContext('2d')
+      if (ctx === null) return
+
+      ctx.drawImage(img, 0, 0, img.width, img.height)
+
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+
+      const worker = new Worker(mercatorTile2equirectangularTileWorkerUrl)
+      worker.postMessage({
+        imageData,
+        tileSize,
+        xyz,
+      })
+      // 主线程监听worker线程返回的数据
+      worker.addEventListener('message', function (e) {
+        ctx.putImageData(new ImageData(e.data, canvas.width, canvas.height), 0, 0)
+        resolve(canvas)
+
+        worker.terminate() // 使用完后需关闭 Worker
+      })
+    })
+  })
 }

@@ -1,18 +1,20 @@
-import { floor, range, round } from 'lodash-es'
+import { chunk, floor, range, round } from 'lodash-es'
 import * as THREE from 'three'
 import Stats from 'three/examples/jsm/libs/stats.module'
-import { degToRad } from 'three/src/math/MathUtils'
+import { degToRad, radToDeg } from 'three/src/math/MathUtils'
 import {
   getDisplayCentralAngle,
   getZoom,
   vector3ToLngLat,
-  getSatelliteUrl
+  getSatelliteUrl,
+  getTerrainUrl,
+  mercatorUrl2equirectangularCanvas,
+  colorToHeight
 } from './utils/map'
 import { MapOptions, XYZ } from './types'
 import { inflate, multiply } from './utils/array'
 import MapOrbitControls from './MapOrbitControls'
 import mercatorTile from './utils/mercatorTile'
-import mercatorTile2equirectangularTileWorkerUrl from './utils/mercatorTile2equirectangularTileWorker'
 
 // 地球半径 6371km
 const earthRadius = 6371
@@ -21,9 +23,10 @@ const fov = 60
 class Mapo {
   renderer = new THREE.WebGLRenderer()
   scene = new THREE.Scene()
-  ro = new ResizeObserver(() => {})
   camera = new THREE.PerspectiveCamera()
   tileSize = 512
+
+  private readonly destroyFnList: Array<() => void> = []
 
   constructor (options: MapOptions) {
     const container =
@@ -38,94 +41,33 @@ class Mapo {
     this.renderer.setSize(container.clientWidth, container.clientHeight)
     this.renderer.setPixelRatio(pixelRatio)
     container.appendChild(this.renderer.domElement)
+    this.destroyFnList.push(() => this.renderer.dispose())
 
-    const near = Math.pow(10, -10)
     const camera = new THREE.PerspectiveCamera(
       fov,
       pixelRatio,
-      earthRadius * near,
+      0.1,
       earthRadius * 10
     )
-    camera.position.set(0, 0, earthRadius * 3)
+    camera.position.set(-earthRadius * 2, 0, 0)
     camera.lookAt(0, 0, 0)
 
     const stats = Stats()
     container.appendChild(stats.dom)
 
     this.scene.background = new THREE.Color(0x020924)
-    this.scene.fog = new THREE.Fog(0x020924, 200, 1000)
+    // this.scene.fog = new THREE.Fog(0x020924, 200, 1000)
 
-    this.scene.add(this.createMesh([0, 0, 0], true))
-
-    // const geom = new THREE.BufferGeometry();
-    // const positions = [];
-    // for (let i = 0; i < starCount; i++) {
-    //   const particle = new THREE.Vector3(
-    //     Math.random() * starBgWidth - starBgWidth / 2,
-    //     Math.random() * starBgWidth - starBgWidth / 2,
-    //     Math.random() * starBgWidth - starBgWidth / 2,
-    //   );
-    //   // 距离圆心的距离
-    //   const distance = Math.sqrt(
-    //     Math.pow(particle.x, 2) +
-    //       Math.pow(particle.y, 2) +
-    //       Math.pow(particle.z, 2),
-    //   );
-    //   if (distance > outEarthRadius) {
-    //     positions.push(particle.x, particle.y, particle.z);
-    //   }
-    // }
-    // geom.attributes.position = new THREE.Float32BufferAttribute(positions, 3);
-    // const starsMaterial = new THREE.PointsMaterial({
-    //   color: 0x4d76cf,
-    //   // map: createCanvasTexture(),
-    //   size: 10,
-    //   transparent: true,
-    //   opacity: 1,
-    //   sizeAttenuation: true,
-    //   depthTest: true,
-    //   depthWrite: true,
-    // });
-    // // https://juejin.cn/post/7051410402936094751
-    // starsMaterial.onBeforeCompile = (shader) => {
-    //   shader.fragmentShader = shader.fragmentShader.replace(
-    //     'vec4 diffuseColor = vec4( diffuse, opacity );',
-    //     `
-    //       if (distance(gl_PointCoord, vec2(0.5, 0.5)) > 0.5) discard;
-    //       vec4 diffuseColor = vec4( diffuse, opacity );
-    //     `,
-    //   );
-    // };
-    // const stars = new THREE.Points(geom, starsMaterial);
-    // scene.add(stars);
-
-    // fetch('/countries.geo.json')
-    //   .then((resp) => resp.json())
-    //   .then((data) => {
-    //     const canvas = document.createElement('canvas');
-    //     const height = 5000;
-    //     const width = height * 2;
-    //     canvas.width = width;
-    //     canvas.height = height;
-    //     const ctx = canvas.getContext('2d');
-
-    //     ctx.fillStyle = '#fff';
-    //     ctx.fillRect(0, 0, width, height);
-
-    //     const path = d3.geoPath(
-    //       d3.geoEquirectangular().fitSize([width, height], data),
-    //     );
-    //     data.features.forEach((f) => {
-    //       ctx.stroke(new Path2D(path(f)));
-    //     });
-
-    //     material.map = new THREE.CanvasTexture(canvas);
-    //     material.needsUpdate = true;
-    //   });
+    const mesh = this.createMesh([0, 0, 0], {
+      materialOptions: {
+        depthWrite: false,
+      }
+    })
+    mesh.renderOrder = -1
+    this.scene.add(mesh)
 
     // 镜头控制器
     this.createOrbitControls(camera, this.renderer.domElement)
-    // controls.target = new THREE.Vector3(0, 6371, 0)
 
     // 页面重绘动画
     const tick = () => {
@@ -133,8 +75,8 @@ class Mapo {
       // 更新渲染器
       this.renderer.render(this.scene, camera)
       // 页面重绘时调用自身
-      // TODO dispose
-      window.requestAnimationFrame(tick)
+      const id = window.requestAnimationFrame(tick)
+      this.destroyFnList.push(() => window.cancelAnimationFrame(id))
     }
     tick()
 
@@ -146,8 +88,8 @@ class Mapo {
       camera.updateProjectionMatrix()
     })
     ro.observe(container)
+    this.destroyFnList.push(() => ro.disconnect())
 
-    this.ro = ro
     this.camera = camera
 
     this.openAuxiliaryLine()
@@ -173,7 +115,7 @@ class Mapo {
     })
   }
 
-  createOrbitControls (camera: THREE.PerspectiveCamera, domElement?: HTMLElement) {
+  createOrbitControls (camera: THREE.PerspectiveCamera, domElement: HTMLElement) {
     const controls = new MapOrbitControls({ object: camera, domElement, earthRadius })
 
     const changed = () => {
@@ -190,7 +132,7 @@ class Mapo {
 
       // 移除 z 更大的 group
       this.scene.children.forEach((object) => {
-        if (object instanceof THREE.Group && z < Number(object.name)) {
+        if (object instanceof THREE.Group && z !== Number(object.name)) {
           object.children.forEach(child => {
             if (child instanceof THREE.Mesh) {
               const _child = child as THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial | THREE.MeshBasicMaterial[]>
@@ -205,19 +147,26 @@ class Mapo {
         }
       })
 
-      const centralAngle = getDisplayCentralAngle(
+      const centralYAngle = getDisplayCentralAngle(
         controls.getDistance(),
         earthRadius,
         fov
       )
-      const halfCentralAngle = centralAngle / 2
+      const halfCentralYAngle = centralYAngle / 2
+      const fovX = radToDeg(Math.atan(domElement.clientWidth / (domElement.clientHeight / Math.tan(degToRad(fov / 2))))) * 2
+      const centralXAngle = getDisplayCentralAngle(
+        controls.getDistance(),
+        earthRadius,
+        fovX
+      )
+      const halfCentralXAngle = centralXAngle / 2
       // TODO 先加载中间的
       // TODO 宽度比高度更大时加载不全
       const bbox = [
-        lngLat.lng - halfCentralAngle,
-        lngLat.lat - halfCentralAngle,
-        lngLat.lng + halfCentralAngle,
-        lngLat.lat + halfCentralAngle
+        lngLat.lng - halfCentralXAngle,
+        lngLat.lat - halfCentralYAngle,
+        lngLat.lng + halfCentralXAngle,
+        lngLat.lat + halfCentralYAngle
       ].map((v, i) => {
         switch (i) {
           case 0:
@@ -247,7 +196,9 @@ class Mapo {
         if (group.children.some((mesh) => mesh.name === xyz.join())) {
           return
         }
-        const mesh = this.createMesh(xyz)
+        const mesh = this.createMesh(xyz, {
+          // elevation: z > 5
+        })
         mesh.name = xyz.join()
         group.add(mesh)
       })
@@ -259,79 +210,111 @@ class Mapo {
     })
     controls.addEventListener('end', () => {
       changed()
-      console.log('end')
+      console.log('end', this.scene)
     })
     changed()
     return controls
   }
 
-  createMesh (xyz: XYZ, baseMap?: boolean) {
+  createMesh (xyz: XYZ, options?: {
+    elevation?: boolean
+    materialOptions?: THREE.MeshBasicMaterialParameters
+  }) {
+    const { elevation, materialOptions } = options || {}
+    // TODO 底图需要扩展南极和北极部分
     const { tileSize } = this
     const mesh = new THREE.Mesh()
+    // TODO 如果在图片加载前，mesh 被移除，则需要取消加载
     mesh.userData.cancel = () => {}
 
-    const updateMap = (canvas: HTMLCanvasElement) => {
+    let terrainLoaded = false
+    void mercatorUrl2equirectangularCanvas(getSatelliteUrl(...xyz), xyz, tileSize).then((canvas) => {
       const [x, y, z] = xyz
-
-      // 某一行或某一列的瓦片数量
-      const tileCount = Math.pow(2, z)
-      const lngGap = 360 / tileCount
-      const n = 90 - mercatorTile.yToLat(y, z)
-      const s = 90 - mercatorTile.yToLat(y + 1, z)
-      const geometry = new THREE.SphereGeometry(
-        earthRadius,
-        (2 * Math.pow(2, 10)) / tileCount,
-        Math.pow(2, 10) / tileCount,
-        degToRad(-90 + lngGap * x),
-        degToRad(lngGap),
-        degToRad(n),
-        degToRad(s - n)
-      )
 
       const material = new THREE.MeshBasicMaterial({
         fog: false,
         map: new THREE.CanvasTexture(canvas),
-        depthWrite: !baseMap,
+        ...materialOptions
       })
-
-      mesh.geometry = geometry
       mesh.material = material
+
+      if (!terrainLoaded) {
+        // 某一行或某一列的瓦片数量
+        const z2 = Math.pow(2, z)
+        const lngGap = 360 / z2
+        const n = 90 - mercatorTile.yToLat(y, z)
+        const s = 90 - mercatorTile.yToLat(y + 1, z)
+        const geometry = new THREE.SphereGeometry(
+          earthRadius,
+          (2 * Math.pow(2, 10)) / z2,
+          Math.pow(2, 10) / z2,
+          degToRad(-90 + lngGap * x),
+          degToRad(lngGap),
+          degToRad(n),
+          degToRad(s - n)
+        )
+
+        mesh.geometry = geometry
+      }
+    })
+
+    if (elevation) {
+      void mercatorUrl2equirectangularCanvas(getTerrainUrl(...xyz), xyz, tileSize).then(canvas => {
+        terrainLoaded = true
+
+        const ctx = canvas.getContext('2d')
+        if (!ctx) return
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+        const pixelList = chunk<number>(imageData.data, 4)
+        const pixelLineList = chunk(pixelList, tileSize)
+        const lngGap = 360 / tileSize
+        const latGap = mercatorTile.maxLat * 2 / tileSize
+
+        const geometry = new THREE.BufferGeometry()
+        const vertices = Array(tileSize + 1).fill(0).flatMap((_, y) => {
+          return Array(tileSize + 1).fill(0).flatMap((_, x) => {
+            const lng = lngGap * x - 180
+            const lat = mercatorTile.maxLat - latGap * y
+            const elevation = pixelLineList[y]?.[x] ? colorToHeight(pixelLineList[y][x]) : 0
+            // 单位: km
+            const elevationKm = elevation / 1000
+            const vector3 = new THREE.Vector3().setFromSpherical(new THREE.Spherical(earthRadius + elevationKm, degToRad(90 - lat), degToRad(lng)))
+            return [vector3.x, vector3.y, vector3.z]
+          })
+        })
+        geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(vertices), 3))
+        const uv = Array((tileSize + 1)).fill(0).flatMap((_, yIndex) => {
+          return Array((tileSize + 1)).fill(0).flatMap((_, xIndex) => {
+            return [xIndex / (tileSize), 1 - yIndex / (tileSize)]
+          })
+        })
+        geometry.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(uv), 2))
+        const index = Array(tileSize).fill(0).flatMap((_, y) => {
+          const nextY = y + 1
+          return Array(tileSize).fill(0).flatMap((_, x) => {
+            const nextX = x + 1
+            const p1 = y * (tileSize + 1) + x
+            const p2 = y * (tileSize + 1) + nextX
+            const p3 = nextY * (tileSize + 1) + x
+            const p4 = nextY * (tileSize + 1) + nextX
+            const face1 = [p1, p3, p2]
+            const face2 = [p2, p3, p4]
+            return [
+              ...face1,
+              ...face2
+            ]
+          })
+        })
+        geometry.setIndex(index)
+        mesh.geometry = geometry
+      })
     }
 
-    new THREE.ImageLoader().load(getSatelliteUrl(...xyz), (img) => {
-      const canvas = document.createElement('canvas')
-      canvas.width = tileSize
-      canvas.height = tileSize
-
-      const ctx = canvas.getContext('2d')
-      if (ctx === null) return
-
-      ctx.drawImage(img, 0, 0, img.width, img.height)
-
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
-
-      const worker = new Worker(mercatorTile2equirectangularTileWorkerUrl)
-      worker.postMessage({
-        imageData,
-        tileSize,
-        xyz,
-      })
-      // 主线程监听worker线程返回的数据
-      worker.addEventListener('message', function (e) {
-        canvas.width = tileSize * 2
-        canvas.height = tileSize
-        ctx.putImageData(new ImageData(e.data, canvas.width, canvas.height), 0, 0)
-        updateMap(canvas)
-
-        worker.terminate() // 使用完后需关闭 Worker
-      })
-    })
     return mesh
   }
 
   destroy () {
-    this.ro.disconnect()
-    this.renderer.dispose()
+    this.destroyFnList.forEach(fn => fn())
   }
 }
 

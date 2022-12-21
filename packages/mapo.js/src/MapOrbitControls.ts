@@ -1,10 +1,11 @@
 import { debounce } from 'lodash-es'
 import * as THREE from 'three'
 import { degToRad } from 'three/src/math/MathUtils'
-import { closestInRange } from './utils/number'
+import { getZoom } from './utils/map'
+import { clamp } from './utils/number'
 
 class MapOrbitControls extends THREE.EventDispatcher {
-  object: THREE.Object3D
+  object: THREE.PerspectiveCamera
   domElement: HTMLElement = document.body
   earthRadius = 6371
 
@@ -14,7 +15,7 @@ class MapOrbitControls extends THREE.EventDispatcher {
   pitch = 0
   // enablePitch = true
 
-  minDistance = this.earthRadius * (1 + Math.pow(10, -5))
+  minDistance = this.earthRadius + 0.2
   maxDistance = this.earthRadius * 4
 
   private readonly destroyFnList: Array<() => void> = []
@@ -22,7 +23,7 @@ class MapOrbitControls extends THREE.EventDispatcher {
     this.dispatchEvent({ type: 'end' })
   }, 250)
 
-  constructor (options: { object: THREE.Object3D, domElement?: HTMLElement, earthRadius?: number }) {
+  constructor (options: { object: THREE.PerspectiveCamera, domElement?: HTMLElement, earthRadius?: number }) {
     super()
 
     const { object, domElement, earthRadius } = options
@@ -43,6 +44,10 @@ class MapOrbitControls extends THREE.EventDispatcher {
       this.domElement.addEventListener(type, fn)
       this.destroyFnList.push(() => this.domElement.removeEventListener(type, fn))
     })
+  }
+
+  getZoom () {
+    return getZoom(this.getDistance(), this.earthRadius, this.object.fov)
   }
 
   getDistance () {
@@ -68,7 +73,7 @@ class MapOrbitControls extends THREE.EventDispatcher {
       } else {
         // TODO pitch 处理有 bearing 的情况
         const movementDeg = e.movementY / domElement.clientHeight * 180
-        this.pitch = closestInRange(this.pitch + movementDeg, [0, 85])
+        this.pitch = clamp(0, this.pitch + movementDeg, 85)
         const negativePosition = this.object.position.clone()
         negativePosition.x = -negativePosition.x
         negativePosition.y = -negativePosition.y
@@ -110,10 +115,11 @@ class MapOrbitControls extends THREE.EventDispatcher {
     e.preventDefault()
 
     const spherical = new THREE.Spherical().setFromVector3(this.object.position)
+    const movement = 1000 / Math.pow(2, this.getZoom())
     if (e.deltaY > 0) {
-      spherical.radius = Math.min(spherical.radius + 100, this.maxDistance)
+      spherical.radius = Math.min(spherical.radius + movement, this.maxDistance)
     } else {
-      spherical.radius = Math.max(spherical.radius - 100, this.minDistance)
+      spherical.radius = Math.max(spherical.radius - movement, this.minDistance)
     }
     const vector3 = new THREE.Vector3().setFromSpherical(spherical)
     this.object.position.x = vector3.x

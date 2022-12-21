@@ -27,8 +27,8 @@ function mercatorTile2equirectangularTile (e: {
   const [_x, y, z] = xyz
 
   const pixelList = chunk<number>(imageData.data, 4)
-  const linePixelList = chunk(pixelList, tileSize)
-  const mercatorLatArr = Array(linePixelList.length)
+  const pixelLineList = chunk(pixelList, tileSize)
+  const mercatorLatArr = Array(pixelLineList.length)
     .fill(0)
     .map((_, pointY) => mercatorTile2lat(y + pointY / tileSize, z))
 
@@ -47,14 +47,13 @@ function mercatorTile2equirectangularTile (e: {
 
       const i = mercatorLatArr.findIndex((v) => v < lat)
       if (i === -1) {
-        return linePixelList[linePixelList.length - 1]
+        return pixelLineList[pixelLineList.length - 1]
       }
       if (i === 0) {
-        return linePixelList[0]
+        return pixelLineList[0]
       }
-      return linePixelList[i - 1]
+      return pixelLineList[i - 1]
     })
-    .map((value) => value.flatMap((v) => [v, v]))
 
   self.postMessage(
     new Uint8ClampedArray(equirectangularLinePixelList.flat().flat().flat())
