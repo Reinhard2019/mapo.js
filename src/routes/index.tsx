@@ -17,18 +17,31 @@ const App: Component = () => {
       })
       map.addLayer(textLayer)
       const lineLayer = new LineLayer({
-        source: {
-          type: 'Feature',
-          properties: {},
-          geometry: {
-            type: 'LineString',
-            coordinates: [
-              [0, -90],
-              [90, 90],
-              [180, -90],
-            ]
-          }
-        }
+        source: [
+          {
+            type: 'Feature',
+            properties: {},
+            geometry: {
+              type: 'LineString',
+              coordinates: [
+                [0, -90],
+                [90, 90],
+                [180, -90],
+              ]
+            }
+          },
+          {
+            type: 'Feature',
+            properties: {},
+            geometry: {
+              type: 'LineString',
+              coordinates: [
+                [80, 0],
+                [100, 40],
+              ]
+            }
+          },
+        ]
       })
       map.addLayer(lineLayer)
     }
