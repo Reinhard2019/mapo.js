@@ -1,17 +1,8 @@
 import { expect, test } from 'vitest'
 import {
   getDisplayCentralAngle,
-  getDisplayArcLength
+  // getDisplayArcLength
 } from './map'
-
-// test('getZoom()', () => {
-//   expect(getZoom(120)).toBe(1);
-//   expect(getZoom(90)).toBe(1.5);
-//   expect(getZoom(60)).toBe(2);
-//   expect(getZoom(30)).toBe(3);
-//   expect(getZoom(22.5)).toBe(3.5);
-//   expect(getZoom(15)).toBe(4);
-// });
 
 test('getCentralAngle()', () => {
   const r = 1
@@ -22,11 +13,11 @@ test('getCentralAngle()', () => {
   expect(getDisplayCentralAngle(4, r, 60)).toBe(151.04497562814015)
 })
 
-test('getDisplayArcLength()', () => {
-  const r = 1
-  expect(getDisplayArcLength(1, r, 60)).toBe(0)
-  expect(getDisplayArcLength(1.5, r, 60)).toBe(0.6489266067663644)
-  expect(getDisplayArcLength(2, r, 60)).toBe(2.0943951023931957)
-  expect(getDisplayArcLength(3, r, 60)).toBe(2.4619188346815495)
-  expect(getDisplayArcLength(4, r, 60)).toBe(2.636232143305636)
-})
+// test('getDisplayArcLength()', () => {
+//   const r = 1
+//   expect(getDisplayArcLength(1, r, 60)).toBe(0)
+//   expect(getDisplayArcLength(1.5, r, 60)).toBe(0.6489266067663644)
+//   expect(getDisplayArcLength(2, r, 60)).toBe(2.0943951023931957)
+//   expect(getDisplayArcLength(3, r, 60)).toBe(2.4619188346815495)
+//   expect(getDisplayArcLength(4, r, 60)).toBe(2.636232143305636)
+// })

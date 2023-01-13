@@ -1,6 +1,39 @@
 /**
- * 把一个值限制在一个上限和下限之间
+ * 获取小数部分
+ * @param num
+ * @returns
  */
-export function clamp (min: number, num: number, max: number) {
-  return Math.min(Math.max(num, min), max)
+export function decimalFraction (num: number) {
+  return num - Math.trunc(num)
+}
+
+/**
+ * !!! 会用于 Web Worker
+ * @param number
+ * @param precision
+ * @returns
+ */
+export function round (number: number, precision: number) {
+  precision = precision == null ? 0 : (precision >= 0 ? Math.min(precision, 292) : Math.max(precision, -292))
+  if (precision) {
+    // Shift with exponential notation to avoid floating-point issues.
+    // See [MDN](https://mdn.io/round#Examples) for more details.
+    let pair = `${number}e`.split('e')
+    const value = Math.round(`${pair[0]}e${+pair[1] + precision}` as any)
+
+    pair = `${value}e`.split('e')
+    return +`${pair[0]}e${+pair[1] - precision}`
+  }
+  return Math.round(number)
+}
+
+/**
+ * !!! 会用于 Web Worker
+ * @param number
+ * @param lower
+ * @param upper
+ * @returns
+ */
+export function clamp (number: number, lower: number, upper: number) {
+  return Math.min(Math.max(number, lower), upper)
 }
