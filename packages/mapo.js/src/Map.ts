@@ -55,6 +55,40 @@ class Map {
       lngLat: options.center
     })
 
+    // 创建背景
+    // TODO 性能优化
+    new THREE.ImageBitmapLoader().load('./images/01-earth-splash-stars-ltr.webp', imageBitmap => {
+      const canvas = new OffscreenCanvas(imageBitmap.width * 2, imageBitmap.height * 2)
+      const ctx = canvas.getContext('2d') as OffscreenCanvasRenderingContext2D
+      ctx.save()
+      ctx.translate(0, imageBitmap.height)
+      ctx.drawImage(imageBitmap, 0, 0)
+      ctx.restore()
+      ctx.save()
+      ctx.translate(imageBitmap.width * 2, imageBitmap.height)
+      ctx.scale(-1, 1)
+      ctx.drawImage(imageBitmap, 0, 0)
+      ctx.restore()
+      ctx.save()
+      ctx.translate(0, imageBitmap.height)
+      ctx.scale(1, -1)
+      ctx.drawImage(imageBitmap, 0, 0)
+      ctx.restore()
+      ctx.save()
+      ctx.translate(imageBitmap.width * 2, imageBitmap.height)
+      ctx.scale(-1, -1)
+      ctx.drawImage(imageBitmap, 0, 0)
+      ctx.restore()
+
+      const backgroundGeometry = new THREE.SphereGeometry(earthRadius * 1000, 512 * 2, 512)
+      const backgroundMaterial = new THREE.MeshBasicMaterial({
+        map: new THREE.CanvasTexture(canvas),
+        side: THREE.BackSide,
+      })
+      const background = new THREE.Mesh(backgroundGeometry, backgroundMaterial)
+      this.scene.add(background)
+    })
+
     const bbox = this.getBBox()
     const mapGeometry = new THREE.SphereGeometry(
       earthRadius,
@@ -68,8 +102,8 @@ class Map {
     const mapMaterial = new THREE.MeshBasicMaterial({
       map: this.createCanvasTexture(bbox),
     })
-    const map = new THREE.Mesh(mapGeometry, mapMaterial)
-    this.scene.add(map)
+    const earth = new THREE.Mesh(mapGeometry, mapMaterial)
+    this.scene.add(earth)
 
     // this.layerManager.canvas.style.width = '100%'
     // container.insertBefore(this.layerManager.canvas, container.childNodes[0])

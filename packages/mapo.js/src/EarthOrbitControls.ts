@@ -47,7 +47,7 @@ class EarthOrbitControls extends THREE.EventDispatcher {
       this.fov,
       pixelRatio,
       0.1,
-      this.earthRadius * 10
+      this.earthRadius * 10000
     )
     const position = lngLatToVector3(lngLat, distance)
     camera.position.set(position.x, position.y, position.z)
