@@ -3,11 +3,13 @@ import * as THREE from 'three'
 import { degToRad, radToDeg } from 'three/src/math/MathUtils'
 import { BBox, LngLat } from './types'
 import { getDisplayCentralAngle, lngLatToVector3, sphericalToLngLat } from './utils/map'
+import { getQuadraticEquationRes } from './utils/math'
 
 export interface EarthOrbitControlsOptions {
   domElement?: HTMLElement
   earthRadius: number
   lngLat?: LngLat
+  zoom?: number
 }
 
 class EarthOrbitControls extends THREE.EventDispatcher {
@@ -18,7 +20,8 @@ class EarthOrbitControls extends THREE.EventDispatcher {
 
   tileSize = 512
   lngLat: LngLat = [0, 0]
-  private distance = 0
+  private _distance = 0
+  private _zoom = 0
 
   bearing = 0
   pitch = 0
@@ -38,7 +41,7 @@ class EarthOrbitControls extends THREE.EventDispatcher {
     if (options.domElement) this.domElement = options.domElement
     if (options.lngLat) this.lngLat = options.lngLat
     this.earthRadius = options.earthRadius
-    this.distance = this.earthRadius * 3
+    this.zoom = options.zoom ?? 2
 
     const { domElement, distance, lngLat } = this
 
@@ -66,19 +69,64 @@ class EarthOrbitControls extends THREE.EventDispatcher {
     })
   }
 
-  get zoom () {
-    // TODO
-    const [w, , e] = this.bbox
-    const lngGap = e - w
-    const arcLength = degToRad(lngGap) * this.earthRadius
-    // 弧长渲染成 2d 后的直线长度
-    const arcLength2d = Math.sin(degToRad(lngGap / 2)) * 2 * this.earthRadius
-    const width = this.domElement.clientWidth * (arcLength / arcLength2d)
-    // 每 1 度对应的像素点
-    const ratio = width / lngGap
-    const zoom = Math.log2(ratio * 360 / this.tileSize)
-    console.log(lngGap, arcLength, arcLength2d, this.domElement.clientWidth, width, zoom)
+  private zoom2distance (zoom: number) {
+    const { earthRadius, fov, tileSize, domElement } = this
+    const pxLat = 360 / (Math.pow(2, zoom) * tileSize)
+    const pxLength = Math.sin(degToRad(pxLat)) * earthRadius
+    const chordLength = pxLength * domElement.clientHeight
+    // 摄像头到弦心的距离
+    const distanceFromTheCameraToTheChord = chordLength / 2 / Math.tan(degToRad(fov / 2))
+
+    // x^{2} + distanceFromTheCameraToTheChord * x - earthRadius^{2}
+    const a = 1
+    const b = distanceFromTheCameraToTheChord
+    const c = -Math.pow(earthRadius, 2)
+    // 弦心到圆心的距离
+    const distanceFromTheChordToTheCentre = Math.max(...getQuadraticEquationRes(a, b, c))
+    const distance = distanceFromTheCameraToTheChord + distanceFromTheChordToTheCentre
+    return distance
+  }
+
+  private distance2zoom (distance: number) {
+    const { earthRadius, fov, tileSize, domElement } = this
+    const centralAngle = getDisplayCentralAngle(
+      distance,
+      earthRadius,
+      fov
+    )
+    // 弦心到圆心的距离
+    const distanceFromTheChordToTheCentre = Math.cos(degToRad(centralAngle / 2)) * earthRadius
+    // 摄像头到弦心的距离
+    const distanceFromTheCameraToTheChord = distance - distanceFromTheChordToTheCentre
+    /**
+     * 弦长
+     * ![avatar](./assets/extendChordLength.svg)
+     */
+    const chordLength = Math.tan(degToRad(fov / 2)) * distanceFromTheCameraToTheChord * 2
+    // 每 1 个像素对应的弦长
+    const pxLength = chordLength / domElement.clientHeight
+    // 每 1 个像素对应的最小纬度
+    const pxLat = radToDeg(Math.asin(pxLength / earthRadius))
+    const zoom = Math.log2(360 / pxLat / tileSize)
     return zoom
+  }
+
+  get distance () {
+    return this._distance
+  }
+
+  private set distance (value: number) {
+    this._distance = value
+    this._zoom = this.distance2zoom(value)
+  }
+
+  get zoom () {
+    return this._zoom
+  }
+
+  set zoom (value: number) {
+    this._zoom = value
+    this._distance = this.zoom2distance(value)
   }
 
   get z () {
@@ -100,7 +148,7 @@ class EarthOrbitControls extends THREE.EventDispatcher {
       fovX
     )
     const halfCentralXAngle = centralXAngle / 2
-    // TODO 宽度比高度更大时加载不全
+    // TODO 四个角加载不全
     return [lngLat[0] - halfCentralXAngle, lngLat[1] - halfCentralYAngle, lngLat[0] + halfCentralXAngle, lngLat[1] + halfCentralYAngle]
   }
 

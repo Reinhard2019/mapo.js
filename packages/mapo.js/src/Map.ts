@@ -52,7 +52,8 @@ class Map {
     this.createEarthOrbitControls({
       domElement: this.renderer.domElement,
       earthRadius,
-      lngLat: options.center
+      lngLat: options.center,
+      zoom: options.zoom,
     })
 
     // 创建背景

@@ -36,13 +36,23 @@ import { LngLat } from '../types'
 // }
 
 /**
- * 获取刚好与球体相切的视角
+ * 获取当前距离上刚好与球体相切的视角
  * @param distance 镜头离圆心的距离
  * @param r 半径
  * @returns
  */
 export function getTangentFov (distance: number, r: number) {
   return radToDeg(Math.asin(r / distance)) * 2
+}
+
+/**
+ * 获取当前距离上刚好与视角相切的圆的半径
+ * @param distance 镜头离圆心的距离
+ * @param fov 视角
+ * @returns
+ */
+export function getTangentRadius (distance: number, fov: number) {
+  return Math.sin(degToRad(fov / 2)) * distance
 }
 
 /**
@@ -73,8 +83,12 @@ export function getDisplayCentralAngle (
     return 180 - tangentFov
   }
 
+  /**
+   * ![avatar](../assets/getDisplayCentralAngle.svg)
+   * r^{2} - (distance - x)^{2} = (x / \cos halfFov )^{2}  - x^{2}
+   */
   const halfFov = fov / 2
-  const a = 1 + Math.pow(Math.tan(degToRad(halfFov)), 2)
+  const a = 1 / Math.pow(Math.cos(degToRad(halfFov)), 2)
   const b = -2 * distance
   const c = Math.pow(distance, 2) - Math.pow(r, 2)
 
