@@ -221,6 +221,7 @@ class Map {
     })
 
     const texture = new THREE.CanvasTexture(layerManager.canvas)
+    texture.minFilter = THREE.NearestFilter
     const update = () => {
       texture.needsUpdate = true
     }
