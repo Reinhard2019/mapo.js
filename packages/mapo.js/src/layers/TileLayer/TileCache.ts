@@ -1,7 +1,9 @@
 import { XYZ } from '../../types'
 
+type TileValue = ImageBitmap | Promise<ImageBitmap>
+
 class TileCache {
-  data: Record<string, ImageBitmap | Promise<ImageBitmap>> = {}
+  data: Record<string, TileValue> = {}
 
   private getKey (xyz: XYZ) {
     return xyz.join('.')
@@ -15,7 +17,7 @@ class TileCache {
     return this.data[this.getKey(xyz)]
   }
 
-  set (xyz: XYZ, value: ImageBitmap | Promise<ImageBitmap>) {
+  set (xyz: XYZ, value: TileValue) {
     this.data[this.getKey(xyz)] = value
   }
 

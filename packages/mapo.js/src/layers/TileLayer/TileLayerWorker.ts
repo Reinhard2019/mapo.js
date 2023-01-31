@@ -2,63 +2,12 @@ import { uniq } from 'lodash-es'
 import EquirectangularTile from '../../tiles/EquirectangularTile'
 import MercatorTile from '../../tiles/MercatorTile'
 import { BBox, XYZ } from '../../types'
-import { range } from '../../utils'
-import { keyBy, last } from '../../utils/array'
+import { isNil, range } from '../../utils'
+import { keyBy, last, multiplyArray } from '../../utils/array'
 import { degToRad } from '../../utils/math'
+import { inRange } from '../../utils/number'
 import { mercatorY2equirectangularY } from '../../utils/tile'
 import TileLoader from './TileLoader'
-
-function getTileXYList (tileYObjList: Array<{
-  y: number
-  tileXList: number[]
-}>) {
-  if (!tileYObjList.length) {
-    return []
-  }
-
-  const tileXYList: number[][] = []
-
-  const tileXListLen = tileYObjList[0].tileXList.length
-  // 按照是否靠近中间排序
-  const halfXLen = tileXListLen / 2
-  let startXIndex = Number.isInteger(halfXLen) ? halfXLen - 1 : Math.floor(halfXLen)
-  let endXIndex = Number.isInteger(halfXLen) ? halfXLen : Math.floor(halfXLen)
-  const halfYLen = tileYObjList.length / 2
-  let startYIndex = Number.isInteger(halfYLen) ? halfYLen - 1 : Math.floor(halfYLen)
-  let endYIndex = Number.isInteger(halfYLen) ? halfYLen : Math.floor(halfYLen)
-  while (true) {
-    const xIndexList = range(startXIndex, endXIndex + 1)
-    const yIndexList = startYIndex === endYIndex ? [] : range(startYIndex + 1, endYIndex)
-    tileXYList.push(
-      ...xIndexList.map(xIndex => {
-        const tileY = tileYObjList[startYIndex]
-        return [tileY.tileXList[xIndex], tileY.y]
-      }),
-      ...yIndexList.flatMap(yIndex => {
-        const tileY = tileYObjList[yIndex]
-        return [[tileY.tileXList[startXIndex], tileY.y], [tileY.tileXList[endXIndex], tileY.y]]
-      }),
-      ...startYIndex === endYIndex
-        ? []
-        : xIndexList.map(xIndex => {
-          const tileY = tileYObjList[endYIndex]
-          return [tileY.tileXList[xIndex], tileY.y]
-        }),
-    )
-
-    if (startXIndex === 0 && endXIndex === tileXListLen - 1 && startYIndex === 0 && endYIndex === tileYObjList.length - 1) {
-      break
-    }
-
-    startXIndex = Math.max(startXIndex - 1, 0)
-    endXIndex = Math.min(endXIndex + 1, tileXListLen - 1)
-
-    startYIndex = Math.max(startYIndex - 1, 0)
-    endYIndex = Math.min(endYIndex + 1, tileYObjList.length - 1)
-  }
-
-  return tileXYList
-}
 
 interface BaseMessageEventData {
   tileSize: number
@@ -67,6 +16,7 @@ interface UpdateMessageEventData extends BaseMessageEventData {
   type: 'update'
   canvas: OffscreenCanvas
   bbox: BBox
+  displayBBox: BBox
   z: number
 }
 interface LoadTileMessageEventData extends BaseMessageEventData {
@@ -96,25 +46,81 @@ function getCache () {
 function update (event: MessageEvent<UpdateMessageEventData>) {
   const cache = getCache()
   const updateId = cache.updateId = Symbol('')
-  const { canvas, bbox, z, tileSize } = event.data
+  const { canvas, bbox, displayBBox, z, tileSize } = event.data
   const ctx = canvas.getContext('2d') as OffscreenCanvasRenderingContext2D
 
-  const [w, s, e, n] = bbox
   const z2 = Math.pow(2, z)
-  const startPixelX = Math.round(EquirectangularTile.lngToX(w, z) * tileSize)
-  const startPixelY = Math.round(EquirectangularTile.latToY(n, z) * tileSize)
+  // tileX 有可能小于 0 或者大于等于 z2，需要对其进行格式化
+  const getFormattedTileX = (tileX: number) => tileX < 0 ? z2 + tileX : tileX % z2
+  const displayTileIndexLevelDict = (function () {
+    const [w, s, e, n] = displayBBox
+    let bboxList: BBox[] = [displayBBox]
+    // 如果纬度大于 90 或者小于 -90，把 bbox 拆分为两个来 render
+    if (n > 90) {
+      bboxList = [
+        [w + 180, 180 - n, e + 180, 90],
+        [w, s, e, 90],
+      ]
+    } else if (s < -90) {
+      bboxList = [
+        [w, -90, e, n],
+        [w + 180, -90, e + 180, 90 + s]
+      ]
+    }
+    return bboxList.flatMap(_bbox => {
+      const tileIndexBox = MercatorTile.bboxToTileIndexBox(_bbox, z)
+      const xList = range(tileIndexBox.startX, tileIndexBox.endX).map(x => getFormattedTileX(x))
+      const yList = range(tileIndexBox.startY, tileIndexBox.endY)
+      return yList.map(y => ({
+        y,
+        xList,
+      }))
+    }).reduce<Record<string, number>>((result, yObj, yIndex, arr) => {
+      const yListLen = arr.length
+      yObj.xList.forEach((x, xIndex) => {
+        const xListLen = yObj.xList.length
+
+        let xLevel = 0
+        const halfXLen = xListLen / 2
+        if (Number.isInteger(halfXLen)) {
+          xLevel = xIndex > halfXLen ? xIndex - halfXLen : halfXLen - 1 - xIndex
+        } else {
+          xLevel = Math.abs(xIndex - Math.floor(halfXLen))
+        }
+
+        let yLevel = 0
+        const halfYLen = yListLen / 2
+        if (Number.isInteger(halfYLen)) {
+          yLevel = yIndex > halfYLen ? yIndex - halfYLen : halfYLen - 1 - yIndex
+        } else {
+          yLevel = Math.abs(yIndex - Math.floor(halfYLen))
+        }
+
+        /**
+         * 加载优先级，越靠近中心优先级越高，level 数字越小
+         */
+        const level = Math.max(xLevel, yLevel)
+        const xy = [x, yObj.y]
+        const key = xy.toString()
+        result[key] = level
+      })
+      return result
+    }, {})
+  })()
+  const [w, s, e, n] = bbox
+  const startEquirectangularPixelX = Math.round(EquirectangularTile.lngToX(w, z) * tileSize)
+  const startEquirectangularPixelY = Math.round(EquirectangularTile.latToY(n, z) * tileSize)
   /**
    * 起始纬度 90 在 canvas 中的 y 值
    */
-  const startLatCanvasY = -startPixelY
+  const startLatCanvasY = -startEquirectangularPixelY
   /**
    * 结束纬度 -90 在 canvas 中的 y 值
    */
-  const endLatCanvasY = z2 * tileSize - startPixelY
+  const endLatCanvasY = z2 * tileSize - startEquirectangularPixelY
 
   canvas.width = (e - w) / 360 * z2 * tileSize
   canvas.height = (n - s) / 180 * z2 * tileSize
-  console.log('canvas', canvas.width, canvas.height, n, s, bbox)
 
   const updateImageBitmap = () => {
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
@@ -127,29 +133,27 @@ function update (event: MessageEvent<UpdateMessageEventData>) {
   }
   const getDrawObj = (_bbox: BBox, reverse?: boolean, gt90?: boolean) => {
     const tileIndexBox = MercatorTile.bboxToTileIndexBox(_bbox, z)
-    console.log(tileIndexBox, _bbox, z)
 
     const tileXList = range(tileIndexBox.startX, tileIndexBox.endX)
     const tileYList = range(tileIndexBox.startY, tileIndexBox.endY)
-    const equirectangularPixelXList = [...tileXList, tileIndexBox.endX].map(x => (reverse ? x - z2 / 2 : x) * tileSize - startPixelX)
-    const equirectangularPixelYList = [...tileYList, tileIndexBox.endY].map(y => {
-      return Math.round(mercatorY2equirectangularY(y, z) * tileSize) - startPixelY
-    })
+    const getTileCanvasX = (tileX) => (reverse ? tileX - z2 / 2 : tileX) * tileSize - startEquirectangularPixelX
+    const getTileCanvasY = (tileY) => Math.round(mercatorY2equirectangularY(tileY, z) * tileSize) - startEquirectangularPixelY
+    const reverseTranslateX = (getTileCanvasX(tileIndexBox.startX) + getTileCanvasX(tileIndexBox.endX)) / 2
 
     function drawImage (imageBitmap: ImageBitmap, tileX: number, tileY: number)
     function drawImage (imageBitmap: ImageBitmap, tileX: number, tileY: number, sx: number, sy: number, sw: number, sh: number)
     function drawImage (imageBitmap: ImageBitmap, tileX: number, tileY: number, sx?: number, sy?: number, sw?: number, sh?: number) {
-      const _dx = equirectangularPixelXList[tileX - tileIndexBox.startX]
-      const nextDx = equirectangularPixelXList[tileX - tileIndexBox.startX + 1]
-      const _dy = equirectangularPixelYList[tileY - tileIndexBox.startY]
-      const nextDy = equirectangularPixelYList[tileY - tileIndexBox.startY + 1]
+      const _dx = getTileCanvasX(tileX)
+      const nextDx = getTileCanvasX(tileX + 1)
+      const _dy = getTileCanvasY(tileY)
+      const nextDy = getTileCanvasY(tileY + 1)
       const dw = nextDx - _dx
       const dh = nextDy - _dy
       let translateX = 0
       let translateY = 0
       if (reverse) {
         ctx.save()
-        translateX = (last(equirectangularPixelXList) - equirectangularPixelXList[0]) / 2
+        translateX = reverseTranslateX
         translateY = gt90 ? startLatCanvasY : endLatCanvasY
         ctx.translate(translateX, translateY)
         ctx.rotate(degToRad(180))
@@ -217,34 +221,57 @@ function update (event: MessageEvent<UpdateMessageEventData>) {
       tileYObjList.reverse()
     }
     return {
+      xyList: multiplyArray(tileXList, tileYList, true),
       tileYObjList,
       draw: (x: number, y: number) => {
         const formattedX = x < 0 ? z2 + x : x % z2
 
-        const value = cache.tileLoader.loadTile([formattedX, y, z], tileSize)
-        if (value instanceof ImageBitmap) {
-          drawImage(value, x, y)
-        } else {
-          drawPreviewImage(x, y, formattedX)
-          void value.then((imageBitmap) => {
-            // 防止短时间内多次调用 update 函数，由于异步加载导致渲染错误
-            if (updateId === cache.updateId) {
-              drawImage(imageBitmap, x, y)
-              updateImageBitmap()
-            }
-          })
+        let tile = cache.tileLoader.getCacheTile([formattedX, y, z])
+        if (tile instanceof ImageBitmap) {
+          drawImage(tile, x, y)
+          return
         }
+
+        drawPreviewImage(x, y, formattedX)
+
+        if (isNil(tile)) {
+          const key = [formattedX, y].toString()
+          if (isNil(displayTileIndexLevelDict[key])) {
+            return
+          }
+          tile = cache.tileLoader.loadTile([formattedX, y, z], tileSize)
+        }
+
+        void tile.then((imageBitmap) => {
+          // 防止短时间内多次调用 update 函数，由于异步加载导致渲染错误
+          if (updateId === cache.updateId) {
+            drawImage(imageBitmap, x, y)
+            updateImageBitmap()
+          }
+        })
       }
     }
   }
   const render = (arr: Array<ReturnType<typeof getDrawObj>>) => {
-    const tileYDictList = arr.map(value => keyBy(value.tileYObjList, v => v.y))
-    getTileXYList(arr.flatMap(v => v.tileYObjList)).forEach(([x, y]) => {
-      for (let i = 0; i < tileYDictList.length; i++) {
-        if (tileYDictList[i][y]) {
-          arr[i].draw(x, y)
-        }
+    arr.flatMap(v => v.xyList.map(xy => ({
+      xy,
+      draw: v.draw
+    }))).sort((v1, v2) => {
+      // 根据加载优先级来排序
+      const key1 = v1.xy.toString()
+      const level1 = displayTileIndexLevelDict[key1]
+
+      const key2 = v2.xy.toString()
+      const level2 = displayTileIndexLevelDict[key2]
+      if (isNil(level2)) {
+        return -1
       }
+      if (isNil(level1)) {
+        return 1
+      }
+      return level1 - level2
+    }).forEach(({ xy, draw }) => {
+      draw(...xy)
     })
   }
 
@@ -299,8 +326,10 @@ const scripts = uniq([
   EquirectangularTile,
   ...MercatorTile.workerScripts,
   ...TileLoader.workerScripts,
-  getTileXYList,
   update,
+  inRange,
+  multiplyArray,
+  isNil,
 ])
 const blob = new Blob([
   ...scripts.map(v => v.toString()).join('\n\n'),

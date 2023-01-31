@@ -8,6 +8,12 @@ test('multiply()', () => {
     [2, 3],
     [2, 4]
   ])
+  expect(multiplyArray([1, 2], [3, 4], true)).toStrictEqual([
+    [1, 3],
+    [2, 3],
+    [1, 4],
+    [2, 4]
+  ])
 })
 
 test('sortByAverage()', () => {

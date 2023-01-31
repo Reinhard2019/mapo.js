@@ -23,7 +23,7 @@ class TileLoader {
   async loadTile (xyz: XYZ, tileSize: number) {
     const [_, y, z] = xyz
 
-    const item = this.cache.get(xyz)
+    const item = this.getCacheTile(xyz)
     if (item) {
       return await item
     }

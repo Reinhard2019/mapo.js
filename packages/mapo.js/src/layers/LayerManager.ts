@@ -7,6 +7,10 @@ class LayerManager extends EventDispatcher {
   private readonly ctx: CanvasRenderingContext2D
   private readonly layers: Layer[] = []
   bbox: BBox = [-180, -90, 180, 90]
+  /**
+   * 当前实际显示区域的 BBox，只会比 bbox 更小
+   */
+  displayBBox: BBox = [-180, -90, 180, 90]
   z = 0
 
   constructor () {

@@ -212,6 +212,7 @@ class Map {
     this.disposeFuncList.push(() => layerManager.dispose())
 
     layerManager.bbox = bbox
+    layerManager.displayBBox = earthOrbitControls.bbox
     layerManager.z = earthOrbitControls.z
 
     const tileLayer = new TileLayer(tileSize)

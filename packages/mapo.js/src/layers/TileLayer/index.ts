@@ -28,13 +28,14 @@ class TileLayer extends Layer {
   // TODO bbox 为 [-180, -90, 180, 90] 时，按瓦片离当前摄像机所处的经纬度的远近来加载图片，越近越优先加载
   update () {
     const { tileSize, canvas } = this
-    const { bbox, z } = this.layerManager
+    const { bbox, z, displayBBox } = this.layerManager
     this.worker.postMessage({
       type: 'update',
       canvas,
       tileSize,
       z,
-      bbox
+      bbox,
+      displayBBox
     }, [canvas])
   }
 

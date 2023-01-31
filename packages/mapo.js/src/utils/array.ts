@@ -3,15 +3,24 @@ import { ID } from '../types'
 
 /**
  * eg. multiplyArray([1, 2], [3, 4]) = [[1, 3], [1, 4], [2, 3], [2, 4]]
- * @param arr1
- * @param arr2
+ * @param xArray
+ * @param yArray
+ * @param row 是否按行来排列
  * @returns
  */
-export function multiplyArray<T1, T2> (arr1: T1[], arr2: T2[]) {
+export function multiplyArray<T1, T2> (xArray: T1[], yArray: T2[], row?: boolean) {
   const arr: Array<[T1, T2]> = []
-  for (const v1 of arr1) {
-    for (const v2 of arr2) {
-      arr.push([v1, v2])
+  if (row) {
+    for (const y of yArray) {
+      for (const x of xArray) {
+        arr.push([x, y])
+      }
+    }
+  } else {
+    for (const x of xArray) {
+      for (const y of yArray) {
+        arr.push([x, y])
+      }
     }
   }
   return arr

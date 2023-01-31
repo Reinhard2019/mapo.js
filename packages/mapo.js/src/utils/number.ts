@@ -37,3 +37,13 @@ export function round (number: number, precision: number) {
 export function clamp (number: number, lower: number, upper: number) {
   return Math.min(Math.max(number, lower), upper)
 }
+
+/**
+ * !!! 会用于 Web Worker
+ * @param number
+ * @param start
+ * @param end
+ */
+export function inRange (number: number, start: number, end: number) {
+  return number >= start && number < end
+}
