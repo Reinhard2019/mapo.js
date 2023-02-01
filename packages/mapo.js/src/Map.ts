@@ -160,7 +160,7 @@ class Map {
     const [w, n, e, s] = this.earthOrbitControls.bbox
     const scale = 3
     const lngGap = e - w
-    const latGap = n - s
+    const latGap = s - n
     const max = Math.max(lngGap, latGap)
 
     if (max * scale >= 180) {
