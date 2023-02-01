@@ -3,6 +3,10 @@ export interface MapOptions {
   center?: LngLat
   zoom?: number
   hash?: boolean
+  /**
+   * 是否开启帧数监视器
+   */
+  fps?: boolean
 }
 
 export interface Size {

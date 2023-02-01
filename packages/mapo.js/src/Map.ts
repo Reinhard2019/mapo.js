@@ -41,8 +41,12 @@ class Map {
 
     const { earthRadius } = this
 
-    const stats = Stats()
-    container.appendChild(stats.dom)
+    let stats: Stats | undefined
+    if (options.fps) {
+      stats = Stats()
+      stats.dom.style.position = 'absolute'
+      container.appendChild(stats.dom)
+    }
 
     this.scene.background = new THREE.Color(0x020924)
     // this.scene.fog = new THREE.Fog(0x020924, 200, 1000)
@@ -111,7 +115,7 @@ class Map {
 
     // 页面重绘动画
     const tick = () => {
-      stats.update()
+      stats?.update()
       // 更新渲染器
       this.renderer.render(this.scene, this.earthOrbitControls.camera)
       // 页面重绘时调用自身
