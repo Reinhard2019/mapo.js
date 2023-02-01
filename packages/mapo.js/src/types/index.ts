@@ -2,6 +2,7 @@ export interface MapOptions {
   container: string | HTMLElement
   center?: LngLat
   zoom?: number
+  hash?: boolean
 }
 
 export interface Size {

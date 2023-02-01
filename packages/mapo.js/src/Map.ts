@@ -1,4 +1,3 @@
-import { floor } from 'lodash-es'
 import * as THREE from 'three'
 import Stats from 'three/examples/jsm/libs/stats.module'
 import { BBox, MapOptions } from './types'
@@ -54,6 +53,7 @@ class Map {
       earthRadius,
       lngLat: options.center,
       zoom: options.zoom,
+      hash: options.hash
     })
 
     // 创建背景
@@ -175,14 +175,7 @@ class Map {
   createEarthOrbitControls (options: EarthOrbitControlsOptions) {
     const controls = new EarthOrbitControls(options)
 
-    const change = () => {
-      const { zoom, lngLat } = controls
-
-      location.hash = `${floor(zoom, 2)}/${floor(lngLat[0], 3)}/${floor(
-        lngLat[1],
-        3
-      )}`
-    }
+    const change = () => {}
     controls.addEventListener('move', change)
     controls.addEventListener('end', () => {
       // changed()

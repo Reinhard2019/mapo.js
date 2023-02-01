@@ -1,4 +1,4 @@
-import { clamp, debounce } from 'lodash-es'
+import { clamp, debounce, floor } from 'lodash-es'
 import * as THREE from 'three'
 import { degToRad, radToDeg } from 'three/src/math/MathUtils'
 import { BBox, LngLat } from './types'
@@ -10,6 +10,7 @@ export interface EarthOrbitControlsOptions {
   earthRadius: number
   lngLat?: LngLat
   zoom?: number
+  hash?: boolean
 }
 
 class EarthOrbitControls extends THREE.EventDispatcher {
@@ -17,6 +18,7 @@ class EarthOrbitControls extends THREE.EventDispatcher {
   domElement: HTMLElement = document.body
   private readonly earthRadius: number = 6371
   private readonly fov = 60
+  private readonly hash: boolean
 
   tileSize = 512
   lngLat: LngLat = [0, 0]
@@ -42,6 +44,7 @@ class EarthOrbitControls extends THREE.EventDispatcher {
     if (options.lngLat) this.lngLat = options.lngLat
     this.earthRadius = options.earthRadius
     this.zoom = options.zoom ?? 2
+    this.hash = options.hash ?? false
 
     const { domElement, distance, lngLat } = this
 
@@ -56,6 +59,8 @@ class EarthOrbitControls extends THREE.EventDispatcher {
     camera.position.set(position.x, position.y, position.z)
     camera.lookAt(0, 0, 0)
     this.camera = camera
+
+    this.updateHash()
 
     const eventListenerList: Array<[keyof HTMLElementEventMap, EventListener]> = [
       ['mousemove', this.onMousemove.bind(this)],
@@ -152,6 +157,16 @@ class EarthOrbitControls extends THREE.EventDispatcher {
     return [lngLat[0] - halfCentralXAngle, lngLat[1] - halfCentralYAngle, lngLat[0] + halfCentralXAngle, lngLat[1] + halfCentralYAngle]
   }
 
+  private updateHash () {
+    const { zoom, lngLat, hash } = this
+    if (hash) {
+      location.hash = `${floor(zoom, 2)}/${floor(lngLat[0], 3)}/${floor(
+        lngLat[1],
+        3
+        )}`
+    }
+  }
+
   private onMousemove (e: MouseEvent) {
     e.preventDefault()
 
@@ -201,6 +216,7 @@ class EarthOrbitControls extends THREE.EventDispatcher {
       this.lngLat = sphericalToLngLat(spherical)
 
       this.dispatchEvent({ type: 'move' })
+      this.updateHash()
     }
   }
 
@@ -227,6 +243,7 @@ class EarthOrbitControls extends THREE.EventDispatcher {
     this.distance = spherical.radius
 
     this.dispatchEvent({ type: 'zoom' })
+    this.updateHash()
     this.onEnd()
   }
 
