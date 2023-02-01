@@ -1,6 +1,5 @@
 import * as THREE from 'three'
-import { degToRad, radToDeg } from 'three/src/math/MathUtils'
-import { getQuadraticEquationRes } from './math'
+import { degToRad, getQuadraticEquationRes, radToDeg } from './math'
 import { LngLat } from '../types'
 
 /**

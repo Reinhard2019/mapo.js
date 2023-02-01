@@ -1,9 +1,8 @@
 import { clamp, debounce, floor } from 'lodash-es'
 import * as THREE from 'three'
-import { degToRad, radToDeg } from 'three/src/math/MathUtils'
 import { BBox, LngLat } from './types'
 import { getDisplayCentralAngle, lngLatToVector3, sphericalToLngLat } from './utils/map'
-import { getQuadraticEquationRes } from './utils/math'
+import { degToRad, radToDeg, getQuadraticEquationRes } from './utils/math'
 
 export interface EarthOrbitControlsOptions {
   domElement?: HTMLElement

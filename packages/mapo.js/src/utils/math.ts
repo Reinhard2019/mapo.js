@@ -14,3 +14,12 @@ export function getQuadraticEquationRes (a: number, b: number, c: number) {
 export function degToRad (degrees: number) {
   return degrees / 180 * Math.PI
 }
+
+/**
+ * 弧度转角度
+ * !!! 会用于 Web Worker
+ * @param degrees
+ */
+export function radToDeg (radian: number) {
+  return radian / Math.PI * 180
+}
