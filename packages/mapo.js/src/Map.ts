@@ -6,6 +6,7 @@ import Layer from './layers/Layer'
 import LayerManager from './layers/LayerManager'
 import TileLayer from './layers/TileLayer'
 import { degToRad } from './utils/math'
+import { throttle } from 'lodash-es'
 
 class Map {
   tileSize = 512
@@ -179,17 +180,18 @@ class Map {
   createEarthOrbitControls (options: EarthOrbitControlsOptions) {
     const controls = new EarthOrbitControls(options)
 
-    const change = () => {}
-    controls.addEventListener('move', change)
+    const onMove = throttle(() => {
+      this.layerManager.displayBBox = controls.bbox
+      this.layerManager.update()
+    }, 500)
+    controls.addEventListener('move', onMove)
     controls.addEventListener('end', () => {
       // changed()
     })
     controls.addEventListener('zoom', () => {
-      change()
       // const bbox = this.getBBox()
       // this.updateCanvasSize(bbox)
     })
-    change()
     this.earthOrbitControls = controls
     return controls
   }

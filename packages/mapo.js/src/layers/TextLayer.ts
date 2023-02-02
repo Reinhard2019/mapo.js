@@ -11,16 +11,16 @@ class TextLayer extends Layer {
   }) {
     super()
     this.source = params.source
-    this.ctx = this.canvas.getContext('2d')
+    this.ctx = this.canvas.getContext('2d')!
   }
 
-  update () {
+  refresh () {
     const { canvas, ctx, layerManager, source } = this
-    const { bbox } = layerManager
+    const { bbox } = layerManager!
     const [w, , e, n] = bbox
 
-    canvas.width = layerManager.canvas.width
-    canvas.height = layerManager.canvas.height
+    canvas.width = layerManager!.canvas.width
+    canvas.height = layerManager!.canvas.height
     const width = canvas.width / ((e - w) / 360)
     const projection = geoEquirectangular()
       .translate([0, 0])
@@ -34,17 +34,17 @@ class TextLayer extends Layer {
     ctx.textBaseline = 'middle'
     source.forEach(feature => {
       const point = projection(feature.geometry.coordinates as [number, number])
-      const [_x, _y] = point
+      const [_x, _y] = point!
       const x = Math.round(_x)
       const y = Math.round(_y)
-      const text = feature.properties.name
+      const text = feature.properties?.name
       const textMetrics = ctx.measureText(text)
       const left = x - textMetrics.width / 2
       const right = x + textMetrics.width / 2
       const top = y + fontSize / 2
       const bottom = y - fontSize / 2
       if (top >= 0 && left >= 0 && bottom <= canvas.height && right <= canvas.width) {
-        ctx.fillText(text, point[0], point[1])
+        ctx.fillText(text, point![0], point![1])
       }
     })
 

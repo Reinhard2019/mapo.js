@@ -16,10 +16,10 @@ class LayerManager extends EventDispatcher {
   constructor () {
     super()
     const { canvas } = this
-    this.ctx = canvas.getContext('2d')
+    this.ctx = canvas.getContext('2d')!
   }
 
-  update () {
+  private updateCanvas () {
     const { ctx, canvas } = this
     this.layers.sort((v1, v2) => v1.zIndex - v2.zIndex).forEach(layer => {
       layer.imageBitmap && ctx.drawImage(layer.imageBitmap, 0, 0, canvas.width, canvas.height)
@@ -27,13 +27,25 @@ class LayerManager extends EventDispatcher {
     this.dispatchEvent({ type: 'update' })
   }
 
+  refresh () {
+    this.layers.forEach(layer => {
+      layer.refresh()
+    })
+  }
+
+  update () {
+    this.layers.forEach(layer => {
+      layer.update()
+    })
+  }
+
   addLayer (layer: Layer) {
-    const update = this.update.bind(this)
+    const update = this.updateCanvas.bind(this)
     layer.addEventListener('update', update)
     layer.disposeFuncList.push(() => layer.removeEventListener('update', update))
 
     layer.layerManager = this
-    layer.update()
+    layer.refresh()
     this.layers.push(layer)
   }
 

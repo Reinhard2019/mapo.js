@@ -14,7 +14,12 @@ interface BaseMessageEventData {
 }
 interface UpdateMessageEventData extends BaseMessageEventData {
   type: 'update'
-  canvas: OffscreenCanvas
+  bbox: BBox
+  displayBBox: BBox
+  z: number
+}
+interface RefreshMessageEventData extends BaseMessageEventData {
+  type: 'refresh'
   bbox: BBox
   displayBBox: BBox
   z: number
@@ -23,8 +28,11 @@ interface LoadTileMessageEventData extends BaseMessageEventData {
   type: 'loadTile'
   xyz: XYZ
 }
-type MessageEventData = UpdateMessageEventData | LoadTileMessageEventData
+type MessageEventData = RefreshMessageEventData | UpdateMessageEventData | LoadTileMessageEventData
 
+function isRefreshType (e: MessageEvent<MessageEventData>): e is MessageEvent<RefreshMessageEventData> {
+  return e.data.type === 'refresh'
+}
 function isUpdateType (e: MessageEvent<MessageEventData>): e is MessageEvent<UpdateMessageEventData> {
   return e.data.type === 'update'
 }
@@ -36,17 +44,24 @@ function getCache () {
   const extendSelf = self as unknown as {
     tileLoader: TileLoader
     updateId?: Symbol
+    canvas: OffscreenCanvas
   }
   if (!extendSelf.tileLoader) {
     extendSelf.tileLoader = new TileLoader()
   }
+  if (!extendSelf.canvas) {
+    extendSelf.canvas = new OffscreenCanvas(0, 0)
+  }
   return extendSelf
 }
 
-function update (event: MessageEvent<UpdateMessageEventData>) {
+function refresh (event: MessageEvent<RefreshMessageEventData | UpdateMessageEventData>) {
+  const { bbox, displayBBox, z, tileSize, type } = event.data
   const cache = getCache()
-  const updateId = cache.updateId = Symbol('')
-  const { canvas, bbox, displayBBox, z, tileSize } = event.data
+  if (type === 'refresh') {
+    cache.updateId = Symbol('')
+  }
+  const { canvas, updateId } = cache
   const ctx = canvas.getContext('2d') as OffscreenCanvasRenderingContext2D
 
   const z2 = Math.pow(2, z)
@@ -162,7 +177,7 @@ function update (event: MessageEvent<UpdateMessageEventData>) {
       const dy = _dy - translateY
       ctx.clearRect(dx, dy, dw, dh)
       if (typeof sw === 'number') {
-        ctx.drawImage(imageBitmap, sx, sy, sw, sh, dx, dy, dw, dh)
+        ctx.drawImage(imageBitmap, sx!, sy!, sw, sh!, dx, dy, dw, dh)
       } else {
         ctx.drawImage(imageBitmap, dx, dy, dw, dh)
       }
@@ -224,15 +239,20 @@ function update (event: MessageEvent<UpdateMessageEventData>) {
       xyList: multiplyArray(tileXList, tileYList, true),
       tileYObjList,
       draw: (x: number, y: number) => {
-        const formattedX = x < 0 ? z2 + x : x % z2
+        const formattedX = getFormattedTileX(x)
 
         let tile = cache.tileLoader.getCacheTile([formattedX, y, z])
+
         if (tile instanceof ImageBitmap) {
-          drawImage(tile, x, y)
+          if (type === 'refresh') {
+            drawImage(tile, x, y)
+          }
           return
         }
 
-        drawPreviewImage(x, y, formattedX)
+        if (type === 'refresh') {
+          drawPreviewImage(x, y, formattedX)
+        }
 
         if (isNil(tile)) {
           const key = [formattedX, y].toString()
@@ -296,8 +316,10 @@ function update (event: MessageEvent<UpdateMessageEventData>) {
 }
 
 function onmessage (event: MessageEvent<MessageEventData>) {
-  if (isUpdateType(event)) {
-    update(event)
+  if (isRefreshType(event)) {
+    refresh(event)
+  } else if (isUpdateType(event)) {
+    refresh(event)
   } else if (isLoadTileType(event)) {
     void getCache().tileLoader.loadTile(event.data.xyz, event.data.tileSize).then(imageBitmap => {
       postMessage({
@@ -316,6 +338,7 @@ function onmessage (event: MessageEvent<MessageEventData>) {
 
 const scripts = uniq([
   getCache,
+  isRefreshType,
   isUpdateType,
   isLoadTileType,
   range,
@@ -326,7 +349,7 @@ const scripts = uniq([
   EquirectangularTile,
   ...MercatorTile.workerScripts,
   ...TileLoader.workerScripts,
-  update,
+  refresh,
   inRange,
   multiplyArray,
   isNil,

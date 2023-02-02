@@ -10,6 +10,7 @@ const div = ref()
 let map
 
 onMounted(() => {
+  console.log('onMounted')
   map = new Map({
     container: div.value,
     center: [116.405285, 39.904989],

@@ -14,16 +14,16 @@ class LineLayer extends Layer {
   }) {
     super()
     this.source = params.source
-    this.ctx = this.canvas.getContext('2d')
+    this.ctx = this.canvas.getContext('2d')!
   }
 
-  update () {
+  refresh () {
     const { canvas, ctx, layerManager, source } = this
-    const { bbox } = layerManager
+    const { bbox } = layerManager!
     const [w, , e, n] = bbox
 
-    canvas.width = layerManager.canvas.width
-    canvas.height = layerManager.canvas.height
+    canvas.width = layerManager!.canvas.width
+    canvas.height = layerManager!.canvas.height
     const width = canvas.width / ((e - w) / 360)
     const projection = d3.geoEquirectangular()
       .translate([0, 0])
@@ -35,7 +35,7 @@ class LineLayer extends Layer {
       const coordinates = feature.geometry.coordinates
       coordinates.forEach((position, i) => {
         const point = projection(position as [number, number])
-        const [x, y] = point
+        const [x, y] = point!
         if (i === 0) {
           ctx.moveTo(x, y)
         } else {

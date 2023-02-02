@@ -7,7 +7,9 @@ abstract class Layer extends THREE.EventDispatcher {
   imageBitmap?: ImageBitmap
   zIndex = 0
 
-  abstract update (): void
+  abstract refresh (): void
+
+  update () {}
 
   dispose () {
     this.disposeFuncList.forEach(func => func())
