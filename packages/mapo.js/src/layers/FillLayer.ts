@@ -5,8 +5,8 @@ import Layer from './Layer'
 type Source = GeoJSON.Feature<GeoJSON.Polygon> | Array<GeoJSON.Feature<GeoJSON.Polygon>>
 
 class FillLayer extends Layer {
-  private readonly canvas = document.createElement('canvas')
-  private readonly ctx: CanvasRenderingContext2D
+  private readonly canvas = new OffscreenCanvas(0, 0)
+  private readonly ctx = this.canvas.getContext('2d') as OffscreenCanvasRenderingContext2D
   source: Source
 
   constructor (params: {
@@ -14,7 +14,6 @@ class FillLayer extends Layer {
   }) {
     super()
     this.source = params.source
-    this.ctx = this.canvas.getContext('2d')!
   }
 
   refresh () {
@@ -49,11 +48,8 @@ class FillLayer extends Layer {
     ctx.lineWidth = 10
     ctx.fill()
 
-    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
-    void createImageBitmap(imageData).then(imageBitmap => {
-      this.imageBitmap = imageBitmap
-      this.dispatchEvent({ type: 'update' })
-    })
+    this.imageBitmap = canvas.transferToImageBitmap()
+    this.dispatchEvent({ type: 'update' })
   }
 }
 

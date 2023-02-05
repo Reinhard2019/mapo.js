@@ -2,16 +2,15 @@ import { geoEquirectangular } from 'd3'
 import Layer from './Layer'
 
 class TextLayer extends Layer {
+  private readonly canvas = new OffscreenCanvas(0, 0)
+  private readonly ctx = this.canvas.getContext('2d') as OffscreenCanvasRenderingContext2D
   source: Array<GeoJSON.Feature<GeoJSON.Point>>
-  private readonly canvas = document.createElement('canvas')
-  private readonly ctx: CanvasRenderingContext2D
 
   constructor (params: {
     source: Array<GeoJSON.Feature<GeoJSON.Point>>
   }) {
     super()
     this.source = params.source
-    this.ctx = this.canvas.getContext('2d')!
   }
 
   refresh () {
@@ -48,11 +47,8 @@ class TextLayer extends Layer {
       }
     })
 
-    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
-    void createImageBitmap(imageData).then(imageBitmap => {
-      this.imageBitmap = imageBitmap
-      this.dispatchEvent({ type: 'update' })
-    })
+    this.imageBitmap = canvas.transferToImageBitmap()
+    this.dispatchEvent({ type: 'update' })
   }
 }
 

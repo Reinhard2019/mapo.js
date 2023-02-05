@@ -138,12 +138,9 @@ function refresh (event: MessageEvent<RefreshMessageEventData | UpdateMessageEve
   canvas.height = (n - s) / 180 * z2 * tileSize
 
   const updateImageBitmap = () => {
-    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
-    void createImageBitmap(imageData).then(imageBitmap => {
-      postMessage({
-        type: 'update',
-        imageBitmap,
-      })
+    postMessage({
+      type: 'update',
+      imageBitmap: canvas.transferToImageBitmap(),
     })
   }
   const getDrawObj = (_bbox: BBox, reverse?: boolean, gt90?: boolean) => {
