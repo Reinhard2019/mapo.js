@@ -139,21 +139,30 @@ class EarthOrbitControls extends THREE.EventDispatcher {
 
   get bbox (): BBox {
     const { distance, earthRadius, fov, domElement, lngLat } = this
+    // 垂直方向
     const centralYAngle = getDisplayCentralAngle(
       distance,
       earthRadius,
       fov
     )
     const halfCentralYAngle = centralYAngle / 2
-    const fovX = radToDeg(Math.atan(domElement.clientWidth / (domElement.clientHeight / Math.tan(degToRad(fov / 2))))) * 2
-    const centralXAngle = getDisplayCentralAngle(
-      distance,
-      earthRadius,
-      fovX
-    )
+    const s = lngLat[1] - halfCentralYAngle
+    const n = lngLat[1] + halfCentralYAngle
+    // 水平方向
+    let centralXAngle = 180
+    if (n <= 90 && s >= -90) {
+      const fovX = radToDeg(Math.atan(domElement.clientWidth / (domElement.clientHeight / Math.tan(degToRad(fov / 2))))) * 2
+      centralXAngle = getDisplayCentralAngle(
+        distance,
+        earthRadius,
+        fovX
+      )
+    }
     const halfCentralXAngle = centralXAngle / 2
+    const w = lngLat[0] - halfCentralXAngle
+    const e = lngLat[0] + halfCentralXAngle
     // TODO 四个角加载不全
-    return [lngLat[0] - halfCentralXAngle, lngLat[1] - halfCentralYAngle, lngLat[0] + halfCentralXAngle, lngLat[1] + halfCentralYAngle]
+    return [w, s, e, n]
   }
 
   private updateHash () {
