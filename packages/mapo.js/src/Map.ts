@@ -52,6 +52,8 @@ class Map {
     this.scene.background = new THREE.Color(0x020924)
     // this.scene.fog = new THREE.Fog(0x020924, 200, 1000)
 
+    this.addBackground()
+
     // 镜头控制器
     this.createEarthOrbitControls({
       domElement: this.renderer.domElement,
@@ -59,40 +61,6 @@ class Map {
       lngLat: options.center,
       zoom: options.zoom,
       hash: options.hash
-    })
-
-    // 创建背景
-    // TODO 性能优化
-    new THREE.ImageBitmapLoader().load('./images/01-earth-splash-stars-ltr.webp', imageBitmap => {
-      const canvas = new OffscreenCanvas(imageBitmap.width * 2, imageBitmap.height * 2)
-      const ctx = canvas.getContext('2d') as OffscreenCanvasRenderingContext2D
-      ctx.save()
-      ctx.translate(0, imageBitmap.height)
-      ctx.drawImage(imageBitmap, 0, 0)
-      ctx.restore()
-      ctx.save()
-      ctx.translate(imageBitmap.width * 2, imageBitmap.height)
-      ctx.scale(-1, 1)
-      ctx.drawImage(imageBitmap, 0, 0)
-      ctx.restore()
-      ctx.save()
-      ctx.translate(0, imageBitmap.height)
-      ctx.scale(1, -1)
-      ctx.drawImage(imageBitmap, 0, 0)
-      ctx.restore()
-      ctx.save()
-      ctx.translate(imageBitmap.width * 2, imageBitmap.height)
-      ctx.scale(-1, -1)
-      ctx.drawImage(imageBitmap, 0, 0)
-      ctx.restore()
-
-      const backgroundGeometry = new THREE.SphereGeometry(earthRadius * 1000, 512 * 2, 512)
-      const backgroundMaterial = new THREE.MeshBasicMaterial({
-        map: new THREE.CanvasTexture(canvas),
-        side: THREE.BackSide,
-      })
-      const background = new THREE.Mesh(backgroundGeometry, backgroundMaterial)
-      this.scene.add(background)
     })
 
     const bbox = this.getBBox()
@@ -139,6 +107,44 @@ class Map {
     this.disposeFuncList.push(() => ro.disconnect())
 
     this.openAuxiliaryLine()
+  }
+
+  addBackground () {
+    const { earthRadius } = this
+    // 因为是球体，需要将图片横向和竖向各翻转一次，让图片边界可以正常衔接
+    const reverseRepeat = 2
+    const heightSegments = reverseRepeat * 100
+    const widthSegments = heightSegments
+    const widthPositionCount = widthSegments + 1
+    const heightPositionCount = heightSegments + 1
+
+    const backgroundGeometry = new THREE.SphereGeometry(earthRadius * 1000, widthSegments, heightSegments)
+
+    const uv: number[] = []
+    for (let y = 0; y < heightPositionCount; y++) {
+      for (let x = 0; x < widthPositionCount; x++) {
+        const xUv = (x * reverseRepeat / widthSegments) % reverseRepeat
+        const yUv = (y * reverseRepeat / heightSegments) % reverseRepeat
+        const uvFormat = (value: number) => {
+          if (value > 1) {
+            value = reverseRepeat - value
+          }
+          return value
+        }
+        uv.push(uvFormat(xUv), uvFormat(yUv))
+      }
+    }
+    backgroundGeometry.attributes.uv = new THREE.Float32BufferAttribute(new Float32Array(uv), 2)
+
+    const texture = new THREE.TextureLoader().load('./images/01-earth-splash-stars-ltr.webp')
+    texture.minFilter = THREE.NearestFilter
+    const backgroundMaterial = new THREE.MeshBasicMaterial({
+      map: texture,
+      side: THREE.DoubleSide,
+    })
+
+    const background = new THREE.Mesh(backgroundGeometry, backgroundMaterial)
+    this.scene.add(background)
   }
 
   openAuxiliaryLine () {
