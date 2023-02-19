@@ -11,8 +11,7 @@ test('MercatorTile.pointToTile()', () => {
 })
 
 test('MercatorTile.bboxToTileIndexBox()', () => {
-  const z = 0
-  expect(MercatorTile.bboxToTileIndexBox([-90, -90, 90, 90], z)).toEqual({
+  expect(MercatorTile.bboxToTileIndexBox([-90, -90, 90, 90], 0)).toEqual({
     startX: 0,
     startY: 0,
     endX: 1,

@@ -5,11 +5,10 @@
 import { BBox, TileIndexBox, XYZ } from '../types'
 
 class EquirectangularTile {
-  static pointToTile (lng: number, lat: number, z: number): XYZ {
+  static pointToTile (lng: number, lat: number, z: number): [number, number] {
     return [
       Math.floor(EquirectangularTile.lngToX(lng, z)),
       Math.floor(EquirectangularTile.latToY(lat, z)),
-      z
     ]
   }
 

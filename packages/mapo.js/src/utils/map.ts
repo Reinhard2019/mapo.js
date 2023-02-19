@@ -3,38 +3,6 @@ import { degToRad, getQuadraticEquationRes, radToDeg } from './math'
 import { LngLat } from '../types'
 
 /**
- * 获取当前位置的 zoom
- * @param distance 镜头离圆心的距离
- * @param r 半径
- * @param fov 镜头视角
- * @returns
- */
-// export function getZoom (distance: number, r: number, fov: number) {
-//   let zoom = 1
-//   let criticalValue = 4 * r
-
-//   let arcLength = 0
-//   const tangentFov = getTangentFov(distance, r)
-//   if (fov >= tangentFov) {
-//     const R = Math.sin(degToRad(fov) / 2) * distance
-//     arcLength = degToRad(180 - fov) * R
-//   } else {
-//     arcLength = getDisplayArcLength(distance, r, fov)
-//   }
-
-//   while (arcLength < criticalValue) {
-//     const nextCriticalValue = criticalValue / 2
-//     zoom++
-//     if (arcLength >= nextCriticalValue) {
-//       return zoom -
-//       (arcLength - nextCriticalValue) / (criticalValue - nextCriticalValue)
-//     }
-//     criticalValue = nextCriticalValue
-//   }
-//   return zoom
-// }
-
-/**
  * 获取当前距离上刚好与球体相切的视角
  * @param distance 镜头离圆心的距离
  * @param r 半径
@@ -53,17 +21,6 @@ export function getTangentFov (distance: number, r: number) {
 export function getTangentRadius (distance: number, fov: number) {
   return Math.sin(degToRad(fov / 2)) * distance
 }
-
-/**
- * 获取显示区域圆弧长度
- * @param distance 镜头离圆心的距离
- * @param r 半径
- * @param fov 镜头视角
- * @returns
- */
-// export function getDisplayArcLength (distance: number, r: number, fov: number) {
-//   return degToRad(getDisplayCentralAngle(distance, r, fov)) * r
-// }
 
 /**
  * 获取球体在镜头中可显示区域的圆心角
@@ -99,9 +56,8 @@ export function getDisplayCentralAngle (
 }
 
 export function lngLatToVector3 (lngLat: LngLat, radius: number) {
-  const theta = Math.PI * (lngLat[0] / 180)
-  const phi = Math.PI * (0.5 - lngLat[1] / 180)
-  const spherical = new THREE.Spherical(radius, phi, theta)
+  const [lng, lat] = lngLat
+  const spherical = new THREE.Spherical(radius, degToRad(90 - lat), degToRad(lng))
   return new THREE.Vector3().setFromSpherical(spherical)
 }
 
@@ -123,6 +79,6 @@ export function getTerrainUrl (x: number, y: number, z: number) {
 }
 
 // https://docs.mapbox.com/data/tilesets/guides/access-elevation-data/
-export function colorToHeight (color: number[]) {
+export function rgb2elevation (color: number[]) {
   return -10000 + ((color[0] * 256 * 256 + color[1] * 256 + color[2]) * 0.1)
 }

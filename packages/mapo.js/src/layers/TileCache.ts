@@ -1,4 +1,4 @@
-import { XYZ } from '../../types'
+import { XYZ } from '../types'
 
 type TileValue = ImageBitmap | Promise<ImageBitmap>
 

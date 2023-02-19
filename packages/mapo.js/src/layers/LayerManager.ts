@@ -1,36 +1,48 @@
-import { EventDispatcher } from 'three'
+import { isEmpty } from 'lodash-es'
 import { BBox } from '../types'
-import Layer from './Layer'
+import { fullBBox } from '../utils/bbox'
+import BaseLayer from './BaseLayer'
 
-class LayerManager extends EventDispatcher {
+class LayerManager {
+  // readonly canvas = new OffscreenCanvas(1, 1)
+  // private readonly ctx = this.canvas.getContext('2d') as OffscreenCanvasRenderingContext2D
   readonly canvas = document.createElement('canvas')
-  private readonly ctx: CanvasRenderingContext2D
-  private readonly layers: Layer[] = []
-  bbox: BBox = [-180, -90, 180, 90]
+  private readonly ctx = this.canvas.getContext('2d')!
+  private readonly layers: BaseLayer[] = []
+  bbox: BBox = fullBBox
   /**
    * 当前实际显示区域的 BBox，只会比 bbox 更小
    */
-  displayBBox: BBox = [-180, -90, 180, 90]
+  displayBBox: BBox = fullBBox
   z = 0
+  onUpdate?: () => void
 
-  constructor () {
-    super()
-    const { canvas } = this
-    this.ctx = canvas.getContext('2d')!
+  updateCanvasSize (pxDeg: number) {
+    const { bbox, canvas } = this
+    canvas.width = Math.ceil((bbox[2] - bbox[0]) / pxDeg)
+    canvas.height = Math.ceil((bbox[3] - bbox[1]) / pxDeg)
+    console.log('width:', canvas.width)
+    console.log('height:', canvas.height)
   }
 
-  private updateCanvas () {
+  updateCanvas () {
     const { ctx, canvas } = this
+    ctx.clearRect(0, 0, this.canvas.width, this.canvas.height)
     this.layers.sort((v1, v2) => v1.zIndex - v2.zIndex).forEach(layer => {
       layer.imageBitmap && ctx.drawImage(layer.imageBitmap, 0, 0, canvas.width, canvas.height)
     })
-    this.dispatchEvent({ type: 'update' })
+    this.onUpdate?.()
   }
 
   refresh () {
+    if (isEmpty(this.layers)) {
+      return
+    }
+
     this.layers.forEach(layer => {
       layer.refresh()
     })
+    this.updateCanvas()
   }
 
   update () {
@@ -39,17 +51,14 @@ class LayerManager extends EventDispatcher {
     })
   }
 
-  addLayer (layer: Layer) {
-    const update = this.updateCanvas.bind(this)
-    layer.addEventListener('update', update)
-    layer.disposeFuncList.push(() => layer.removeEventListener('update', update))
-
+  addLayer (layer: BaseLayer) {
     layer.layerManager = this
-    layer.refresh()
     this.layers.push(layer)
+    layer.refresh()
+    this.updateCanvas()
   }
 
-  removeLayer (layer: Layer) {
+  removeLayer (layer: BaseLayer) {
     const index = this.layers.findIndex(l => l === layer)
     this.layers.splice(index, 1)
     layer.dispose()

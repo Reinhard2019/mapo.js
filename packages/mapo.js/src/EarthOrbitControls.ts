@@ -1,6 +1,7 @@
-import { clamp, debounce, floor } from 'lodash-es'
+import { clamp, debounce } from 'lodash-es'
 import * as THREE from 'three'
 import { BBox, LngLat } from './types'
+import { latPretreatmentBBox } from './utils/bbox'
 import { getDisplayCentralAngle, lngLatToVector3, sphericalToLngLat } from './utils/map'
 import { degToRad, radToDeg, getQuadraticEquationRes } from './utils/math'
 
@@ -9,18 +10,19 @@ export interface EarthOrbitControlsOptions {
   earthRadius: number
   lngLat?: LngLat
   zoom?: number
-  hash?: boolean
 }
 
 class EarthOrbitControls extends THREE.EventDispatcher {
   readonly camera: THREE.PerspectiveCamera
   domElement: HTMLElement = document.body
   private readonly earthRadius: number = 6371
+  /**
+   * 垂直方向的视角
+   */
   private readonly fov = 60
-  private readonly hash: boolean
 
   tileSize = 512
-  lngLat: LngLat = [0, 0]
+  center: LngLat = [0, 0]
   private _distance = 0
   private _zoom = 0
 
@@ -40,12 +42,11 @@ class EarthOrbitControls extends THREE.EventDispatcher {
     super()
 
     if (options.domElement) this.domElement = options.domElement
-    if (options.lngLat) this.lngLat = options.lngLat
+    if (options.lngLat) this.center = options.lngLat
     this.earthRadius = options.earthRadius
     this.zoom = options.zoom ?? 2
-    this.hash = options.hash ?? false
 
-    const { domElement, distance, lngLat } = this
+    const { domElement, distance, center: lngLat } = this
 
     const pixelRatio = domElement.clientWidth / domElement.clientHeight
     const camera = new THREE.PerspectiveCamera(
@@ -59,8 +60,6 @@ class EarthOrbitControls extends THREE.EventDispatcher {
     camera.lookAt(0, 0, 0)
     this.camera = camera
 
-    this.updateHash()
-
     const eventListenerList: Array<[keyof HTMLElementEventMap, EventListener]> = [
       ['mousemove', this.onMousemove.bind(this)],
       ['contextmenu', this.onContextmenu.bind(this)],
@@ -73,8 +72,8 @@ class EarthOrbitControls extends THREE.EventDispatcher {
     })
   }
 
-  private zoom2distance (zoom: number) {
-    const { earthRadius, fov, tileSize, domElement } = this
+  private getDistance () {
+    const { earthRadius, fov, tileSize, zoom, domElement } = this
     const pxLat = 360 / (Math.pow(2, zoom) * tileSize)
     const pxLength = Math.sin(degToRad(pxLat)) * earthRadius
     const chordLength = pxLength * domElement.clientHeight
@@ -91,8 +90,17 @@ class EarthOrbitControls extends THREE.EventDispatcher {
     return distance
   }
 
-  private distance2zoom (distance: number) {
-    const { earthRadius, fov, tileSize, domElement } = this
+  private getZoom () {
+    const { tileSize } = this
+    const zoom = Math.log2(360 / this.getPxDeg() / tileSize)
+    return zoom
+  }
+
+  /**
+   * 每 1 个像素对应的最小度数
+   */
+  getPxDeg () {
+    const { earthRadius, fov, distance, domElement } = this
     const centralAngle = getDisplayCentralAngle(
       distance,
       earthRadius,
@@ -109,10 +117,8 @@ class EarthOrbitControls extends THREE.EventDispatcher {
     const chordLength = Math.tan(degToRad(fov / 2)) * distanceFromTheCameraToTheChord * 2
     // 每 1 个像素对应的弦长
     const pxLength = chordLength / domElement.clientHeight
-    // 每 1 个像素对应的最小纬度
-    const pxLat = radToDeg(Math.asin(pxLength / earthRadius))
-    const zoom = Math.log2(360 / pxLat / tileSize)
-    return zoom
+    const pxDeg = radToDeg(Math.asin(pxLength / earthRadius))
+    return pxDeg
   }
 
   get distance () {
@@ -121,7 +127,7 @@ class EarthOrbitControls extends THREE.EventDispatcher {
 
   private set distance (value: number) {
     this._distance = value
-    this._zoom = this.distance2zoom(value)
+    this._zoom = this.getZoom()
   }
 
   get zoom () {
@@ -130,15 +136,28 @@ class EarthOrbitControls extends THREE.EventDispatcher {
 
   set zoom (value: number) {
     this._zoom = value
-    this._distance = this.zoom2distance(value)
+    this._distance = this.getDistance()
   }
 
   get z () {
     return Math.ceil(this.zoom)
   }
 
-  get bbox (): BBox {
-    const { distance, earthRadius, fov, domElement, lngLat } = this
+  /**
+   * 水平方向的视角
+   */
+  get fovX () {
+    const adjacent = this.domElement.clientHeight / Math.tan(degToRad(this.fov / 2))
+    return radToDeg(Math.atan(this.domElement.clientWidth / adjacent)) * 2
+  }
+
+  /**
+   * 获取未经处理的显示区域
+   * @returns
+   */
+  getPlainDisplayBBox (): BBox {
+    const { distance, earthRadius, fov, center } = this
+
     // 垂直方向
     const centralYAngle = getDisplayCentralAngle(
       distance,
@@ -146,33 +165,25 @@ class EarthOrbitControls extends THREE.EventDispatcher {
       fov
     )
     const halfCentralYAngle = centralYAngle / 2
-    const s = lngLat[1] - halfCentralYAngle
-    const n = lngLat[1] + halfCentralYAngle
+    const s = center[1] - halfCentralYAngle
+    const n = center[1] + halfCentralYAngle
+
     // 水平方向
-    let centralXAngle = 180
-    if (n <= 90 && s >= -90) {
-      const fovX = radToDeg(Math.atan(domElement.clientWidth / (domElement.clientHeight / Math.tan(degToRad(fov / 2))))) * 2
-      centralXAngle = getDisplayCentralAngle(
-        distance,
-        earthRadius,
-        fovX
-      )
-    }
+    const centralXAngle = getDisplayCentralAngle(
+      distance,
+      earthRadius,
+      this.fovX
+    )
     const halfCentralXAngle = centralXAngle / 2
-    const w = lngLat[0] - halfCentralXAngle
-    const e = lngLat[0] + halfCentralXAngle
+    const w = center[0] - halfCentralXAngle
+    const e = center[0] + halfCentralXAngle
+
     // TODO 四个角加载不全
     return [w, s, e, n]
   }
 
-  private updateHash () {
-    const { zoom, lngLat, hash } = this
-    if (hash) {
-      location.hash = `${floor(zoom, 2)}/${floor(lngLat[0], 3)}/${floor(
-        lngLat[1],
-        3
-        )}`
-    }
+  getDisplayBBox (): BBox {
+    return latPretreatmentBBox(this.getPlainDisplayBBox())
   }
 
   private onMousemove (e: MouseEvent) {
@@ -221,10 +232,9 @@ class EarthOrbitControls extends THREE.EventDispatcher {
       camera.lookAt(0, 0, 0)
       camera.rotateZ(degToRad(this.bearing))
 
-      this.lngLat = sphericalToLngLat(spherical)
+      this.center = sphericalToLngLat(spherical)
 
       this.dispatchEvent({ type: 'move' })
-      this.updateHash()
     }
   }
 
@@ -251,7 +261,6 @@ class EarthOrbitControls extends THREE.EventDispatcher {
     this.distance = spherical.radius
 
     this.dispatchEvent({ type: 'zoom' })
-    this.updateHash()
     this.onEnd()
   }
 

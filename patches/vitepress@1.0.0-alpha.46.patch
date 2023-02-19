@@ -1,0 +1,27 @@
+diff --git a/dist/client/app/router.js b/dist/client/app/router.js
+index 857ceaad553779523bccb9dd0d3ceb30a6794b2e..e9f08eb48b1230054bf22dea810864f418d08c5a 100644
+--- a/dist/client/app/router.js
++++ b/dist/client/app/router.js
+@@ -36,8 +36,10 @@ export function createRouter(loadPageModule, fallbackComponent) {
+         await loadPage(href);
+         await router.onAfterRouteChanged?.(href);
+     }
++    let pathname = location.pathname;
+     let latestPendingPath = null;
+     async function loadPage(href, scrollPosition = 0, isRetry = false) {
++        pathname = location.pathname;
+         const targetLoc = new URL(href, fakeHost);
+         const pendingPath = (latestPendingPath = targetLoc.pathname);
+         try {
+@@ -151,7 +153,10 @@ export function createRouter(loadPageModule, fallbackComponent) {
+             }
+         }, { capture: true });
+         window.addEventListener('popstate', (e) => {
+-            loadPage(location.href, (e.state && e.state.scrollPosition) || 0);
++            // 排除掉 hash 修改时也会触发页面重新 load 的情况
++            if (pathname !== location.pathname) {
++                loadPage(location.href, (e.state && e.state.scrollPosition) || 0);
++            }
+         });
+         window.addEventListener('hashchange', (e) => {
+             e.preventDefault();

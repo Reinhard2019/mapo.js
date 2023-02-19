@@ -1,11 +1,11 @@
-import * as d3 from 'd3'
 import { inflate } from '../utils/array'
-import Layer from './Layer'
+import geoEquirectangular from '../utils/geoEquirectangular'
+import BaseLayer from './BaseLayer'
 
 type Source = GeoJSON.Feature<GeoJSON.Polygon> | Array<GeoJSON.Feature<GeoJSON.Polygon>>
 
-class FillLayer extends Layer {
-  private readonly canvas = new OffscreenCanvas(0, 0)
+class FillLayer extends BaseLayer {
+  private readonly canvas = new OffscreenCanvas(1, 1)
   private readonly ctx = this.canvas.getContext('2d') as OffscreenCanvasRenderingContext2D
   source: Source
 
@@ -18,24 +18,22 @@ class FillLayer extends Layer {
 
   refresh () {
     const { canvas, ctx, layerManager, source } = this
-    const { bbox } = layerManager!
-    const [w, , e, n] = bbox
 
     canvas.width = layerManager!.canvas.width
     canvas.height = layerManager!.canvas.height
-    const width = canvas.width / ((e - w) / 360)
-    const projection = d3.geoEquirectangular()
-      .translate([0, 0])
-      .center([w, n])
-      .scale(width / (2 * Math.PI))
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
+
+    const projection = geoEquirectangular({
+      bbox: this.layerManager!.bbox,
+      size: [this.layerManager!.canvas.width, this.layerManager!.canvas.height]
+    })
 
     ctx.beginPath()
     inflate(source).forEach(feature => {
       const coordinates = feature.geometry.coordinates
       coordinates.forEach((positions) => {
         positions.forEach((position, i) => {
-          const point = projection(position as [number, number])
-          const [x, y] = point!
+          const [x, y] = projection(position)
           if (i === 0) {
             ctx.moveTo(x, y)
           } else {
@@ -49,7 +47,6 @@ class FillLayer extends Layer {
     ctx.fill()
 
     this.imageBitmap = canvas.transferToImageBitmap()
-    this.dispatchEvent({ type: 'update' })
   }
 }
 

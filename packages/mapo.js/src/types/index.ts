@@ -25,4 +25,6 @@ export interface TileIndexBox {
 
 export type LngLat = [number, number]
 
+export type PointLike = number[]
+
 export type ID = number | string

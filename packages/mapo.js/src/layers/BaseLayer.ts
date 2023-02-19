@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 import LayerManager from './LayerManager'
 
-abstract class Layer extends THREE.EventDispatcher {
+abstract class BaseLayer extends THREE.EventDispatcher {
   disposeFuncList: Array<() => void> = []
   layerManager?: LayerManager
   imageBitmap?: ImageBitmap
@@ -17,4 +17,4 @@ abstract class Layer extends THREE.EventDispatcher {
   }
 }
 
-export default Layer
+export default BaseLayer

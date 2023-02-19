@@ -14,3 +14,7 @@ export function range (start: number, end: number) {
 export function isNil (value: any) {
   return value === undefined || value === null
 }
+
+export function ternaryOperation<T, F = undefined> (value: T, when: (v: T) => boolean, fallback?: F) {
+  return when(value) ? value : fallback
+}

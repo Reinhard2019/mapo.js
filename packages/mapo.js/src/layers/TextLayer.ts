@@ -1,9 +1,7 @@
-import { geoEquirectangular } from 'd3'
-import Layer from './Layer'
+import { LngLat } from '../types'
+import BaseBeforeLayer from './BaseBeforeLayer'
 
-class TextLayer extends Layer {
-  private readonly canvas = new OffscreenCanvas(0, 0)
-  private readonly ctx = this.canvas.getContext('2d') as OffscreenCanvasRenderingContext2D
+class TextLayer extends BaseBeforeLayer {
   source: Array<GeoJSON.Feature<GeoJSON.Point>>
 
   constructor (params: {
@@ -11,31 +9,26 @@ class TextLayer extends Layer {
   }) {
     super()
     this.source = params.source
+    this.canvas.style.position = 'absolute'
+    this.canvas.style.inset = '0'
   }
 
   refresh () {
-    const { canvas, ctx, layerManager, source } = this
-    const { bbox } = layerManager!
-    const [w, , e, n] = bbox
+    const { canvas, ctx, source } = this
 
-    canvas.width = layerManager!.canvas.width
-    canvas.height = layerManager!.canvas.height
-    const width = canvas.width / ((e - w) / 360)
-    const projection = geoEquirectangular()
-      .translate([0, 0])
-      .center([w, n])
-      .scale(width / (2 * Math.PI))
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
 
     const fontSize = 12
-    ctx.font = `${fontSize}px`
-    ctx.fillStyle = 'red'
+    ctx.font = `${fontSize}px sans-serif`
+    ctx.fillStyle = '#fff'
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
     source.forEach(feature => {
-      const point = projection(feature.geometry.coordinates as [number, number])
-      const [_x, _y] = point!
-      const x = Math.round(_x)
-      const y = Math.round(_y)
+      const point = feature.geometry.coordinates
+      if (!this.beforeLayerManager?.pointInDisplayBBox(point as LngLat)) {
+        return
+      }
+      const [x, y] = this.beforeLayerManager.project(feature.geometry.coordinates as LngLat)
       const text = feature.properties?.name
       const textMetrics = ctx.measureText(text)
       const left = x - textMetrics.width / 2
@@ -43,12 +36,9 @@ class TextLayer extends Layer {
       const top = y + fontSize / 2
       const bottom = y - fontSize / 2
       if (top >= 0 && left >= 0 && bottom <= canvas.height && right <= canvas.width) {
-        ctx.fillText(text, point![0], point![1])
+        ctx.fillText(text, x, y)
       }
     })
-
-    this.imageBitmap = canvas.transferToImageBitmap()
-    this.dispatchEvent({ type: 'update' })
   }
 }
 

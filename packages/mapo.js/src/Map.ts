@@ -1,38 +1,53 @@
 import * as THREE from 'three'
 import Stats from 'three/examples/jsm/libs/stats.module'
-import { BBox, MapOptions } from './types'
-import EarthOrbitControls, { EarthOrbitControlsOptions } from './EarthOrbitControls'
-import Layer from './layers/Layer'
+import { BBox, LngLat, MapOptions, PointLike } from './types'
+import EarthOrbitControls from './EarthOrbitControls'
+import BaseLayer from './layers/BaseLayer'
 import LayerManager from './layers/LayerManager'
 import TileLayer from './layers/TileLayer'
-import { degToRad } from './utils/math'
-import { throttle } from 'lodash-es'
+import { floor, throttle } from 'lodash-es'
+import EarthGeometry from './EarthGeometry'
+import MercatorTile from './utils/MercatorTile'
+import { contains, fullBBox, isFull, latPretreatmentBBox, scale } from './utils/bbox'
+import { unwrapHTMLElement } from './utils/dom'
+import { lngLatToVector3 } from './utils/map'
+import BeforeLayerManager from './layers/BeforeLayerManager'
+import BaseBeforeLayer from './layers/BaseBeforeLayer'
 
 class Map {
   tileSize = 512
   // 地球半径 6371km
-  earthRadius = 6371
+  private readonly earthRadius = 6371
 
   renderer = new THREE.WebGLRenderer()
   scene = new THREE.Scene()
-  camera = new THREE.PerspectiveCamera()
+  hash = false
 
-  earthOrbitControls: EarthOrbitControls
+  private readonly earthOrbitControls: EarthOrbitControls
+  private readonly earthGeometry: EarthGeometry
+  private readonly container: HTMLElement
 
-  ctx: CanvasRenderingContext2D
   private layerManager: LayerManager
+  private readonly beforeLayerManager: BeforeLayerManager
+  private tileLayer: TileLayer
 
   private disposeFuncList: Array<() => void> = []
 
+  /**
+   * 安全区域，如果 displayBBox 超出了安全区域，则需要更新 preloadBBox
+   */
+  secureBBox?: BBox
+
   constructor (options: MapOptions) {
-    const container =
-      typeof options.container === 'string'
-        ? document.body.querySelector(options.container)
-        : options.container
-    if (container == null) {
+    const container = unwrapHTMLElement(options.container)
+    if (!(container instanceof HTMLElement)) {
       console.error('can not find container')
       return
     }
+    container.style.position = 'relative'
+    this.container = container
+
+    if (typeof options.hash === 'boolean') this.hash = options.hash
 
     const pixelRatio = container.clientWidth / container.clientHeight
     this.renderer.setSize(container.clientWidth, container.clientHeight)
@@ -40,7 +55,7 @@ class Map {
     container.appendChild(this.renderer.domElement)
     this.disposeFuncList.push(() => this.renderer.dispose())
 
-    const { earthRadius } = this
+    const { earthRadius, tileSize } = this
 
     let stats: Stats | undefined
     if (options.fps) {
@@ -55,29 +70,30 @@ class Map {
     this.addBackground()
 
     // 镜头控制器
-    this.createEarthOrbitControls({
-      domElement: this.renderer.domElement,
+    const hashOptions = this.parseHash()
+    this.earthOrbitControls = new EarthOrbitControls({
+      domElement: container,
       earthRadius,
       lngLat: options.center,
       zoom: options.zoom,
-      hash: options.hash
+      ...hashOptions,
     })
+    this.initEarthOrbitControls()
 
-    const bbox = this.getBBox()
-    const mapGeometry = new THREE.SphereGeometry(
+    this.earthGeometry = new EarthGeometry({
       earthRadius,
-      512 * 2,
-      512,
-      degToRad(-90),
-      degToRad(bbox[2] - bbox[0]),
-      0,
-      degToRad(bbox[3] - bbox[1]),
-    )
-    const mapMaterial = new THREE.MeshBasicMaterial({
-      map: this.createCanvasTexture(bbox),
+      tileSize,
+      z: this.earthOrbitControls.z,
+      delay: true
     })
-    const earth = new THREE.Mesh(mapGeometry, mapMaterial)
-    this.scene.add(earth)
+    this.disposeFuncList.push(() => this.earthGeometry.dispose())
+    this.createEarthMesh()
+
+    this.beforeLayerManager = new BeforeLayerManager({
+      container,
+      map: this,
+      earthOrbitControls: this.earthOrbitControls
+    })
 
     // this.layerManager.canvas.style.width = '100%'
     // container.insertBefore(this.layerManager.canvas, container.childNodes[0])
@@ -167,85 +183,261 @@ class Map {
     })
   }
 
-  getBBox (): BBox {
-    const [w, n, e, s] = this.earthOrbitControls.bbox
-    const scale = 3
-    const lngGap = e - w
-    const latGap = s - n
-    const max = Math.max(lngGap, latGap)
-
-    if (max * scale >= 180) {
-      return [-180, -90, 180, 90]
+  private updatePreloadBBox (_preloadBBox?: BBox) {
+    const preloadBBox = _preloadBBox ?? this.getPreloadBBox()
+    const displayBBox = this.earthOrbitControls.getDisplayBBox()
+    if (!isFull(preloadBBox)) {
+      this.secureBBox = this.getSecureBBox()
     }
 
-    const translateLng = (scale - 1) / 2 * lngGap
-    const translateLat = (scale - 1) / 2 * latGap
-    return [w - translateLng, s - translateLat, e + translateLng, n + translateLat]
+    this.earthGeometry.bbox = preloadBBox
+    this.earthGeometry.update()
+
+    this.tileLayer.bbox = preloadBBox
+    this.tileLayer.displayBBox = displayBBox
+    this.tileLayer.z = this.earthOrbitControls.z
+    void this.tileLayer.refresh()
+
+    this.layerManager.bbox = preloadBBox
+    this.layerManager.displayBBox = displayBBox
+    this.layerManager.z = this.earthOrbitControls.z
+    this.layerManager.updateCanvasSize(this.earthOrbitControls.getPxDeg())
+    this.layerManager.refresh()
   }
 
-  createEarthOrbitControls (options: EarthOrbitControlsOptions) {
-    const controls = new EarthOrbitControls(options)
-
+  private initEarthOrbitControls () {
     const onMove = throttle(() => {
-      this.layerManager.displayBBox = controls.bbox
-      this.layerManager.update()
+      this.updateHash()
+      this.beforeLayerManager.refresh()
+
+      const secureBBox = this.secureBBox
+      const cachePreloadBBox = this.earthGeometry.bbox
+      const preloadBBox = this.getPreloadBBox()
+      const displayBBox = this.earthOrbitControls.getDisplayBBox()
+
+      if (contains(cachePreloadBBox, preloadBBox)) {
+        this.updatePreloadBBox()
+        return
+      }
+
+      const overflowSecureBBox = secureBBox && !contains(secureBBox, displayBBox)
+      if (overflowSecureBBox) {
+        this.updatePreloadBBox()
+      }
     }, 500)
-    controls.addEventListener('move', onMove)
-    controls.addEventListener('end', () => {
-      // changed()
-    })
-    controls.addEventListener('zoom', () => {
-      // const bbox = this.getBBox()
-      // this.updateCanvasSize(bbox)
-    })
-    this.earthOrbitControls = controls
-    return controls
+    this.earthOrbitControls.addEventListener('move', onMove)
+    // this.earthOrbitControls.addEventListener('end', () => {})
+    this.earthOrbitControls.addEventListener('zoom', onMove)
   }
 
-  updateCanvasSize (bbox: BBox) {
-    const { layerManager, earthOrbitControls } = this
-    const scale = earthOrbitControls.domElement.clientWidth / (earthOrbitControls.bbox[2] - earthOrbitControls.bbox[0])
-    layerManager.canvas.width = Math.ceil((bbox[2] - bbox[0]) * scale)
-    layerManager.canvas.height = Math.ceil((bbox[3] - bbox[1]) * scale)
-    console.log('width:', layerManager.canvas.width)
-    console.log('height:', layerManager.canvas.height)
-  }
+  private getPreloadBBox (): BBox {
+    let preloadBBox: BBox = scale(this.earthOrbitControls.getPlainDisplayBBox(), 3)
+    preloadBBox = latPretreatmentBBox(preloadBBox)
 
-  createCanvasTexture (bbox: BBox) {
-    const { tileSize, earthOrbitControls } = this
-    const layerManager = new LayerManager()
-    this.disposeFuncList.push(() => layerManager.dispose())
-
-    layerManager.bbox = bbox
-    layerManager.displayBBox = earthOrbitControls.bbox
-    layerManager.z = earthOrbitControls.z
-
-    const tileLayer = new TileLayer(tileSize)
-    tileLayer.zIndex = -1
-    void tileLayer.preload().then(() => {
-      layerManager.addLayer(tileLayer)
-    })
-
-    const texture = new THREE.CanvasTexture(layerManager.canvas)
-    texture.minFilter = THREE.NearestFilter
-    const update = () => {
-      texture.needsUpdate = true
+    if (preloadBBox[2] - preloadBBox[0] > 180) {
+      preloadBBox[0] = -180
+      preloadBBox[2] = 180
     }
-    layerManager.addEventListener('update', update)
-    this.disposeFuncList.push(() => layerManager.removeEventListener('update', update))
 
-    this.layerManager = layerManager
-    this.updateCanvasSize(bbox)
-
-    return texture
+    return preloadBBox
   }
 
-  addLayer (layer: Layer) {
-    this.layerManager.addLayer(layer)
+  private getSecureBBox (): BBox {
+    return latPretreatmentBBox(scale(this.earthOrbitControls.getPlainDisplayBBox(), 2))
   }
 
-  removeLayer (layer: Layer) {
-    this.layerManager.removeLayer(layer)
+  private parseHash () {
+    if (this.hash && location.hash.startsWith('#')) {
+      const [zoom, lng, lat] = location.hash.slice(1).split('/')
+      return { zoom: parseFloat(zoom), lng: parseFloat(lng), lat: parseFloat(lat) }
+    }
+  }
+
+  private updateHash () {
+    const { zoom, center: lngLat } = this.earthOrbitControls
+    if (this.hash) {
+      const arr = [floor(zoom, 2), floor(lngLat[0], 3), floor(lngLat[1], 3)]
+      location.replace(`#${arr.join('/')}`)
+    }
+  }
+
+  private createEarthMesh () {
+    const { tileSize } = this
+
+    const materials: THREE.ShaderMaterial[] = []
+
+    const backgroundMaterial = new THREE.ShaderMaterial({
+      fragmentShader: `
+        void main() {
+          gl_FragColor = vec4(0, 0, 0, 1);
+        }
+      `,
+    })
+    materials.push(backgroundMaterial)
+
+    const vertexShader = `
+      varying vec2 vUv;
+      void main() {
+        vUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+      }
+    `
+
+    // 创建 tileMaterial
+    {
+      const tileLayer = new TileLayer(tileSize)
+      this.tileLayer = tileLayer
+      const getTexture = () => new THREE.CanvasTexture(tileLayer.canvas)
+      tileLayer.onUpdate = () => {
+        uniforms.bbox.value = tileLayer.bbox
+        uniforms.canvasBBox.value = tileLayer.canvasBBox
+        uniforms.startCanvasY.value = MercatorTile.latToY(tileLayer.canvasBBox[1], 0)
+        uniforms.endCanvasY.value = MercatorTile.latToY(tileLayer.canvasBBox[3], 0)
+        uniforms.tile.value.dispose()
+        uniforms.tile.value = getTexture()
+      }
+      const uniforms = {
+        tile: { value: getTexture() },
+        bbox: { value: fullBBox },
+        canvasBBox: { value: fullBBox },
+        startCanvasY: { value: MercatorTile.latToY(fullBBox[1], 0) },
+        endCanvasY: { value: MercatorTile.latToY(fullBBox[3], 0) },
+      }
+      // 将 lat(纬度) 转化为墨卡托投影中的 y(0-1)
+      const latToY = `
+        float latToY(float lat) {
+          if (lat >= ${MercatorTile.maxLat}) {
+            return 0.0;
+          }
+          if (lat <= ${-MercatorTile.maxLat}) {
+            return 1.0;
+          }
+
+          float sinValue = sin(radians(lat));
+          float y = (0.5 - (0.25 * log((1.0 + sinValue) / (1.0 - sinValue))) / ${Math.PI});
+          return y;
+        }
+      `
+      const fragmentShader = `
+        uniform sampler2D tile;
+        uniform sampler2D layers;
+        uniform vec4 bbox;
+        uniform vec4 canvasBBox;
+        uniform float startCanvasY;
+        uniform float endCanvasY;
+        varying vec2 vUv;
+
+        ${latToY}
+
+        void main() {
+          float w = bbox[0];
+          float s = bbox[1];
+          float e = bbox[2];
+          float n = bbox[3];
+          float canvasW = canvasBBox[0];
+          float canvasS = canvasBBox[1];
+          float canvasE = canvasBBox[2];
+          float canvasN = canvasBBox[3];
+
+          float canvasLatGap = canvasE - canvasW;
+          float scaleX = (e - w) / canvasLatGap;
+          float startX = (w - canvasW) / canvasLatGap;
+          float x = vUv.x * scaleX + startX;
+
+          float lat = s + vUv.y * (n - s);
+          float y = (latToY(lat) - startCanvasY) / (endCanvasY - startCanvasY);
+
+          vec2 uv = vec2(x, y);
+          gl_FragColor = texture2D(tile, uv);
+        }
+      `
+      const tileMaterial = new THREE.ShaderMaterial({
+        uniforms,
+        vertexShader,
+        fragmentShader,
+        transparent: true,
+        side: THREE.DoubleSide
+      })
+      materials.push(tileMaterial)
+    }
+
+    // 创建 layersMaterial
+    {
+      const layerManager = new LayerManager()
+      this.layerManager = layerManager
+      this.disposeFuncList.push(() => layerManager.dispose())
+      const getTexture = () => new THREE.CanvasTexture(layerManager.canvas)
+      layerManager.onUpdate = () => {
+        layersUniform.value.dispose()
+        layersUniform.value = getTexture()
+      }
+      const layersUniform: THREE.IUniform<THREE.CanvasTexture> = {
+        value: getTexture()
+      }
+      const layersMaterial = new THREE.ShaderMaterial({
+        uniforms: {
+          layers: layersUniform,
+        },
+        vertexShader,
+        fragmentShader: `
+          uniform sampler2D layers;
+          varying vec2 vUv;
+          void main() {
+            gl_FragColor = texture2D(layers, vUv);
+          }
+        `,
+        transparent: true,
+      })
+      materials.push(layersMaterial)
+    }
+
+    materials.forEach((material, i) => {
+      this.earthGeometry.addGroup(0, Infinity, i)
+      this.disposeFuncList.push(() => material.dispose())
+    })
+    const earth = new THREE.Mesh(this.earthGeometry, materials)
+    this.scene.add(earth)
+
+    this.updatePreloadBBox()
+  }
+
+  /**
+   * 将 LngLat 转化为像素位置
+   * @param lngLat
+   * @returns
+   */
+  project (lngLat: LngLat): PointLike {
+    const vector = lngLatToVector3(lngLat, this.earthRadius).project(this.earthOrbitControls.camera)
+    const w = this.container.clientWidth / 2
+    const h = this.container.clientHeight / 2
+    const x = vector.x * w + w
+    const y = -vector.y * h + h
+    return [x, y]
+  }
+
+  /**
+   * TODO 将像素位置转化为 LngLat
+   * @param lngLat
+   * @returns
+   */
+  unproject (point: PointLike): LngLat {
+    return point as LngLat
+  }
+
+  addLayer (layer: BaseLayer | BaseBeforeLayer) {
+    if (layer instanceof BaseBeforeLayer) {
+      this.beforeLayerManager.addLayer(layer)
+    } else {
+      this.layerManager.addLayer(layer)
+    }
+  }
+
+  removeLayer (layer: BaseLayer | BaseBeforeLayer) {
+    if (layer instanceof BaseBeforeLayer) {
+      this.beforeLayerManager.removeLayer(layer)
+    } else {
+      this.layerManager.removeLayer(layer)
+    }
   }
 
   dispose () {
