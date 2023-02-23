@@ -15,6 +15,7 @@ onMounted(() => {
     container: div.value,
     center: [116.405285, 39.904989],
     zoom: 2.5,
+    bearing: 45,
     fps: true,
     // hash: true,
   })

@@ -1,16 +1,9 @@
 import { clamp, debounce } from 'lodash-es'
 import * as THREE from 'three'
-import { BBox, LngLat } from './types'
+import { BBox, EarthOrbitControlsOptions, LngLat } from './types'
 import { latPretreatmentBBox } from './utils/bbox'
-import { getDisplayCentralAngle, lngLatToVector3, sphericalToLngLat } from './utils/map'
+import { getDisplayCentralAngle, lngLatToVector3, vector3ToLngLat } from './utils/map'
 import { degToRad, radToDeg, getQuadraticEquationRes } from './utils/math'
-
-export interface EarthOrbitControlsOptions {
-  domElement?: HTMLElement
-  earthRadius: number
-  lngLat?: LngLat
-  zoom?: number
-}
 
 class EarthOrbitControls extends THREE.EventDispatcher {
   readonly camera: THREE.PerspectiveCamera
@@ -33,6 +26,8 @@ class EarthOrbitControls extends THREE.EventDispatcher {
   minDistance = this.earthRadius + 0.2
   maxDistance = this.earthRadius * 4
 
+  private lookAtPosition = new THREE.Vector3(0, 0, 0)
+
   private disposeFuncList: Array<() => void> = []
   private readonly onEnd = debounce(function () {
     this.dispatchEvent({ type: 'end' })
@@ -42,11 +37,12 @@ class EarthOrbitControls extends THREE.EventDispatcher {
     super()
 
     if (options.domElement) this.domElement = options.domElement
-    if (options.lngLat) this.center = options.lngLat
+    if (options.center) this.center = options.center
     this.earthRadius = options.earthRadius
     this.zoom = options.zoom ?? 2
+    if (options.bearing) this.bearing = options.bearing
 
-    const { domElement, distance, center: lngLat } = this
+    const { domElement, distance, center } = this
 
     const pixelRatio = domElement.clientWidth / domElement.clientHeight
     const camera = new THREE.PerspectiveCamera(
@@ -55,10 +51,9 @@ class EarthOrbitControls extends THREE.EventDispatcher {
       0.1,
       this.earthRadius * 10000
     )
-    const position = lngLatToVector3(lngLat, distance)
-    camera.position.set(position.x, position.y, position.z)
-    camera.lookAt(0, 0, 0)
+    camera.position.copy(lngLatToVector3(center, distance))
     this.camera = camera
+    this.lookAt()
 
     const eventListenerList: Array<[keyof HTMLElementEventMap, EventListener]> = [
       ['mousemove', this.onMousemove.bind(this)],
@@ -186,6 +181,11 @@ class EarthOrbitControls extends THREE.EventDispatcher {
     return latPretreatmentBBox(this.getPlainDisplayBBox())
   }
 
+  private lookAt () {
+    this.camera.lookAt(this.lookAtPosition)
+    this.camera.rotateZ(-degToRad(this.bearing))
+  }
+
   private onMousemove (e: MouseEvent) {
     e.preventDefault()
 
@@ -195,47 +195,49 @@ class EarthOrbitControls extends THREE.EventDispatcher {
 
     const { camera, domElement } = this
 
-    if (e.ctrlKey) {
-      if (Math.abs(e.movementX) > Math.abs(e.movementY)) {
-        const movementDeg = e.movementX / domElement.clientWidth * 360
-        this.bearing += movementDeg
-        console.log(this.bearing, camera)
-        camera.rotation.z = degToRad(this.bearing)
-      } else {
-        // TODO pitch 处理有 bearing 的情况
-        const movementDeg = e.movementY / domElement.clientHeight * 180
-        this.pitch = clamp(this.pitch + movementDeg, 0, 85)
-        const negativePosition = camera.position.clone()
-        negativePosition.x = -negativePosition.x
-        negativePosition.y = -negativePosition.y
-        negativePosition.z = -negativePosition.z
-        const spherical = new THREE.Spherical().setFromVector3(negativePosition)
-        spherical.phi -= degToRad(this.pitch)
-        const lookAtPosition = new THREE.Vector3().setFromSpherical(spherical)
-        lookAtPosition.x -= negativePosition.x
-        lookAtPosition.y -= negativePosition.y
-        lookAtPosition.z -= negativePosition.z
-        camera.lookAt(lookAtPosition)
-      }
-    } else {
+    const isMove = !e.ctrlKey
+    if (isMove) {
       // TODO 增加阻尼效果
-      const spherical = new THREE.Spherical().setFromVector3(camera.position)
+      const movementLng = e.movementX / domElement.clientWidth * 36
+      const movementLat = e.movementY / domElement.clientHeight * 36
+      camera.position.applyAxisAngle(new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion), -degToRad(movementLng))
+      const applyXAxisAngle = (vector3: THREE.Vector3) => vector3.applyAxisAngle(new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion), -degToRad(movementLat))
+      applyXAxisAngle(camera.position)
+      applyXAxisAngle(camera.up)
+      this.lookAt()
+      // TODO 移动时 bearing 也会改变
 
-      const movementYDeg = e.movementX / domElement.clientWidth * 36
-      const movementXDeg = e.movementY / domElement.clientHeight * 36
-      spherical.theta -= degToRad(movementYDeg) * Math.cos(degToRad(this.bearing)) + degToRad(movementXDeg) * Math.sin(degToRad(this.bearing))
-      // TODO 处理小于 0 或者大于 180 的情况
-      spherical.phi -= -degToRad(movementYDeg) * Math.sin(degToRad(this.bearing)) + degToRad(movementXDeg) * Math.cos(degToRad(this.bearing))
-
-      const position = new THREE.Vector3().setFromSpherical(spherical)
-      camera.position.set(position.x, position.y, position.z)
-      camera.lookAt(0, 0, 0)
-      camera.rotateZ(degToRad(this.bearing))
-
-      this.center = sphericalToLngLat(spherical)
+      this.center = vector3ToLngLat(camera.position)
 
       this.dispatchEvent({ type: 'move' })
+      return
     }
+
+    const isRotate = Math.abs(e.movementX) > Math.abs(e.movementY)
+    if (isRotate) {
+      const movementDeg = e.movementX / domElement.clientWidth * 360
+      this.bearing -= movementDeg
+      this.lookAt()
+
+      this.dispatchEvent({ type: 'rotate' })
+      return
+    }
+
+    // TODO pitch 处理有 bearing 的情况
+    const movementDeg = e.movementY / domElement.clientHeight * 180
+    this.pitch = clamp(this.pitch + movementDeg, 0, 85)
+    const negativePosition = camera.position.clone()
+    negativePosition.x = -negativePosition.x
+    negativePosition.y = -negativePosition.y
+    negativePosition.z = -negativePosition.z
+    const spherical = new THREE.Spherical().setFromVector3(negativePosition)
+    spherical.phi -= degToRad(this.pitch)
+    const lookAtPosition = new THREE.Vector3().setFromSpherical(spherical)
+    lookAtPosition.x -= negativePosition.x
+    lookAtPosition.y -= negativePosition.y
+    lookAtPosition.z -= negativePosition.z
+    this.lookAtPosition = lookAtPosition
+    this.lookAt()
   }
 
   private onContextmenu (e: PointerEvent) {

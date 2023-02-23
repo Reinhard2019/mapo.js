@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 import Stats from 'three/examples/jsm/libs/stats.module'
-import { BBox, LngLat, MapOptions, PointLike } from './types'
+import { BBox, EarthOrbitControlsOptions, LngLat, MapOptions, PointLike } from './types'
 import EarthOrbitControls from './EarthOrbitControls'
 import BaseLayer from './layers/BaseLayer'
 import LayerManager from './layers/LayerManager'
@@ -74,8 +74,9 @@ class Map {
     this.earthOrbitControls = new EarthOrbitControls({
       domElement: container,
       earthRadius,
-      lngLat: options.center,
+      center: options.center,
       zoom: options.zoom,
+      bearing: options.bearing,
       ...hashOptions,
     })
     this.initEarthOrbitControls()
@@ -94,6 +95,9 @@ class Map {
       map: this,
       earthOrbitControls: this.earthOrbitControls
     })
+
+    const axesHelper = new THREE.AxesHelper(earthRadius * 2)
+    this.scene.add(axesHelper)
 
     // this.layerManager.canvas.style.width = '100%'
     // container.insertBefore(this.layerManager.canvas, container.childNodes[0])
@@ -121,8 +125,6 @@ class Map {
     })
     ro.observe(container)
     this.disposeFuncList.push(() => ro.disconnect())
-
-    this.openAuxiliaryLine()
   }
 
   addBackground () {
@@ -161,26 +163,6 @@ class Map {
 
     const background = new THREE.Mesh(backgroundGeometry, backgroundMaterial)
     this.scene.add(background)
-  }
-
-  openAuxiliaryLine () {
-    const originPoint = new THREE.Vector3(0, 0, 0)
-    const arr: Array<[THREE.Vector3, number]> = [
-      [new THREE.Vector3(this.earthRadius * 2, 0, 0), 0xff0000],
-      [new THREE.Vector3(0, this.earthRadius * 2, 0), 0x00ff00],
-      [new THREE.Vector3(0, 0, this.earthRadius * 2), 0x0000ff]
-    ]
-    arr.forEach(([targetPoint, color]) => {
-      this.scene.add(
-        new THREE.Line(
-          new THREE.BufferGeometry().setFromPoints([originPoint, targetPoint]),
-          new THREE.LineBasicMaterial({
-            color,
-            fog: false
-          })
-        )
-      )
-    })
   }
 
   private updatePreloadBBox (_preloadBBox?: BBox) {
@@ -226,7 +208,7 @@ class Map {
       }
     }, 500)
     this.earthOrbitControls.addEventListener('move', onMove)
-    // this.earthOrbitControls.addEventListener('end', () => {})
+    this.earthOrbitControls.addEventListener('rotate', onMove)
     this.earthOrbitControls.addEventListener('zoom', onMove)
   }
 
@@ -246,17 +228,18 @@ class Map {
     return latPretreatmentBBox(scale(this.earthOrbitControls.getPlainDisplayBBox(), 2))
   }
 
-  private parseHash () {
+  private parseHash (): Pick<EarthOrbitControlsOptions, 'zoom' | 'center' | 'bearing'> | undefined {
     if (this.hash && location.hash.startsWith('#')) {
-      const [zoom, lng, lat] = location.hash.slice(1).split('/')
-      return { zoom: parseFloat(zoom), lng: parseFloat(lng), lat: parseFloat(lat) }
+      const [zoom, lng, lat, bearing] = location.hash.slice(1).split('/')
+      return { zoom: parseFloat(zoom), center: [parseFloat(lng), parseFloat(lat)], bearing: parseFloat(bearing) }
     }
   }
 
   private updateHash () {
-    const { zoom, center: lngLat } = this.earthOrbitControls
+    const { zoom, center, bearing } = this.earthOrbitControls
     if (this.hash) {
-      const arr = [floor(zoom, 2), floor(lngLat[0], 3), floor(lngLat[1], 3)]
+      const arr = [floor(zoom, 2), floor(center[0], 3), floor(center[1], 3), floor(bearing, 2)]
+      console.log(bearing)
       location.replace(`#${arr.join('/')}`)
     }
   }

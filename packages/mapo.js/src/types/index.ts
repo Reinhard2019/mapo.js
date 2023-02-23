@@ -1,12 +1,18 @@
-export interface MapOptions {
+export interface MapOptions extends Pick<EarthOrbitControlsOptions, 'center' | 'zoom' | 'bearing'> {
   container: string | HTMLElement
-  center?: LngLat
-  zoom?: number
   hash?: boolean
   /**
    * 是否开启帧数监视器
    */
   fps?: boolean
+}
+
+export interface EarthOrbitControlsOptions {
+  domElement?: HTMLElement
+  earthRadius: number
+  center?: LngLat
+  zoom?: number
+  bearing?: number
 }
 
 export interface Size {
