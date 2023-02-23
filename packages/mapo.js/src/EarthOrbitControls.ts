@@ -45,12 +45,7 @@ class EarthOrbitControls extends THREE.EventDispatcher {
     const { domElement, distance, center } = this
 
     const pixelRatio = domElement.clientWidth / domElement.clientHeight
-    const camera = new THREE.PerspectiveCamera(
-      this.fov,
-      pixelRatio,
-      0.1,
-      this.earthRadius * 10000
-    )
+    const camera = new THREE.PerspectiveCamera(this.fov, pixelRatio, 0.1, this.earthRadius * 10000)
     camera.position.copy(lngLatToVector3(center, distance))
     this.camera = camera
     this.lookAt()
@@ -96,11 +91,7 @@ class EarthOrbitControls extends THREE.EventDispatcher {
    */
   getPxDeg () {
     const { earthRadius, fov, distance, domElement } = this
-    const centralAngle = getDisplayCentralAngle(
-      distance,
-      earthRadius,
-      fov
-    )
+    const centralAngle = getDisplayCentralAngle(distance, earthRadius, fov)
     // 弦心到圆心的距离
     const distanceFromTheChordToTheCentre = Math.cos(degToRad(centralAngle / 2)) * earthRadius
     // 摄像头到弦心的距离
@@ -154,21 +145,13 @@ class EarthOrbitControls extends THREE.EventDispatcher {
     const { distance, earthRadius, fov, center } = this
 
     // 垂直方向
-    const centralYAngle = getDisplayCentralAngle(
-      distance,
-      earthRadius,
-      fov
-    )
+    const centralYAngle = getDisplayCentralAngle(distance, earthRadius, fov)
     const halfCentralYAngle = centralYAngle / 2
     const s = center[1] - halfCentralYAngle
     const n = center[1] + halfCentralYAngle
 
     // 水平方向
-    const centralXAngle = getDisplayCentralAngle(
-      distance,
-      earthRadius,
-      this.fovX
-    )
+    const centralXAngle = getDisplayCentralAngle(distance, earthRadius, this.fovX)
     const halfCentralXAngle = centralXAngle / 2
     const w = center[0] - halfCentralXAngle
     const e = center[0] + halfCentralXAngle
@@ -198,10 +181,17 @@ class EarthOrbitControls extends THREE.EventDispatcher {
     const isMove = !e.ctrlKey
     if (isMove) {
       // TODO 增加阻尼效果
-      const movementLng = e.movementX / domElement.clientWidth * 36
-      const movementLat = e.movementY / domElement.clientHeight * 36
-      camera.position.applyAxisAngle(new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion), -degToRad(movementLng))
-      const applyXAxisAngle = (vector3: THREE.Vector3) => vector3.applyAxisAngle(new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion), -degToRad(movementLat))
+      const movementLng = (e.movementX / domElement.clientWidth) * 36
+      const movementLat = (e.movementY / domElement.clientHeight) * 36
+      camera.position.applyAxisAngle(
+        new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion),
+        -degToRad(movementLng),
+      )
+      const applyXAxisAngle = (vector3: THREE.Vector3) =>
+        vector3.applyAxisAngle(
+          new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion),
+          -degToRad(movementLat),
+        )
       applyXAxisAngle(camera.position)
       applyXAxisAngle(camera.up)
       this.lookAt()
@@ -215,7 +205,7 @@ class EarthOrbitControls extends THREE.EventDispatcher {
 
     const isRotate = Math.abs(e.movementX) > Math.abs(e.movementY)
     if (isRotate) {
-      const movementDeg = e.movementX / domElement.clientWidth * 360
+      const movementDeg = (e.movementX / domElement.clientWidth) * 360
       this.bearing -= movementDeg
       this.lookAt()
 
@@ -224,7 +214,7 @@ class EarthOrbitControls extends THREE.EventDispatcher {
     }
 
     // TODO pitch 处理有 bearing 的情况
-    const movementDeg = e.movementY / domElement.clientHeight * 180
+    const movementDeg = (e.movementY / domElement.clientHeight) * 180
     this.pitch = clamp(this.pitch + movementDeg, 0, 85)
     const negativePosition = camera.position.clone()
     negativePosition.x = -negativePosition.x
