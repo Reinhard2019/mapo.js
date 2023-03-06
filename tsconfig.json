@@ -5,13 +5,8 @@
     "target": "ESNext",
     "module": "ESNext",
     "moduleResolution": "node",
-    "jsxImportSource": "solid-js",
-    "jsx": "preserve",
-    "types": ["vite/client", "mdx"],
+    "types": ["vite/client"],
     "strictNullChecks": true,
     "baseUrl": "./",
-    "paths": {
-      "~/*": ["./src/*"]
-    }
   }
 }
