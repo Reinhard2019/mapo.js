@@ -6,13 +6,16 @@
 import { data } from './examples.data'
 import { onHashChange } from './utils';
 
-let hash = location.hash.slice(1)
-if (!hash) {
-  hash = 'hello-world'
-  location.replace(`#${hash}`)
-}
+let hash: string
+if (!import.meta.env.SSR) {
+  hash = location.hash.slice(1)
+  if (!hash) {
+    hash = 'hello-world'
+    location.replace(`#${hash}`)
+  }
 
-onHashChange(() => {
-  location.replace(location.hash)
-})
+  onHashChange(() => {
+    location.replace(location.hash)
+  })
+}
 </script>

@@ -6,6 +6,7 @@
     "module": "ESNext",
     "moduleResolution": "node",
     "strictNullChecks": true,
+    "types": ["vite/client"],
     "baseUrl": "./",
   }
 }
