@@ -10,7 +10,14 @@ abstract class BaseBeforeLayer extends THREE.EventDispatcher {
   readonly canvas = document.createElement('canvas')
   protected readonly ctx = this.canvas.getContext('2d')!
 
-  abstract refresh (): void
+  constructor() {
+    super()
+
+    this.canvas.style.position = 'absolute'
+    this.canvas.style.inset = '0'
+  }
+
+  abstract refresh(): void
 }
 
 export default BaseBeforeLayer

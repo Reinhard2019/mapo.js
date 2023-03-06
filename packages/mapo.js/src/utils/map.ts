@@ -8,7 +8,7 @@ import { LngLat } from '../types'
  * @param r 半径
  * @returns
  */
-export function getTangentFov (distance: number, r: number) {
+export function getTangentFov(distance: number, r: number) {
   return radToDeg(Math.asin(r / distance)) * 2
 }
 
@@ -18,7 +18,7 @@ export function getTangentFov (distance: number, r: number) {
  * @param fov 视角
  * @returns
  */
-export function getTangentRadius (distance: number, fov: number) {
+export function getTangentRadius(distance: number, fov: number) {
   return Math.sin(degToRad(fov / 2)) * distance
 }
 
@@ -29,56 +29,47 @@ export function getTangentRadius (distance: number, fov: number) {
  * @param fov 镜头视角
  * @returns
  */
-export function getDisplayCentralAngle (
-  distance: number,
-  r: number,
-  fov: number
-) {
+export function getDisplayCentralAngle(distance: number, r: number, fov: number) {
   const tangentFov = getTangentFov(distance, r)
   if (fov >= tangentFov) {
     return 180 - tangentFov
   }
 
-  /**
-   * ![avatar](../assets/getDisplayCentralAngle.svg)
-   * r^{2} - (distance - x)^{2} = (x / \cos halfFov )^{2}  - x^{2}
-   */
   const halfFov = fov / 2
   const a = 1 / Math.pow(Math.cos(degToRad(halfFov)), 2)
   const b = -2 * distance
   const c = Math.pow(distance, 2) - Math.pow(r, 2)
 
-  const α = radToDeg(
-    2 *
-      Math.acos((distance - Math.min(...getQuadraticEquationRes(a, b, c))) / r)
-  )
+  // 摄像头到弦心的距离
+  const distanceFromTheCameraToTheChord = Math.min(...getQuadraticEquationRes(a, b, c))
+
+  const α = radToDeg(2 * Math.acos((distance - distanceFromTheCameraToTheChord) / r))
   return α
 }
 
-export function lngLatToVector3 (lngLat: LngLat, radius: number) {
+export function lngLatToVector3(lngLat: LngLat, radius: number) {
   const [lng, lat] = lngLat
-  const spherical = new THREE.Spherical(radius, degToRad(90 - lat), degToRad(lng))
-  return new THREE.Vector3().setFromSpherical(spherical)
+  return new THREE.Vector3().setFromSphericalCoords(radius, degToRad(90 - lat), degToRad(lng))
 }
 
-export function vector3ToLngLat (v3: THREE.Vector3): LngLat {
+export function vector3ToLngLat(v3: THREE.Vector3): LngLat {
   const spherical = new THREE.Spherical().setFromVector3(v3)
   return sphericalToLngLat(spherical)
 }
 
-export function sphericalToLngLat (spherical: THREE.Spherical): LngLat {
+export function sphericalToLngLat(spherical: THREE.Spherical): LngLat {
   return [radToDeg(spherical.theta), 90 - radToDeg(spherical.phi)]
 }
 
-export function getSatelliteUrl (x: number, y: number, z: number) {
+export function getSatelliteUrl(x: number, y: number, z: number) {
   return `https://api.mapbox.com/v4/mapbox.satellite/${z}/${x}/${y}@2x.webp?sku=1015N1AhJztkE&access_token=pk.eyJ1IjoiZGluZ2xlaTIwMjEiLCJhIjoiY2wxbHh1aW54MDl6NDNrcGcwODNtaXNtbSJ9.6G649bdbNApupw2unoY0Yg`
 }
 
-export function getTerrainUrl (x: number, y: number, z: number) {
+export function getTerrainUrl(x: number, y: number, z: number) {
   return `https://api.mapbox.com/raster/v1/mapbox.mapbox-terrain-dem-v1/${z}/${x}/${y}.webp?sku=101Tt60mCQMaF&access_token=pk.eyJ1IjoiZGluZ2xlaTIwMjEiLCJhIjoiY2wxbHh1aW54MDl6NDNrcGcwODNtaXNtbSJ9.6G649bdbNApupw2unoY0Yg`
 }
 
 // https://docs.mapbox.com/data/tilesets/guides/access-elevation-data/
-export function rgb2elevation (color: number[]) {
-  return -10000 + ((color[0] * 256 * 256 + color[1] * 256 + color[2]) * 0.1)
+export function rgb2elevation(color: number[]) {
+  return -10000 + (color[0] * 256 * 256 + color[1] * 256 + color[2]) * 0.1
 }

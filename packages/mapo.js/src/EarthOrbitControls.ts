@@ -1,7 +1,6 @@
 import { clamp, debounce } from 'lodash-es'
 import * as THREE from 'three'
-import { BBox, EarthOrbitControlsOptions, LngLat } from './types'
-import { latPretreatmentBBox } from './utils/bbox'
+import { EarthOrbitControlsOptions, LngLat } from './types'
 import { getDisplayCentralAngle, lngLatToVector3, vector3ToLngLat } from './utils/map'
 import { degToRad, radToDeg, getQuadraticEquationRes } from './utils/math'
 
@@ -33,7 +32,7 @@ class EarthOrbitControls extends THREE.EventDispatcher {
     this.dispatchEvent({ type: 'end' })
   }, 250)
 
-  constructor (options: EarthOrbitControlsOptions) {
+  constructor(options: EarthOrbitControlsOptions) {
     super()
 
     if (options.domElement) this.domElement = options.domElement
@@ -62,7 +61,7 @@ class EarthOrbitControls extends THREE.EventDispatcher {
     })
   }
 
-  private getDistance () {
+  private getDistance() {
     const { earthRadius, fov, tileSize, zoom, domElement } = this
     const pxLat = 360 / (Math.pow(2, zoom) * tileSize)
     const pxLength = Math.sin(degToRad(pxLat)) * earthRadius
@@ -80,7 +79,7 @@ class EarthOrbitControls extends THREE.EventDispatcher {
     return distance
   }
 
-  private getZoom () {
+  private getZoom() {
     const { tileSize } = this
     const zoom = Math.log2(360 / this.getPxDeg() / tileSize)
     return zoom
@@ -89,17 +88,14 @@ class EarthOrbitControls extends THREE.EventDispatcher {
   /**
    * 每 1 个像素对应的最小度数
    */
-  getPxDeg () {
+  getPxDeg() {
     const { earthRadius, fov, distance, domElement } = this
     const centralAngle = getDisplayCentralAngle(distance, earthRadius, fov)
     // 弦心到圆心的距离
     const distanceFromTheChordToTheCentre = Math.cos(degToRad(centralAngle / 2)) * earthRadius
     // 摄像头到弦心的距离
     const distanceFromTheCameraToTheChord = distance - distanceFromTheChordToTheCentre
-    /**
-     * 弦长
-     * ![avatar](./assets/extendChordLength.svg)
-     */
+    // 弦长
     const chordLength = Math.tan(degToRad(fov / 2)) * distanceFromTheCameraToTheChord * 2
     // 每 1 个像素对应的弦长
     const pxLength = chordLength / domElement.clientHeight
@@ -107,69 +103,54 @@ class EarthOrbitControls extends THREE.EventDispatcher {
     return pxDeg
   }
 
-  get distance () {
+  get distance() {
     return this._distance
   }
 
-  private set distance (value: number) {
+  private set distance(value: number) {
     this._distance = value
     this._zoom = this.getZoom()
   }
 
-  get zoom () {
+  get zoom() {
     return this._zoom
   }
 
-  set zoom (value: number) {
+  set zoom(value: number) {
     this._zoom = value
     this._distance = this.getDistance()
   }
 
-  get z () {
+  get z() {
     return Math.ceil(this.zoom)
   }
 
   /**
    * 水平方向的视角
    */
-  get fovX () {
+  get fovX() {
+    // 邻边
     const adjacent = this.domElement.clientHeight / Math.tan(degToRad(this.fov / 2))
     return radToDeg(Math.atan(this.domElement.clientWidth / adjacent)) * 2
   }
 
   /**
-   * 获取未经处理的显示区域
+   * 根据对角线的像素长度获取对应的视角
+   * @param diagonal
    * @returns
    */
-  getPlainDisplayBBox (): BBox {
-    const { distance, earthRadius, fov, center } = this
-
-    // 垂直方向
-    const centralYAngle = getDisplayCentralAngle(distance, earthRadius, fov)
-    const halfCentralYAngle = centralYAngle / 2
-    const s = center[1] - halfCentralYAngle
-    const n = center[1] + halfCentralYAngle
-
-    // 水平方向
-    const centralXAngle = getDisplayCentralAngle(distance, earthRadius, this.fovX)
-    const halfCentralXAngle = centralXAngle / 2
-    const w = center[0] - halfCentralXAngle
-    const e = center[0] + halfCentralXAngle
-
-    // TODO 四个角加载不全
-    return [w, s, e, n]
+  getFov(diagonal: number) {
+    // 邻边
+    const adjacent = this.domElement.clientHeight / Math.tan(degToRad(this.fov / 2))
+    return radToDeg(Math.atan(diagonal / adjacent)) * 2
   }
 
-  getDisplayBBox (): BBox {
-    return latPretreatmentBBox(this.getPlainDisplayBBox())
-  }
-
-  private lookAt () {
+  private lookAt() {
     this.camera.lookAt(this.lookAtPosition)
     this.camera.rotateZ(-degToRad(this.bearing))
   }
 
-  private onMousemove (e: MouseEvent) {
+  private onMousemove(e: MouseEvent) {
     e.preventDefault()
 
     if (e.buttons === 0) {
@@ -181,16 +162,16 @@ class EarthOrbitControls extends THREE.EventDispatcher {
     const isMove = !e.ctrlKey
     if (isMove) {
       // TODO 增加阻尼效果
-      const movementLng = (e.movementX / domElement.clientWidth) * 36
-      const movementLat = (e.movementY / domElement.clientHeight) * 36
+      const movementXDeg = (e.movementX / domElement.clientWidth) * 36
+      const movementYDeg = (e.movementY / domElement.clientHeight) * 36
       camera.position.applyAxisAngle(
         new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion),
-        -degToRad(movementLng),
+        -degToRad(movementXDeg),
       )
       const applyXAxisAngle = (vector3: THREE.Vector3) =>
         vector3.applyAxisAngle(
           new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion),
-          -degToRad(movementLat),
+          -degToRad(movementYDeg),
         )
       applyXAxisAngle(camera.position)
       applyXAxisAngle(camera.up)
@@ -230,11 +211,11 @@ class EarthOrbitControls extends THREE.EventDispatcher {
     this.lookAt()
   }
 
-  private onContextmenu (e: PointerEvent) {
+  private onContextmenu(e: PointerEvent) {
     e.preventDefault()
   }
 
-  private onMousewheel (e: WheelEvent) {
+  private onMousewheel(e: WheelEvent) {
     e.preventDefault()
     e.stopPropagation()
 
@@ -256,13 +237,13 @@ class EarthOrbitControls extends THREE.EventDispatcher {
     this.onEnd()
   }
 
-  private onPointerup (e: PointerEvent) {
+  private onPointerup(e: PointerEvent) {
     e.preventDefault()
 
     this.dispatchEvent({ type: 'end' })
   }
 
-  dispose () {
+  dispose() {
     this.disposeFuncList.forEach(func => func())
     this.disposeFuncList = []
   }

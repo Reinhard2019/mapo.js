@@ -9,17 +9,19 @@ export const fullBBox: BBox = [-180, -90, 180, 90]
  * @param child
  * @returns
  */
-export function contains (parent: BBox, child: BBox) {
-  return parent[0] <= child[0] && parent[1] <= child[1] && parent[2] >= child[2] && parent[3] >= child[3]
+export function contains(parent: BBox, child: BBox) {
+  return (
+    parent[0] <= child[0] && parent[1] <= child[1] && parent[2] >= child[2] && parent[3] >= child[3]
+  )
 }
 
-export function scale (bbox: BBox, scaleValue: number): BBox {
+export function scale(bbox: BBox, scaleValue: number): BBox {
   const [w, s, e, n] = bbox
   const lngGap = e - w
   const latGap = n - s
 
-  const translateLng = (scaleValue - 1) / 2 * lngGap
-  const translateLat = (scaleValue - 1) / 2 * latGap
+  const translateLng = ((scaleValue - 1) / 2) * lngGap
+  const translateLat = ((scaleValue - 1) / 2) * latGap
   return [w - translateLng, s - translateLat, e + translateLng, n + translateLat]
 }
 
@@ -28,11 +30,16 @@ export function scale (bbox: BBox, scaleValue: number): BBox {
  * @param bbox
  * @returns
  */
-export function latPretreatmentBBox (bbox: BBox): BBox {
+export function latPretreatmentBBox(bbox: BBox): BBox {
   let [w, s, e, n] = bbox
 
   if (n - s > 180) {
     return fullBBox
+  }
+
+  if (e - w > 360) {
+    w = -180
+    e = 180
   }
 
   const nGt90 = n > 90
@@ -52,6 +59,6 @@ export function latPretreatmentBBox (bbox: BBox): BBox {
   return [w, s, e, n]
 }
 
-export function isFull (bbox: BBox): boolean {
+export function isFull(bbox: BBox): boolean {
   return isEqual(bbox, fullBBox)
 }

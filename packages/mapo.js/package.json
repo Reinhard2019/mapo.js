@@ -1,6 +1,6 @@
 {
   "name": "mapo.js",
-  "version": "0.0.0",
+  "version": "0.0.2",
   "description": "",
   "main": "src/index.ts",
   "type": "module",
@@ -8,11 +8,11 @@
   "devDependencies": {
     "@types/geojson": "^7946.0.10",
     "@types/lodash-es": "^4.17.6",
-    "@types/three": "^0.146.0"
+    "@types/three": "^0.149.0"
   },
   "dependencies": {
     "@turf/turf": "^6.5.0",
     "lodash-es": "^4.17.21",
-    "three": "^0.146.0"
+    "three": "^0.150.0"
   }
 }
