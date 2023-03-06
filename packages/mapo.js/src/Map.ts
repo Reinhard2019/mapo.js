@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import Stats from 'three/examples/jsm/libs/stats.module'
+import Stats from 'three/examples/jsm/libs/stats.module.js'
 import { BBox, EarthOrbitControlsOptions, LngLat, MapOptions, Point2 } from './types'
 import EarthOrbitControls from './EarthOrbitControls'
 import BaseLayer from './layers/BaseLayer'
