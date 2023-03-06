@@ -48,6 +48,9 @@ export default defineConfig({
     },
   },
   vite: {
+    server: {
+      port: 9999,
+    },
     plugins: [UnoCSS({})],
   },
 })
