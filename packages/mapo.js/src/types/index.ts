@@ -1,3 +1,5 @@
+import { Feature, FeatureCollection, Geometry } from 'geojson'
+
 export interface MapOptions extends Pick<EarthOrbitControlsOptions, 'center' | 'zoom' | 'bearing'> {
   container: string | HTMLElement
   hash?: boolean
@@ -35,3 +37,8 @@ export type Point2 = [number, number]
 export type Point3 = [number, number, number]
 
 export type ID = number | string
+
+export type Features<G extends Geometry | null = Geometry> =
+  | Feature<G>
+  | Array<Feature<G>>
+  | FeatureCollection<G>

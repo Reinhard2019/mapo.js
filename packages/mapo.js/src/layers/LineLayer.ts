@@ -1,27 +1,34 @@
+import { LineString, Polygon, MultiPolygon, MultiLineString, Position } from 'geojson'
+import { Features } from 'src/types'
 import { inflate } from '../utils/array'
 import geoEquirectangular from '../utils/geoEquirectangular'
 import BaseLayer from './BaseLayer'
 
 type Source =
-  | GeoJSON.Feature<GeoJSON.LineString>
-  | Array<GeoJSON.Feature<GeoJSON.LineString>>
-  | GeoJSON.Feature<GeoJSON.Polygon>
-  | Array<GeoJSON.Feature<GeoJSON.Polygon>>
-  | GeoJSON.Feature<GeoJSON.MultiPolygon>
-  | Array<GeoJSON.Feature<GeoJSON.MultiPolygon>>
+  | Features<LineString>
+  | Features<MultiLineString>
+  | Features<Polygon>
+  | Features<MultiPolygon>
+
+interface Style {
+  lineColor?: string
+  lineWidth?: number
+}
 
 class LineLayer extends BaseLayer {
   private readonly canvas = new OffscreenCanvas(1, 1)
   private readonly ctx = this.canvas.getContext('2d') as OffscreenCanvasRenderingContext2D
   source: Source
+  style?: Style
 
-  constructor(params: { source: Source }) {
+  constructor(options: { source: Source; style?: Style }) {
     super()
-    this.source = params.source
+    this.source = options.source
+    this.style = options.style
   }
 
   refresh() {
-    const { canvas, ctx, layerManager, source } = this
+    const { canvas, ctx, layerManager, source, style } = this
 
     canvas.width = layerManager!.canvas.width
     canvas.height = layerManager!.canvas.height
@@ -33,37 +40,34 @@ class LineLayer extends BaseLayer {
     })
 
     ctx.beginPath()
-    inflate(source).forEach(feature => {
+
+    if (style) {
+      if (style.lineColor) {
+        this.ctx.strokeStyle = style.lineColor
+      }
+      if (typeof style.lineWidth === 'number') {
+        this.ctx.lineWidth = style.lineWidth
+      }
+    }
+
+    const features =
+      !Array.isArray(source) && source.type === 'FeatureCollection'
+        ? source.features
+        : inflate(source)
+    features.forEach(feature => {
+      let lineStringArr: Position[][] = []
       if (feature.geometry.type === 'LineString') {
-        const coordinates = feature.geometry.coordinates
-        coordinates.forEach((position, i) => {
-          const [x, y] = projection(position)
-          if (i === 0) {
-            ctx.moveTo(x, y)
-          } else {
-            ctx.lineTo(x, y)
-          }
-        })
-        return
+        lineStringArr = [feature.geometry.coordinates]
+      } else if (
+        feature.geometry.type === 'MultiLineString' ||
+        feature.geometry.type === 'Polygon'
+      ) {
+        lineStringArr = feature.geometry.coordinates
+      } else {
+        lineStringArr = feature.geometry.coordinates.flat()
       }
 
-      if (feature.geometry.type === 'Polygon') {
-        const coordinates = feature.geometry.coordinates
-        coordinates.forEach(positions => {
-          positions.forEach((position, i) => {
-            const [x, y] = projection(position)
-            if (i === 0) {
-              ctx.moveTo(x, y)
-            } else {
-              ctx.lineTo(x, y)
-            }
-          })
-        })
-        return
-      }
-
-      const coordinates = feature.geometry.coordinates
-      coordinates.flat().forEach(positions => {
+      lineStringArr.forEach(positions => {
         positions.forEach((position, i) => {
           const [x, y] = projection(position)
           if (i === 0) {
@@ -75,8 +79,6 @@ class LineLayer extends BaseLayer {
       })
     })
 
-    ctx.strokeStyle = 'red'
-    ctx.lineWidth = 50
     ctx.stroke()
 
     this.imageBitmap = canvas.transferToImageBitmap()
