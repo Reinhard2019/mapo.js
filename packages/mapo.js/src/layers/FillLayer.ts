@@ -1,23 +1,29 @@
+import { MultiPolygon, Polygon, Position } from 'geojson'
+import { Features } from 'src/types'
 import { inflate } from '../utils/array'
 import geoEquirectangular from '../utils/geoEquirectangular'
 import BaseLayer from './BaseLayer'
 
-type Source = GeoJSON.Feature<GeoJSON.Polygon> | Array<GeoJSON.Feature<GeoJSON.Polygon>>
+type Source = Features<Polygon> | Features<MultiPolygon>
+
+interface Style {
+  fillColor?: string
+}
 
 class FillLayer extends BaseLayer {
   private readonly canvas = new OffscreenCanvas(1, 1)
   private readonly ctx = this.canvas.getContext('2d') as OffscreenCanvasRenderingContext2D
   source: Source
+  style?: Style
 
-  constructor (params: {
-    source: Source
-  }) {
+  constructor(options: { source: Source; style?: Style }) {
     super()
-    this.source = params.source
+    this.source = options.source
+    this.style = options.style
   }
 
-  refresh () {
-    const { canvas, ctx, layerManager, source } = this
+  refresh() {
+    const { canvas, ctx, layerManager, source, style } = this
 
     canvas.width = layerManager!.canvas.width
     canvas.height = layerManager!.canvas.height
@@ -25,13 +31,28 @@ class FillLayer extends BaseLayer {
 
     const projection = geoEquirectangular({
       bbox: this.layerManager!.bbox,
-      size: [this.layerManager!.canvas.width, this.layerManager!.canvas.height]
+      size: [this.layerManager!.canvas.width, this.layerManager!.canvas.height],
     })
 
     ctx.beginPath()
-    inflate(source).forEach(feature => {
-      const coordinates = feature.geometry.coordinates
-      coordinates.forEach((positions) => {
+    if (style) {
+      if (style.fillColor) {
+        ctx.fillStyle = style.fillColor
+      }
+    }
+
+    const features =
+      !Array.isArray(source) && source.type === 'FeatureCollection'
+        ? source.features
+        : inflate(source)
+    features.forEach(feature => {
+      let coordinates: Position[][] = []
+      if (feature.geometry.type === 'MultiPolygon') {
+        coordinates = feature.geometry.coordinates.flat()
+      } else {
+        coordinates = feature.geometry.coordinates
+      }
+      coordinates.forEach(positions => {
         positions.forEach((position, i) => {
           const [x, y] = projection(position)
           if (i === 0) {
@@ -42,8 +63,7 @@ class FillLayer extends BaseLayer {
         })
       })
     })
-    ctx.fillStyle = 'green'
-    ctx.lineWidth = 10
+
     ctx.fill()
 
     this.imageBitmap = canvas.transferToImageBitmap()
