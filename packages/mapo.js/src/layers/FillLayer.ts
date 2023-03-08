@@ -48,9 +48,9 @@ class FillLayer extends BaseLayer {
     features.forEach(feature => {
       let coordinates: Position[][] = []
       if (feature.geometry.type === 'MultiPolygon') {
-        coordinates = feature.geometry.coordinates.flat()
+        coordinates = feature.geometry.coordinates.map(polygonCoordinates => polygonCoordinates[0])
       } else {
-        coordinates = feature.geometry.coordinates
+        coordinates = feature.geometry.coordinates.slice(0, 1)
       }
       coordinates.forEach(positions => {
         positions.forEach((position, i) => {

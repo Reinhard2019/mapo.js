@@ -58,13 +58,15 @@ class LineLayer extends BaseLayer {
       let lineStringArr: Position[][] = []
       if (feature.geometry.type === 'LineString') {
         lineStringArr = [feature.geometry.coordinates]
-      } else if (
-        feature.geometry.type === 'MultiLineString' ||
-        feature.geometry.type === 'Polygon'
-      ) {
+      } else if (feature.geometry.type === 'MultiLineString') {
         lineStringArr = feature.geometry.coordinates
+      } else if (feature.geometry.type === 'Polygon') {
+        // TODO Polygon 支持中空（第一个环必须是外部环，其他的必须是内部环或者孔，而且内部环和外部环的走向是相反的）
+        lineStringArr = feature.geometry.coordinates.slice(0, 1)
       } else {
-        lineStringArr = feature.geometry.coordinates.flat()
+        lineStringArr = feature.geometry.coordinates.map(
+          polygonCoordinates => polygonCoordinates[0],
+        )
       }
 
       lineStringArr.forEach(positions => {
