@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import Stats from 'three/examples/jsm/libs/stats.module.js'
+// import Stats from 'three/examples/jsm/libs/stats.module.js'
 import { BBox, EarthOrbitControlsOptions, LngLat, MapOptions, Point2 } from './types'
 import EarthOrbitControls from './EarthOrbitControls'
 import BaseLayer from './layers/BaseLayer'
@@ -68,12 +68,12 @@ class Map extends THREE.EventDispatcher {
 
     const { earthRadius, tileSize } = this
 
-    let stats: Stats | undefined
-    if (options.fps) {
-      stats = Stats()
-      stats.dom.style.position = 'absolute'
-      container.appendChild(stats.dom)
-    }
+    // let stats: Stats | undefined
+    // if (options.fps) {
+    //   stats = Stats()
+    //   stats.dom.style.position = 'absolute'
+    //   container.appendChild(stats.dom)
+    // }
 
     this.scene.background = new THREE.Color(0x020924)
     // this.scene.fog = new THREE.Fog(0x020924, 200, 1000)
@@ -115,7 +115,7 @@ class Map extends THREE.EventDispatcher {
 
     // 页面重绘动画
     const tick = () => {
-      stats?.update()
+      // stats?.update()
       // 更新渲染器
       this.renderer.render(this.scene, this.earthOrbitControls.camera)
       // 页面重绘时调用自身

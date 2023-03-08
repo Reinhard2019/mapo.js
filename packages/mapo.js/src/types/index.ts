@@ -6,7 +6,7 @@ export interface MapOptions extends Pick<EarthOrbitControlsOptions, 'center' | '
   /**
    * 是否开启帧数监视器
    */
-  fps?: boolean
+  // fps?: boolean
 }
 
 export interface EarthOrbitControlsOptions {
