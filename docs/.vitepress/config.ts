@@ -11,11 +11,17 @@ export default defineConfig({
     logo: '/logo.png',
     siteTitle: 'Mapo.js',
     nav: [
-      { text: '使用教程', link: '/guide/', activeMatch: '/guide/' },
+      { text: '使用教程', link: '/guide/quick-start', activeMatch: '/guide/' },
       { text: '示例', link: '/examples/', activeMatch: '/examples/' },
     ],
     socialLinks: [{ icon: 'github', link: 'https://github.com/Reinhard2019/mapo.js' }],
     sidebar: {
+      '/guide/': [
+        {
+          text: '开始',
+          items: [{ text: '快速上手', link: '/guide/quick-start' }],
+        },
+      ],
       '/examples/': [
         {
           text: '基础',

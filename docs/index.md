@@ -14,7 +14,7 @@ hero:
   actions:
     - theme: brand
       text: 开始使用
-      link: /guide
+      link: /guide/quick-start
     - theme: alt
       text: GitHub
       link: https://github.com/Reinhard2019/mapo.js
