@@ -1,8 +1,9 @@
 {
   "name": "mapo.js",
-  "version": "0.0.4",
+  "version": "0.0.6",
   "description": "",
   "main": "esm/index.js",
+  "unpkg": "dist/index.js",
   "types": "esm/index.d.ts",
   "type": "module",
   "license": "MIT",
@@ -11,19 +12,20 @@
     "build": "rollup -c"
   },
   "devDependencies": {
-    "@rollup/plugin-commonjs": "^24.0.1",
     "@types/geojson": "^7946.0.10",
     "@types/lodash-es": "^4.17.6",
-    "@types/three": "^0.149.0",
-    "rollup": "^3.18.0",
-    "rollup-plugin-typescript2": "^0.34.1"
+    "@types/three": "^0.149.0"
   },
   "dependencies": {
     "@turf/turf": "^6.5.0",
     "lodash-es": "^4.17.21",
     "three": "^0.150.0"
   },
+  "peerDependencies": {
+    "three": "^0.150.0"
+  },
   "files": [
-    "/esm"
+    "/esm",
+    "/dist"
   ]
 }
