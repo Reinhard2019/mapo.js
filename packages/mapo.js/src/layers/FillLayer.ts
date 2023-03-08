@@ -1,10 +1,10 @@
 import { MultiPolygon, Polygon, Position } from 'geojson'
 import { Features } from 'src/types'
-import { inflate } from '../utils/array'
+import { features2featureArr } from 'src/utils/layers'
 import geoEquirectangular from '../utils/geoEquirectangular'
 import BaseLayer from './BaseLayer'
 
-type Source = Features<Polygon> | Features<MultiPolygon>
+type Source = Features<Polygon | MultiPolygon>
 
 interface Style {
   fillColor?: string
@@ -41,11 +41,7 @@ class FillLayer extends BaseLayer {
       }
     }
 
-    const features =
-      !Array.isArray(source) && source.type === 'FeatureCollection'
-        ? source.features
-        : inflate(source)
-    features.forEach(feature => {
+    features2featureArr(source).forEach(feature => {
       let coordinates: Position[][] = []
       if (feature.geometry.type === 'MultiPolygon') {
         coordinates = feature.geometry.coordinates.map(polygonCoordinates => polygonCoordinates[0])

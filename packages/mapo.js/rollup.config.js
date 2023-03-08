@@ -12,4 +12,5 @@ export default {
     }),
     commonjs(),
   ],
+  external: ['lodash-es', 'three', '@turf/turf', 'three/examples/jsm/libs/stats.module.js'],
 }

@@ -1,5 +1,6 @@
 import { isEqual } from 'lodash-es'
 import { BBox } from '../types'
+import { inRange } from './number'
 
 export const fullBBox: BBox = [-180, -90, 180, 90]
 
@@ -9,10 +10,35 @@ export const fullBBox: BBox = [-180, -90, 180, 90]
  * @param child
  * @returns
  */
-export function contains(parent: BBox, child: BBox) {
+export function bboxContains(parent: BBox, child: BBox) {
   return (
     parent[0] <= child[0] && parent[1] <= child[1] && parent[2] >= child[2] && parent[3] >= child[3]
   )
+}
+
+/**
+ * 两个 line 是否存在重叠部分
+ * @param a
+ * @param b
+ * @returns
+ */
+export function lineOverlap(a: [number, number], b: [number, number]) {
+  return (
+    inRange(b[0], a[0], a[1], '[)') ||
+    inRange(b[1], a[0], a[1], '(]') ||
+    inRange(a[0], b[0], b[1], '[)') ||
+    inRange(a[1], b[0], b[1], '(]')
+  )
+}
+
+/**
+ * 两个 bbox 是否存在重叠部分
+ * @param a
+ * @param b
+ * @returns
+ */
+export function bboxOverlap(a: BBox, b: BBox) {
+  return lineOverlap([a[0], a[2]], [b[0], b[2]]) && lineOverlap([a[1], a[3]], [b[1], b[3]])
 }
 
 export function scale(bbox: BBox, scaleValue: number): BBox {

@@ -23,6 +23,9 @@ export interface Size {
 }
 
 export type XYZ = [number, number, number]
+/**
+ * [west, south, east, north]
+ */
 export type BBox = [number, number, number, number]
 export interface TileIndexBox {
   startX: number

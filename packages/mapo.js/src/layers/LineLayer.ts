@@ -1,14 +1,10 @@
 import { LineString, Polygon, MultiPolygon, MultiLineString, Position } from 'geojson'
 import { Features } from 'src/types'
-import { inflate } from '../utils/array'
+import { features2featureArr } from 'src/utils/layers'
 import geoEquirectangular from '../utils/geoEquirectangular'
 import BaseLayer from './BaseLayer'
 
-type Source =
-  | Features<LineString>
-  | Features<MultiLineString>
-  | Features<Polygon>
-  | Features<MultiPolygon>
+type Source = Features<LineString | MultiLineString | Polygon | MultiPolygon>
 
 interface Style {
   lineColor?: string
@@ -50,11 +46,7 @@ class LineLayer extends BaseLayer {
       }
     }
 
-    const features =
-      !Array.isArray(source) && source.type === 'FeatureCollection'
-        ? source.features
-        : inflate(source)
-    features.forEach(feature => {
+    features2featureArr(source).forEach(feature => {
       let lineStringArr: Position[][] = []
       if (feature.geometry.type === 'LineString') {
         lineStringArr = [feature.geometry.coordinates]

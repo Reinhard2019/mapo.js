@@ -8,7 +8,7 @@ import TileLayer from './layers/TileLayer'
 import { floor, last, throttle } from 'lodash-es'
 import EarthGeometry from './EarthGeometry'
 import MercatorTile from './utils/MercatorTile'
-import { contains, fullBBox, isFull, latPretreatmentBBox, scale } from './utils/bbox'
+import { bboxContains, fullBBox, isFull, latPretreatmentBBox, scale } from './utils/bbox'
 import { unwrapHTMLElement } from './utils/dom'
 import {
   getDisplayCentralAngle,
@@ -212,12 +212,12 @@ class Map extends THREE.EventDispatcher {
       const preloadBBox = this.getPreloadBBox()
       const displayBBox = bbox(this.getDisplayPolygon()) as BBox
 
-      if (contains(cachePreloadBBox, preloadBBox)) {
+      if (bboxContains(cachePreloadBBox, preloadBBox)) {
         this.updatePreloadBBox()
         return
       }
 
-      const overflowSecureBBox = secureBBox && !contains(secureBBox, displayBBox)
+      const overflowSecureBBox = secureBBox && !bboxContains(secureBBox, displayBBox)
       if (overflowSecureBBox) {
         this.updatePreloadBBox()
       }
