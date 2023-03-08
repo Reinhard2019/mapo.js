@@ -1,5 +1,5 @@
 <template>
-  <div :class="['flex', expand && 'fixed top-0 left-0 z-10000 w-screen h-screen']">
+  <div ref="container" :class="['flex', expand && 'fixed top-0 left-0 z-10000 w-screen h-screen']">
     <div ref="map" id="map" class="h-full w-50% bg-black" />
     <div class="h-full w-50%" ref="editorContainer">
       <n-config-provider :theme="theme">
@@ -53,6 +53,14 @@ import type { ResizeEvent } from '@interactjs/types/index'
 
 const { NConfigProvider, NTooltip, NSelect, lightTheme, darkTheme } = naiveUi
 
+const props = defineProps({
+  code: String,
+  /**
+   * beforeInit 在 onMounted 中，preview 和 editor 初始化前执行
+   */
+  onBeforeInit: Function
+})
+
 // 在执行 eval 函数时，会生成一个或多个 Map 对象，再次执行 eval 前需要先销毁这些对象
 let mapList: Map[] = []
 class Map extends mapo.Map {
@@ -83,17 +91,14 @@ const evalAsync = (code?: string) => {
   }
 }
 
-const props = defineProps({
-  code: String
-})
-
 let editorContainer = ref<HTMLDivElement>()
+let container = ref<HTMLDivElement>()
 let map = ref<HTMLDivElement>()
 let editor = ref<HTMLDivElement>()
 
 const { isDark } = useData()
 const expand = ref(false)
-const codeType = ref<'javascript' | 'typescript'>('javascript')
+// const codeType = ref<'javascript' | 'typescript'>('javascript')
 const theme = computed(() => isDark.value ? darkTheme : lightTheme)
 let codeEditor: editor.IStandaloneCodeEditor
 
@@ -114,6 +119,8 @@ function initEditor() {
 }
 
 onMounted(() => {
+  props.onBeforeInit?.(container.value!)
+
   const id = "monaco-editor-loader"
   let script = document.getElementById(id) as HTMLScriptElement
   if (script) {
