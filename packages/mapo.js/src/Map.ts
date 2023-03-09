@@ -1,11 +1,12 @@
 import * as THREE from 'three'
+import type { Event } from 'three'
 // import Stats from 'three/examples/jsm/libs/stats.module.js'
 import { BBox, EarthOrbitControlsOptions, LngLat, MapOptions, Point2 } from './types'
 import EarthOrbitControls from './EarthOrbitControls'
 import BaseLayer from './layers/BaseLayer'
 import LayerManager from './layers/LayerManager'
 import TileLayer from './layers/TileLayer'
-import { floor, last, throttle } from 'lodash-es'
+import { floor, last, remove, throttle } from 'lodash-es'
 import EarthGeometry from './EarthGeometry'
 import MercatorTile from './utils/MercatorTile'
 import { bboxContains, fullBBox, isFull, latPretreatmentBBox, scale } from './utils/bbox'
@@ -21,26 +22,32 @@ import BaseBeforeLayer from './layers/BaseBeforeLayer'
 import { degToRad, hypotenuse, radToDeg, rectangleIntersect } from './utils/math'
 import { bbox, lineIntersect, lineString, polygon } from '@turf/turf'
 import { inRange } from './utils/number'
+import Control from './Control'
 
-class Map extends THREE.EventDispatcher {
+interface _Event extends Event {
+  type: 'render' | 'zoom' | 'rotate' | 'move'
+}
+
+class Map extends THREE.EventDispatcher<_Event> {
   tileSize = 512
   // 地球半径 6371km
   readonly earthRadius = 6371
 
-  readonly renderer = new THREE.WebGLRenderer()
+  readonly renderer: THREE.WebGLRenderer
   readonly scene = new THREE.Scene()
   readonly hash: boolean = false
 
   private readonly earthOrbitControls: EarthOrbitControls
   private readonly earthGeometry: EarthGeometry
   private readonly earthMesh = new THREE.Mesh()
-  private readonly container: HTMLElement
+  readonly container: HTMLElement
 
   private layerManager: LayerManager
   private readonly beforeLayerManager: BeforeLayerManager
   private tileLayer: TileLayer
 
   private disposeFuncList: Array<() => void> = []
+  private controlArr: Control[] = []
 
   /**
    * 安全区域，如果 displayBBox 超出了安全区域，则需要更新 preloadBBox
@@ -59,11 +66,12 @@ class Map extends THREE.EventDispatcher {
     this.container = container
 
     if (typeof options.hash === 'boolean') this.hash = options.hash
+    this.renderer = new THREE.WebGLRenderer(options.webGLRendererParameters)
 
     const pixelRatio = container.clientWidth / container.clientHeight
     this.renderer.setSize(container.clientWidth, container.clientHeight)
     this.renderer.setPixelRatio(pixelRatio)
-    container.appendChild(this.renderer.domElement)
+    if (!options.ssr) container.appendChild(this.renderer.domElement)
     this.disposeFuncList.push(() => this.renderer.dispose())
 
     const { earthRadius, tileSize } = this
@@ -102,7 +110,7 @@ class Map extends THREE.EventDispatcher {
     this.earthMesh.geometry = this.earthGeometry
     this.earthMesh.userData.id = 'test'
     this.scene.add(this.earthMesh)
-    this.initEarthMaterial()
+    if (!options.ssr) this.initEarthMaterial()
 
     this.beforeLayerManager = new BeforeLayerManager({
       container,
@@ -115,27 +123,30 @@ class Map extends THREE.EventDispatcher {
 
     // 页面重绘动画
     const tick = () => {
-      // stats?.update()
       // 更新渲染器
       this.renderer.render(this.scene, this.earthOrbitControls.camera)
       // 页面重绘时调用自身
       const id = window.requestAnimationFrame(tick)
       this.disposeFuncList.push(() => window.cancelAnimationFrame(id))
+
+      this.dispatchEvent({ type: 'render' })
     }
     tick()
 
-    const ro = new ResizeObserver(() => {
-      const _pixelRatio = container.clientWidth / container.clientHeight
+    if (!options.ssr) {
+      const ro = new ResizeObserver(() => {
+        const _pixelRatio = container.clientWidth / container.clientHeight
 
-      this.renderer.setPixelRatio(_pixelRatio)
-      this.renderer.setSize(container.clientWidth, container.clientHeight)
+        this.renderer.setPixelRatio(_pixelRatio)
+        this.renderer.setSize(container.clientWidth, container.clientHeight)
 
-      const { camera } = this.earthOrbitControls
-      camera.aspect = _pixelRatio
-      camera.updateProjectionMatrix()
-    })
-    ro.observe(container)
-    this.disposeFuncList.push(() => ro.disconnect())
+        const { camera } = this.earthOrbitControls
+        camera.aspect = _pixelRatio
+        camera.updateProjectionMatrix()
+      })
+      ro.observe(container)
+      this.disposeFuncList.push(() => ro.disconnect())
+    }
   }
 
   addBackground() {
@@ -605,6 +616,18 @@ class Map extends THREE.EventDispatcher {
     }
   }
 
+  addControl(control: Control) {
+    if (!this.controlArr.find(v => v === control)) {
+      control.onAdd(this)
+      this.controlArr.push(control)
+    }
+  }
+
+  removeControl(control: Control) {
+    control.onRemove(this)
+    remove(this.controlArr, v => v === control)
+  }
+
   private clearContainer() {
     this.container.childNodes.forEach(child => {
       this.container.removeChild(child)
@@ -614,6 +637,9 @@ class Map extends THREE.EventDispatcher {
   dispose() {
     this.disposeFuncList.forEach(func => func())
     this.disposeFuncList = []
+
+    this.controlArr.forEach(control => control.onRemove(this))
+    this.controlArr = []
 
     this.clearContainer()
   }

@@ -43,8 +43,11 @@ export default defineConfig({
           items: [{ text: '辅助坐标轴', link: '/examples/#axes-helper' }],
         },
         {
-          text: 'debug',
-          items: [{ text: '显示区域', link: '/examples/#display-area' }],
+          text: '控件',
+          items: [
+            { text: '显示区域', link: '/examples/#display-area' },
+            { text: 'FPS', link: '/examples/#fps' },
+          ],
         },
       ],
     },

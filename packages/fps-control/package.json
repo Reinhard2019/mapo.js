@@ -1,0 +1,23 @@
+{
+  "name": "fps-control",
+  "version": "1.0.0",
+  "description": "",
+  "type": "module",
+  "main": "esm/index.js",
+  "unpkg": "dist/index.js",
+  "types": "esm/index.d.ts",
+  "scripts": {
+    "dev": "rollup -c --watch",
+    "build": "rollup -c"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "stats.js": "^0.17.0",
+    "mapo.js": "workspace:*"
+  },
+  "peerDependencies": {
+    "mapo.js": "workspace:*"
+  }
+}

@@ -1,12 +1,14 @@
 import { Feature, FeatureCollection, Geometry } from 'geojson'
+import type { WebGLRendererParameters } from 'three'
 
 export interface MapOptions extends Pick<EarthOrbitControlsOptions, 'center' | 'zoom' | 'bearing'> {
   container: string | HTMLElement
   hash?: boolean
+  webGLRendererParameters?: WebGLRendererParameters
   /**
-   * 是否开启帧数监视器
+   * 服务器端渲染
    */
-  // fps?: boolean
+  ssr?: boolean
 }
 
 export interface EarthOrbitControlsOptions {

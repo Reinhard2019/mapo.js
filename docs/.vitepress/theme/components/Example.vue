@@ -42,6 +42,7 @@
 
 <script lang="ts" setup>
 import * as mapo from 'mapo.js'
+import FPSControl from 'fps-control'
 import * as THREE from 'three'
 import type { editor } from 'monaco-editor'
 import { computed, onMounted, ref, watch } from 'vue'
@@ -74,15 +75,15 @@ const evalAsync = (code?: string) => {
   if (!code) return
   // babel 转化后的代码依赖于 require
   function require(name: string) {
-    if (name === 'mapo.js') {
-      return {
+    const libMap = {
+      'mapo.js': {
         ...mapo,
         Map
-      }
+      },
+      three: THREE,
+      'fps-control': FPSControl,
     }
-    if (name === 'three') {
-      return THREE
-    }
+    return libMap[name]
   }
   // if (!!require) 的意义：由于 require 只在 eval 中被使用，如果没有明确在代码中被使用，打包过程中会自动清空掉 require 函数
   if (!!require) {
