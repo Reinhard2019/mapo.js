@@ -27,7 +27,7 @@ export default defineConfig({
           text: '基础',
           items: [
             { text: '你好，世界', link: '/examples/#hello-world' },
-            { text: 'hash', link: '/examples/#hash' },
+            { text: 'hash', link: '/examples/hash' },
           ],
         },
         {
