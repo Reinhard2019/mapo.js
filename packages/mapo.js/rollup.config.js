@@ -11,6 +11,7 @@ export default [
     plugins: [
       ts({
         tsconfig: 'tsconfig.json',
+        exclude: ['src/**/*.test.ts'],
       }),
       commonjs(),
     ],
@@ -30,6 +31,7 @@ export default [
     plugins: [
       ts({
         tsconfig: 'tsconfig.json',
+        exclude: ['src/**/*.test.ts'],
         tsconfigOverride: {
           compilerOptions: {
             declaration: false,
