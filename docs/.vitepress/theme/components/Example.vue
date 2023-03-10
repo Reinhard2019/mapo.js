@@ -54,12 +54,19 @@ import type { ResizeEvent } from '@interactjs/types/index'
 
 const { NConfigProvider, NTooltip, NSelect, lightTheme, darkTheme } = naiveUi
 
-const props = defineProps({
-  code: String,
+interface Props {
+  code: string,
+  /**
+   * 是否占满屏幕剩余高度，默认为 true
+   */
+  fillRemainderHeight?: boolean,
   /**
    * beforeInit 在 onMounted 中，preview 和 editor 初始化前执行
    */
-  onBeforeInit: Function
+  onBeforeInit?: Function
+}
+const props = withDefaults(defineProps<Props>(), {
+  fillRemainderHeight: true
 })
 
 // 在执行 eval 函数时，会生成一个或多个 Map 对象，再次执行 eval 前需要先销毁这些对象
@@ -92,8 +99,8 @@ const evalAsync = (code?: string) => {
   }
 }
 
-let editorContainer = ref<HTMLDivElement>()
 let container = ref<HTMLDivElement>()
+let editorContainer = ref<HTMLDivElement>()
 let map = ref<HTMLDivElement>()
 let editor = ref<HTMLDivElement>()
 
@@ -121,6 +128,11 @@ function initEditor() {
 
 onMounted(() => {
   props.onBeforeInit?.(container.value!)
+
+  if (props.fillRemainderHeight) {
+    const {top} = container.value!.getBoundingClientRect()
+    container.value!.style.height = `calc(100vh - ${top}px)`
+  }
 
   const id = "monaco-editor-loader"
   let script = document.getElementById(id) as HTMLScriptElement
