@@ -591,8 +591,14 @@ class Map extends THREE.EventDispatcher<_Event> {
       return polygon([[...lngLatArr, lngLatArr[0]]])
     }
 
-    lngLatArr[0][0] = lngLatArr[lngLatArr.length / 2][0] = this.earthOrbitControls.center[0]
-    lngLatArr.slice(lngLatArr.length / 2 + 1).forEach(v => {
+    const halfLength = lngLatArr.length / 2
+    lngLatArr[0][0] = lngLatArr[halfLength][0] = this.earthOrbitControls.center[0]
+    lngLatArr.slice(1, halfLength).forEach(v => {
+      if (v[0] > this.earthOrbitControls.center[0]) {
+        v[0] -= 360
+      }
+    })
+    lngLatArr.slice(halfLength + 1).forEach(v => {
       if (v[0] < this.earthOrbitControls.center[0]) {
         v[0] += 360
       }

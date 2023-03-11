@@ -5,6 +5,7 @@ const container = document.getElementById('map')
 const map = new Map({
   container,
   center: [116.405285, 39.904989],
+  hash: true,
 })
 
 const canvas = document.createElement('canvas')
@@ -31,25 +32,32 @@ function updateDisplayPolygon() {
   const positions = map.getDisplayPolygon().geometry.coordinates[0]
 
   ctx.beginPath()
-  positions.forEach((v, i) => {
-    const [x, y] = projection(v)
+  ctx.fillStyle = 'red'
+  ctx.font = `${20}px sans-serif`
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  positions.forEach((position, i) => {
+    const [x, y] = projection(position)
     if (i === 0) {
       ctx.moveTo(x, y)
     } else {
       ctx.lineTo(x, y)
     }
+    ctx.fillText(i + ':' + position.map(v => Math.round(v)), x, y)
   })
   ctx.strokeStyle = 'white'
   ctx.stroke()
 
   ctx.beginPath()
-  positions.forEach((v, i) => {
-    const [x, y] = map.project(v, { allowNotVisible: true })
+  ctx.fillStyle = 'white'
+  positions.forEach((position, i) => {
+    const [x, y] = map.project(position, { allowNotVisible: true })
     if (i === 0) {
       ctx.moveTo(x, y)
     } else {
       ctx.lineTo(x, y)
     }
+    ctx.fillText(i + ':' + position.map(v => Math.round(v)), x, y)
   })
   ctx.strokeStyle = 'red'
   ctx.stroke()
