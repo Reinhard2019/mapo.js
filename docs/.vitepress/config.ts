@@ -12,7 +12,7 @@ export default defineConfig({
     siteTitle: 'Mapo.js',
     nav: [
       { text: '使用教程', link: '/guide/quick-start', activeMatch: '/guide/' },
-      { text: '示例', link: '/examples/', activeMatch: '/examples/' },
+      { text: '示例', link: '/examples/hello-world', activeMatch: '/examples/' },
     ],
     socialLinks: [{ icon: 'github', link: 'https://github.com/Reinhard2019/mapo.js' }],
     sidebar: {
@@ -26,27 +26,27 @@ export default defineConfig({
         {
           text: '基础',
           items: [
-            { text: '你好，世界', link: '/examples/#hello-world' },
+            { text: '你好，世界', link: '/examples/hello-world' },
             { text: 'hash', link: '/examples/hash' },
           ],
         },
         {
           text: '图层',
           items: [
-            { text: '文字', link: '/examples/#text-layer' },
-            { text: '线条', link: '/examples/#line-layer' },
-            { text: '填充', link: '/examples/#fill-layer' },
+            { text: '文字', link: '/examples/text-layer' },
+            { text: '线条', link: '/examples/line-layer' },
+            { text: '填充', link: '/examples/fill-layer' },
           ],
         },
         {
           text: 'three',
-          items: [{ text: '辅助坐标轴', link: '/examples/#axes-helper' }],
+          items: [{ text: '辅助坐标轴', link: '/examples/axes-helper' }],
         },
         {
           text: '控件',
           items: [
-            { text: '显示区域', link: '/examples/#display-area' },
-            { text: 'FPS', link: '/examples/#fps' },
+            { text: '显示区域', link: '/examples/display-area' },
+            { text: 'FPS', link: '/examples/fps' },
           ],
         },
       ],
