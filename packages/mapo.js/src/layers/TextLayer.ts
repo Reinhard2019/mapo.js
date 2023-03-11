@@ -71,11 +71,6 @@ class TextLayer extends BaseBeforeLayer {
         return
       }
 
-      console.log(
-        textBBox,
-        bboxArr,
-        bboxArr.some(bbox => bboxOverlap(bbox, textBBox)),
-      )
       if (!style?.overlap && bboxArr.some(bbox => bboxOverlap(bbox, textBBox))) {
         return
       }

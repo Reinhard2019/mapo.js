@@ -1,5 +1,6 @@
 import { defineConfig } from 'vitepress'
 import UnoCSS from 'unocss/vite'
+import { visualizer } from 'rollup-plugin-visualizer'
 
 // https://github1s.com/vitejs/vite/blob/HEAD/docs/.vitepress/config.ts#L1
 export default defineConfig({
@@ -60,6 +61,12 @@ export default defineConfig({
     server: {
       port: 9999,
     },
-    plugins: [UnoCSS({})],
+    plugins: [
+      UnoCSS({}),
+      visualizer({
+        emitFile: true,
+        filename: 'stats.html',
+      }),
+    ],
   },
 })

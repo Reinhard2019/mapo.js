@@ -11,6 +11,9 @@ import { data } from './index.data.ts'
 const { params } = useData()
 
 const code = computed(() => data[params.value?.name])
+
+const ssr = import.meta.env.SSR
 </script>
 
-<Example :code="code" />
+<!-- ssr 水合存在问题 -->
+<Example v-if="!ssr" :code="code" />

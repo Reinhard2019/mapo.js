@@ -17,24 +17,24 @@ class LayerManager {
   z = 0
   onUpdate?: () => void
 
-  updateCanvasSize (pxDeg: number) {
+  updateCanvasSize(pxDeg: number) {
     const { bbox, canvas } = this
     canvas.width = Math.ceil((bbox[2] - bbox[0]) / pxDeg)
     canvas.height = Math.ceil((bbox[3] - bbox[1]) / pxDeg)
-    console.log('width:', canvas.width)
-    console.log('height:', canvas.height)
   }
 
-  updateCanvas () {
+  updateCanvas() {
     const { ctx, canvas } = this
     ctx.clearRect(0, 0, this.canvas.width, this.canvas.height)
-    this.layers.sort((v1, v2) => v1.zIndex - v2.zIndex).forEach(layer => {
-      layer.imageBitmap && ctx.drawImage(layer.imageBitmap, 0, 0, canvas.width, canvas.height)
-    })
+    this.layers
+      .sort((v1, v2) => v1.zIndex - v2.zIndex)
+      .forEach(layer => {
+        layer.imageBitmap && ctx.drawImage(layer.imageBitmap, 0, 0, canvas.width, canvas.height)
+      })
     this.onUpdate?.()
   }
 
-  refresh () {
+  refresh() {
     if (isEmpty(this.layers)) {
       return
     }
@@ -45,26 +45,26 @@ class LayerManager {
     this.updateCanvas()
   }
 
-  update () {
+  update() {
     this.layers.forEach(layer => {
       layer.update()
     })
   }
 
-  addLayer (layer: BaseLayer) {
+  addLayer(layer: BaseLayer) {
     layer.layerManager = this
     this.layers.push(layer)
     layer.refresh()
     this.updateCanvas()
   }
 
-  removeLayer (layer: BaseLayer) {
+  removeLayer(layer: BaseLayer) {
     const index = this.layers.findIndex(l => l === layer)
     this.layers.splice(index, 1)
     layer.dispose()
   }
 
-  dispose () {
+  dispose() {
     this.layers.forEach(layer => layer.dispose())
   }
 }

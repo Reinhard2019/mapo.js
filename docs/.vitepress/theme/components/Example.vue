@@ -35,7 +35,11 @@
           </div>
         </div>
       </n-config-provider>
-      <div ref="editor" class="h-[calc(100%-36px)]" />
+      <div class="h-[calc(100%-36px)] relative">
+        <n-progress v-if="percentage < 100" class="absolute" type="line" :percentage="percentage" :show-indicator="false"
+          :height="2" :border-radius="0" />
+        <iframe ref="editor" class="w-full h-full border-none" />
+      </div>
     </div>
   </div>
 </template>
@@ -47,12 +51,12 @@ import * as THREE from 'three'
 import type { editor } from 'monaco-editor'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useData } from 'vitepress'
-import * as Babel from '@babel/standalone'
 import * as naiveUi from 'naive-ui'
 import interact from 'interactjs'
 import type { ResizeEvent } from '@interactjs/types/index'
+import useLoadingBar from '../hooks/useLoadingBar'
 
-const { NConfigProvider, NTooltip, NSelect, lightTheme, darkTheme } = naiveUi
+const { NConfigProvider, NTooltip, NProgress, lightTheme, darkTheme } = naiveUi
 
 interface Props {
   code: string,
@@ -94,7 +98,8 @@ const evalAsync = (code?: string) => {
   }
   // if (!!require) 的意义：由于 require 只在 eval 中被使用，如果没有明确在代码中被使用，打包过程中会自动清空掉 require 函数
   if (!!require) {
-    const _code = Babel.transform(code, { presets: ["env"] }).code
+    // @ts-expect-error
+    const _code = window.Babel.transform(code, { presets: ["env"] }).code
     eval(_code)
   }
 }
@@ -102,7 +107,7 @@ const evalAsync = (code?: string) => {
 let container = ref<HTMLDivElement>()
 let editorContainer = ref<HTMLDivElement>()
 let map = ref<HTMLDivElement>()
-let editor = ref<HTMLDivElement>()
+let editor = ref<HTMLIFrameElement>()
 
 const { isDark } = useData()
 const expand = ref(false)
@@ -110,50 +115,74 @@ const expand = ref(false)
 const theme = computed(() => isDark.value ? darkTheme : lightTheme)
 let codeEditor: editor.IStandaloneCodeEditor
 
-function initEditor() {
-  // @ts-ignore
-  codeEditor = window.monaco.editor.create(editor.value!, {
-    value: props.code,
-    language: "javascript",
-    automaticLayout: true,
-  } as editor.IStandaloneEditorConstructionOptions)
-
-  watch(isDark, () => {
-    // @ts-ignore
-    window.monaco.editor.setTheme(isDark.value ? 'vs-dark' : 'vs')
-  }, {
-    immediate: true
-  })
-}
+const { percentage, start, finish } = useLoadingBar()
+start()
 
 onMounted(() => {
   props.onBeforeInit?.(container.value!)
 
+  // @ts-expect-error
+  if (window.babelLoadPromise) {
+    // @ts-expect-error
+    window.babelLoadPromise.then(() => {
+      evalAsync(props.code)
+    })
+  } else {
+    // @ts-expect-error
+    window.babelLoadPromise = new Promise(resolve => {
+      const script = document.createElement('script')
+      // script.src = 'https://unpkg.com/babel-standalone@6.26.0/babel.min.js'
+      script.src = 'https://unpkg.com/@babel/standalone@7.21.2/babel.min.js'
+      // script.type = 'module'
+      script.onload = () => {
+        evalAsync(props.code)
+        resolve('')
+      }
+      document.head.appendChild(script)
+    })
+  }
+
   if (props.fillRemainderHeight) {
-    const {top} = container.value!.getBoundingClientRect()
+    const { top } = container.value!.getBoundingClientRect()
     container.value!.style.height = `calc(100vh - ${top}px)`
   }
 
-  const id = "monaco-editor-loader"
-  let script = document.getElementById(id) as HTMLScriptElement
-  if (script) {
-    initEditor()
-  } else {
-    script = document.createElement('script')
-    script.id = id
-    script.src = 'https://cdn.jsdelivr.net/npm/monaco-editor@0.36.1/min/vs/loader.js'
-    script.onload = () => {
-      // @ts-ignore
-      window.require.config({ paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.36.1/min/vs' } })
-      // @ts-ignore
-      window.require(['vs/editor/editor.main'], () => {
-        initEditor()
-      })
-    }
-    document.head.appendChild(script)
+  const monacoWindow = editor.value!.contentWindow
+  const monacoBody = monacoWindow?.document.body
+  if (monacoBody) {
+    monacoBody.style.margin = '0px'
+    monacoBody.style.background = getComputedStyle(document.body).getPropertyValue('--vp-c-bg')
   }
+  const script = document.createElement('script')
+  const vs = 'https://unpkg.com/monaco-editor@0.36.1/min/vs'
+  script.src = vs + '/loader.js'
+  script.onload = () => {
+    // @ts-expect-error
+    monacoWindow.require.config({ paths: { vs } })
+    // @ts-expect-error
+    monacoWindow?.require(['vs/editor/editor.main'], () => {
+      const monacoWindow = editor.value!.contentWindow;
+      if (!monacoWindow) return
+      // @ts-expect-error
+      const monaco = monacoWindow?.monaco
+      const monacoBody = monacoWindow.document.body
+      codeEditor = monaco.editor.create(monacoBody, {
+        value: props.code,
+        language: "javascript",
+        automaticLayout: true,
+      } as editor.IStandaloneEditorConstructionOptions)
 
-  evalAsync(props.code)
+      watch(isDark, () => {
+        monaco.editor.setTheme(isDark.value ? 'vs-dark' : 'vs')
+        monacoBody.style.background = getComputedStyle(document.body).getPropertyValue('--vp-c-bg')
+      }, {
+        immediate: true
+      })
+
+      finish()
+    })
+  }
+  monacoWindow?.document.head.appendChild(script)
 
   interact(editorContainer.value!).resizable({
     edges: { left: true },
