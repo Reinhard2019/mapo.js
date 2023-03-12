@@ -22,6 +22,7 @@ import { degToRad, hypotenuse, radToDeg, rectangleIntersect } from './utils/math
 import { bbox, lineIntersect, lineString, polygon } from '@turf/turf'
 import { inRange } from './utils/number'
 import Control from './Control'
+import { Polygon } from 'geojson'
 
 interface _Event extends Event {
   type: 'render' | 'zoom' | 'rotate' | 'move'
@@ -47,6 +48,8 @@ class Map extends THREE.EventDispatcher<_Event> {
 
   private disposeFuncList: Array<() => void> = []
   private controlArr: Control[] = []
+
+  private _displayPolygon: Polygon
 
   /**
    * 安全区域，如果 displayBBox 超出了安全区域，则需要更新 preloadBBox
@@ -125,6 +128,10 @@ class Map extends THREE.EventDispatcher<_Event> {
     }
     tick()
 
+    // updateDisplayPolygon 中有调用 project，project 方法必须在 render 后面
+    this.updateDisplayPolygon()
+    this.updatePreloadBBox()
+
     if (!options.ssr) {
       const ro = new ResizeObserver(() => {
         const _pixelRatio = container.clientWidth / container.clientHeight
@@ -183,9 +190,13 @@ class Map extends THREE.EventDispatcher<_Event> {
     this.scene.add(background)
   }
 
+  get displayPolygon() {
+    return this._displayPolygon
+  }
+
   private updatePreloadBBox(_preloadBBox?: BBox) {
     const preloadBBox = _preloadBBox ?? this.getPreloadBBox()
-    const displayBBox = bbox(this.getDisplayPolygon()) as BBox
+    const displayBBox = bbox(this.displayPolygon) as BBox
     if (!isFull(preloadBBox)) {
       this.secureBBox = this.getSecureBBox()
     }
@@ -210,10 +221,12 @@ class Map extends THREE.EventDispatcher<_Event> {
       this.updateHash()
       this.beforeLayerManager.refresh()
 
+      this.updateDisplayPolygon()
+
       const secureBBox = this.secureBBox
       const cachePreloadBBox = this.earthGeometry.bbox
       const preloadBBox = this.getPreloadBBox()
-      const displayBBox = bbox(this.getDisplayPolygon()) as BBox
+      const displayBBox = bbox(this.displayPolygon) as BBox
 
       if (bboxContains(cachePreloadBBox, preloadBBox)) {
         this.updatePreloadBBox()
@@ -240,7 +253,7 @@ class Map extends THREE.EventDispatcher<_Event> {
   }
 
   private getPreloadBBox(): BBox {
-    let preloadBBox: BBox = scale(bbox(this.getDisplayPolygon()) as BBox, 3)
+    let preloadBBox: BBox = scale(bbox(this.displayPolygon) as BBox, 3)
     preloadBBox = latPretreatmentBBox(preloadBBox)
 
     if (preloadBBox[2] - preloadBBox[0] > 180) {
@@ -252,7 +265,7 @@ class Map extends THREE.EventDispatcher<_Event> {
   }
 
   private getSecureBBox(): BBox {
-    return latPretreatmentBBox(scale(bbox(this.getDisplayPolygon()) as BBox, 2))
+    return latPretreatmentBBox(scale(bbox(this.displayPolygon) as BBox, 2))
   }
 
   private parseHash(): Pick<EarthOrbitControlsOptions, 'zoom' | 'center' | 'bearing'> | undefined {
@@ -408,8 +421,6 @@ class Map extends THREE.EventDispatcher<_Event> {
       this.disposeFuncList.push(() => material.dispose())
     })
     this.earthMesh.material = materials
-
-    this.updatePreloadBBox()
   }
 
   private inContainerRange(point: Point2) {
@@ -504,7 +515,7 @@ class Map extends THREE.EventDispatcher<_Event> {
     return vector3ToLngLat(vector3)
   }
 
-  getDisplayPolygon() {
+  private updateDisplayPolygon() {
     let bearing = this.earthOrbitControls.bearing
     bearing %= 180
     bearing = bearing >= 0 ? bearing : 180 + bearing
@@ -582,7 +593,9 @@ class Map extends THREE.EventDispatcher<_Event> {
       const topLat = northPoleVisible ? 90 : -90
       lngLatArr.unshift([-180, topLat])
       lngLatArr.push([180, topLat])
-      return polygon([[...lngLatArr, lngLatArr[0]]])
+
+      this._displayPolygon = polygon([[...lngLatArr, lngLatArr[0]]]).geometry
+      return
     }
 
     const halfLength = lngLatArr.length / 2
@@ -597,7 +610,8 @@ class Map extends THREE.EventDispatcher<_Event> {
         v[0] += 360
       }
     })
-    return polygon([[...lngLatArr, lngLatArr[0]]])
+
+    this._displayPolygon = polygon([[...lngLatArr, lngLatArr[0]]]).geometry
   }
 
   addLayer(layer: BaseLayer | BaseBeforeLayer) {

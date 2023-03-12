@@ -29,7 +29,7 @@ function projection(position) {
 function updateDisplayPolygon() {
   ctx.clearRect(0, 0, canvas.width, canvas.height)
 
-  const positions = map.getDisplayPolygon().geometry.coordinates[0]
+  const positions = map.displayPolygon.coordinates[0]
 
   ctx.beginPath()
   ctx.fillStyle = 'red'
