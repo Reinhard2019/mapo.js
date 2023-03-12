@@ -8,8 +8,8 @@
   "type": "module",
   "license": "MIT",
   "scripts": {
-    "dev": "rollup -c --watch",
-    "build": "rollup -c"
+    "dev": "export NODE_ENV=development && rollup -c --watch",
+    "build": "export NODE_ENV=production && rollup -c"
   },
   "devDependencies": {
     "@types/geojson": "^7946.0.10",

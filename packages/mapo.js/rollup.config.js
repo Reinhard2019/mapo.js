@@ -17,7 +17,7 @@ export default [
     ],
     external: ['lodash-es', 'three', '@turf/turf'],
   },
-  {
+  process.env.NODE_ENV === 'production' && {
     input: 'src/index.ts',
     output: {
       name: 'Mapo',
@@ -45,4 +45,4 @@ export default [
     ],
     external: ['three'],
   },
-]
+].filter(v => v)
