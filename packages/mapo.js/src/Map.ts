@@ -1,6 +1,5 @@
 import * as THREE from 'three'
 import type { Event } from 'three'
-// import Stats from 'three/examples/jsm/libs/stats.module.js'
 import { BBox, EarthOrbitControlsOptions, LngLat, MapOptions, Point2 } from './types'
 import EarthOrbitControls from './EarthOrbitControls'
 import BaseLayer from './layers/BaseLayer'
@@ -75,13 +74,6 @@ class Map extends THREE.EventDispatcher<_Event> {
     this.disposeFuncList.push(() => this.renderer.dispose())
 
     const { earthRadius, tileSize } = this
-
-    // let stats: Stats | undefined
-    // if (options.fps) {
-    //   stats = Stats()
-    //   stats.dom.style.position = 'absolute'
-    //   container.appendChild(stats.dom)
-    // }
 
     this.scene.background = new THREE.Color(0x020924)
     // this.scene.fog = new THREE.Fog(0x020924, 200, 1000)
@@ -551,7 +543,9 @@ class Map extends THREE.EventDispatcher<_Event> {
       .map((point: Point2) => this.unproject(point, { allowFovLimitExceeded: true })!)
 
     const sortLngLatArr = () => {
-      const spliceIndex = lngLatArr.slice(0, -1).findIndex((v, i) => v[0] > lngLatArr[i + 1][0])
+      const spliceIndex = lngLatArr
+        .slice(0, -1)
+        .findIndex((v, i) => v[0] > 0 && lngLatArr[i + 1][0] < 0)
       if (spliceIndex !== -1)
         lngLatArr = [...lngLatArr.slice(spliceIndex + 1), ...lngLatArr.slice(0, spliceIndex + 1)]
     }
