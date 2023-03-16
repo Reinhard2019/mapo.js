@@ -643,7 +643,7 @@ class Map extends THREE.EventDispatcher<_Event> {
   }
 
   private clearContainer() {
-    this.container.childNodes.forEach(child => {
+    Array.from(this.container.childNodes).forEach(child => {
       this.container.removeChild(child)
     })
   }
