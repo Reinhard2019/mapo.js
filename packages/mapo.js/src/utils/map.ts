@@ -73,3 +73,11 @@ export function getTerrainUrl(x: number, y: number, z: number) {
 export function rgb2elevation(color: number[]) {
   return -10000 + (color[0] * 256 * 256 + color[1] * 256 + color[2]) * 0.1
 }
+
+export function normalizeLng(lng: number) {
+  if (lng > 0) {
+    return ((lng + 180) % 360) - 180
+  } else {
+    return ((lng - 180) % 360) + 180
+  }
+}

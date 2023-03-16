@@ -8,5 +8,6 @@
     "strictNullChecks": true,
     "declaration": true,
     "baseUrl": "./",
-  }
+  },
+  "include": ["src"]
 }

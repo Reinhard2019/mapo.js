@@ -1,7 +1,7 @@
 import { clamp, debounce } from 'lodash-es'
 import * as THREE from 'three'
 import { EarthOrbitControlsOptions, LngLat } from './types'
-import { getDisplayCentralAngle, lngLatToVector3, vector3ToLngLat } from './utils/map'
+import { getDisplayCentralAngle, lngLatToVector3, normalizeLng } from './utils/map'
 import { degToRad, radToDeg, getQuadraticEquationRes } from './utils/math'
 
 class EarthOrbitControls extends THREE.EventDispatcher {
@@ -116,22 +116,13 @@ class EarthOrbitControls extends THREE.EventDispatcher {
     return this._zoom
   }
 
-  set zoom(value: number) {
+  private set zoom(value: number) {
     this._zoom = value
     this._distance = this.getDistance()
   }
 
   get z() {
     return Math.ceil(this.zoom)
-  }
-
-  /**
-   * 水平方向的视角
-   */
-  get fovX() {
-    // 邻边
-    const adjacent = this.domElement.clientHeight / Math.tan(degToRad(this.fov / 2))
-    return radToDeg(Math.atan(this.domElement.clientWidth / adjacent)) * 2
   }
 
   /**
@@ -162,23 +153,18 @@ class EarthOrbitControls extends THREE.EventDispatcher {
     const isMove = !e.ctrlKey
     if (isMove) {
       // TODO 增加阻尼效果
-      const movementXDeg = (e.movementX / domElement.clientWidth) * 36
+      const movementXDeg = -(e.movementX / domElement.clientWidth) * 36
       const movementYDeg = (e.movementY / domElement.clientHeight) * 36
-      camera.position.applyAxisAngle(
-        new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion),
-        -degToRad(movementXDeg),
-      )
-      const applyXAxisAngle = (vector3: THREE.Vector3) =>
-        vector3.applyAxisAngle(
-          new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion),
-          -degToRad(movementYDeg),
-        )
-      applyXAxisAngle(camera.position)
-      applyXAxisAngle(camera.up)
+      this.center[0] +=
+        movementXDeg * Math.cos(degToRad(this.bearing)) +
+        movementYDeg * Math.sin(degToRad(this.bearing))
+      this.center[0] = normalizeLng(this.center[0])
+      this.center[1] +=
+        -movementXDeg * Math.sin(degToRad(this.bearing)) +
+        movementYDeg * Math.cos(degToRad(this.bearing))
+      this.center[1] = clamp(this.center[1], -85, 85)
+      camera.position.copy(lngLatToVector3(this.center, this.distance))
       this.lookAt()
-      // TODO 移动时 bearing 也会改变
-
-      this.center = vector3ToLngLat(camera.position)
 
       this.dispatchEvent({ type: 'move' })
       return
