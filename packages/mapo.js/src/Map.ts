@@ -642,6 +642,30 @@ class Map extends THREE.EventDispatcher<_Event> {
     remove(this.controlArr, v => v === control)
   }
 
+  getCenter() {
+    return this.earthOrbitControls.center
+  }
+
+  setCenter(value: LngLat) {
+    this.earthOrbitControls.setCenter(value)
+  }
+
+  getZoom() {
+    return this.earthOrbitControls.zoom
+  }
+
+  setZoom(value: number) {
+    this.earthOrbitControls.setZoom(value)
+  }
+
+  getBearing() {
+    return this.earthOrbitControls.bearing
+  }
+
+  setBearing(value: number) {
+    this.earthOrbitControls.setBearing(value)
+  }
+
   private clearContainer() {
     Array.from(this.container.childNodes).forEach(child => {
       this.container.removeChild(child)

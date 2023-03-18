@@ -45,8 +45,8 @@ class EarthOrbitControls extends THREE.EventDispatcher {
 
     const pixelRatio = domElement.clientWidth / domElement.clientHeight
     const camera = new THREE.PerspectiveCamera(this.fov, pixelRatio, 0.1, this.earthRadius * 10000)
-    camera.position.copy(lngLatToVector3(center, distance))
     this.camera = camera
+    camera.position.copy(lngLatToVector3(center, distance))
     this.lookAt()
 
     const eventListenerList: Array<[keyof HTMLElementEventMap, EventListener]> = [
@@ -227,6 +227,31 @@ class EarthOrbitControls extends THREE.EventDispatcher {
     e.preventDefault()
 
     this.dispatchEvent({ type: 'end' })
+  }
+
+  setCenter(value: LngLat) {
+    this.center = value
+
+    this.camera.position.copy(lngLatToVector3(this.center, this.distance))
+    this.lookAt()
+
+    this.dispatchEvent({ type: 'move' })
+  }
+
+  setZoom(value: number) {
+    this.zoom = value
+
+    this.camera.position.copy(lngLatToVector3(this.center, this.distance))
+
+    this.dispatchEvent({ type: 'zoom' })
+  }
+
+  setBearing(value: number) {
+    this.bearing = value
+
+    this.lookAt()
+
+    this.dispatchEvent({ type: 'rotate' })
   }
 
   dispose() {
