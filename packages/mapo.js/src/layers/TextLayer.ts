@@ -23,11 +23,10 @@ interface Style {
   color?: string
 }
 
-class TextLayer extends BaseBeforeLayer {
-  source: Source
+class TextLayer extends BaseBeforeLayer<Source> {
   style?: Style
 
-  constructor(options: { source: Source; style: Style }) {
+  constructor(options: { source: Source; style?: Style }) {
     super()
     this.source = options.source
     this.style = options.style

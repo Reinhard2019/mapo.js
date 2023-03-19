@@ -10,10 +10,9 @@ interface Style {
   fillColor?: string
 }
 
-class FillLayer extends BaseLayer {
+class FillLayer extends BaseLayer<Source> {
   private readonly canvas = new OffscreenCanvas(1, 1)
   private readonly ctx = this.canvas.getContext('2d') as OffscreenCanvasRenderingContext2D
-  source: Source
   style?: Style
 
   constructor(options: { source: Source; style?: Style }) {
