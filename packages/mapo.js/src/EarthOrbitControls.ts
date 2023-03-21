@@ -25,8 +25,6 @@ class EarthOrbitControls extends THREE.EventDispatcher {
   minDistance = this.earthRadius + 0.2
   maxDistance = this.earthRadius * 4
 
-  private lookAtPosition = new THREE.Vector3(0, 0, 0)
-
   private disposeFuncList: Array<() => void> = []
   private readonly onEnd = debounce(function () {
     this.dispatchEvent({ type: 'end' })
@@ -137,8 +135,9 @@ class EarthOrbitControls extends THREE.EventDispatcher {
   }
 
   private lookAt() {
-    this.camera.lookAt(this.lookAtPosition)
+    this.camera.lookAt(new THREE.Vector3(0, 0, 0))
     this.camera.rotateZ(-degToRad(this.bearing))
+    this.camera.rotateX(degToRad(this.pitch))
   }
 
   private onMousemove(e: MouseEvent) {
@@ -180,20 +179,8 @@ class EarthOrbitControls extends THREE.EventDispatcher {
       return
     }
 
-    // TODO pitch 处理有 bearing 的情况
     const movementDeg = (e.movementY / domElement.clientHeight) * 180
     this.pitch = clamp(this.pitch + movementDeg, 0, 85)
-    const negativePosition = camera.position.clone()
-    negativePosition.x = -negativePosition.x
-    negativePosition.y = -negativePosition.y
-    negativePosition.z = -negativePosition.z
-    const spherical = new THREE.Spherical().setFromVector3(negativePosition)
-    spherical.phi -= degToRad(this.pitch)
-    const lookAtPosition = new THREE.Vector3().setFromSpherical(spherical)
-    lookAtPosition.x -= negativePosition.x
-    lookAtPosition.y -= negativePosition.y
-    lookAtPosition.z -= negativePosition.z
-    this.lookAtPosition = lookAtPosition
     this.lookAt()
   }
 
