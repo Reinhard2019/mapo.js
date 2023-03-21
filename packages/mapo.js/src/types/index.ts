@@ -17,6 +17,7 @@ export interface EarthOrbitControlsOptions {
   center?: LngLat
   zoom?: number
   bearing?: number
+  pitch?: number
 }
 
 export interface Size {

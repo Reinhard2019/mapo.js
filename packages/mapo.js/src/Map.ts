@@ -25,7 +25,7 @@ import Control from './Control'
 import { Polygon } from 'geojson'
 
 interface _Event extends Event {
-  type: 'render' | 'zoom' | 'rotate' | 'move'
+  type: 'render' | 'zoom' | 'rotate' | 'move' | 'pitch'
 }
 
 class Map extends THREE.EventDispatcher<_Event> {
@@ -248,6 +248,10 @@ class Map extends THREE.EventDispatcher<_Event> {
       this.dispatchEvent({ type: 'zoom' })
       onMove()
     })
+    this.earthOrbitControls.addEventListener('pitch', () => {
+      this.dispatchEvent({ type: 'pitch' })
+      onMove()
+    })
   }
 
   private getPreloadBBox(): BBox {
@@ -266,21 +270,30 @@ class Map extends THREE.EventDispatcher<_Event> {
     return latPretreatmentBBox(scale(bbox(this.displayPolygon) as BBox, 2))
   }
 
-  private parseHash(): Pick<EarthOrbitControlsOptions, 'zoom' | 'center' | 'bearing'> | undefined {
+  private parseHash():
+    | Pick<EarthOrbitControlsOptions, 'zoom' | 'center' | 'bearing' | 'pitch'>
+    | undefined {
     if (this.hash && location.hash.startsWith('#')) {
-      const [zoom, lng, lat, bearing] = location.hash.slice(1).split('/')
+      const [zoom, lng, lat, bearing, pitch] = location.hash.slice(1).split('/')
       return {
         zoom: parseFloat(zoom),
         center: [parseFloat(lng), parseFloat(lat)],
         bearing: parseFloat(bearing),
+        pitch: parseFloat(pitch),
       }
     }
   }
 
   private updateHash() {
-    const { zoom, center, bearing } = this.earthOrbitControls
     if (this.hash) {
-      const arr = [floor(zoom, 2), floor(center[0], 3), floor(center[1], 3), floor(bearing, 2)]
+      const { zoom, center, bearing, pitch } = this.earthOrbitControls
+      const arr = [
+        floor(zoom, 2),
+        floor(center[0], 3),
+        floor(center[1], 3),
+        floor(bearing, 2),
+        floor(pitch, 2),
+      ]
       history.replaceState(null, '', `#${arr.join('/')}`)
     }
   }

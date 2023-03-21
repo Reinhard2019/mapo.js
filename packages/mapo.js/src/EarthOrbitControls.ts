@@ -1,4 +1,4 @@
-import { clamp, debounce } from 'lodash-es'
+import { clamp, debounce, isNumber } from 'lodash-es'
 import * as THREE from 'three'
 import { EarthOrbitControlsOptions, LngLat } from './types'
 import { getDisplayCentralAngle, lngLatToVector3, normalizeLng } from './utils/map'
@@ -20,7 +20,6 @@ class EarthOrbitControls extends THREE.EventDispatcher {
 
   bearing = 0
   pitch = 0
-  // enablePitch = true
 
   minDistance = this.earthRadius + 0.2
   maxDistance = this.earthRadius * 4
@@ -37,7 +36,8 @@ class EarthOrbitControls extends THREE.EventDispatcher {
     if (options.center) this.center = options.center
     this.earthRadius = options.earthRadius
     this.zoom = options.zoom ?? 2
-    if (options.bearing) this.bearing = options.bearing
+    if (isNumber(options.bearing)) this.bearing = options.bearing
+    if (isNumber(options.pitch)) this.pitch = options.pitch
 
     const { domElement, distance, center } = this
 
@@ -182,6 +182,8 @@ class EarthOrbitControls extends THREE.EventDispatcher {
     const movementDeg = (e.movementY / domElement.clientHeight) * 180
     this.pitch = clamp(this.pitch + movementDeg, 0, 85)
     this.lookAt()
+
+    this.dispatchEvent({ type: 'pitch' })
   }
 
   private onContextmenu(e: PointerEvent) {
