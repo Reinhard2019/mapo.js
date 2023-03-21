@@ -99,11 +99,9 @@ class Map extends THREE.EventDispatcher<_Event> {
       earthRadius,
       tileSize,
       z: this.earthOrbitControls.z,
-      delay: true,
     })
     this.disposeFuncList.push(() => this.earthGeometry.dispose())
     this.earthMesh.geometry = this.earthGeometry
-    this.earthMesh.userData.id = 'test'
     this.scene.add(this.earthMesh)
     if (!options.ssr) this.initEarthMaterial()
 

@@ -7,24 +7,19 @@ class EarthGeometry extends THREE.BufferGeometry {
   bbox: BBox = fullBBox
   earthRadius: number
 
-  constructor (options: {
-    bbox?: BBox
-    earthRadius: number
-    tileSize: number
-    z: number
-    /**
-     * 延时更新 Geometry
-     */
-    delay?: boolean
-  }) {
+  constructor(options: { bbox?: BBox; earthRadius: number; tileSize: number; z: number }) {
     super()
 
     this.earthRadius = options.earthRadius
     if (options.bbox) this.bbox = options.bbox
-    if (!options.delay) this.update()
+
+    // 为什么需要初始化时必须调用 update
+    // THREE.BufferGeometry 如果在 render 前 attribute.position 为空，则后续更新 attribute.position 后可能不显示
+    // 复现示例：https://stackblitz.com/edit/typescript-nweh1y?file=index.ts
+    this.update()
   }
 
-  update () {
+  update() {
     const { bbox, earthRadius } = this
     const heightSegments = 128
     const widthSegments = heightSegments * 2
@@ -48,8 +43,10 @@ class EarthGeometry extends THREE.BufferGeometry {
         uvs.push(uvX, uvY)
       }
     }
-    this.attributes.position = new THREE.Float32BufferAttribute(new Float32Array(positions), 3)
-    this.attributes.uv = new THREE.Float32BufferAttribute(new Float32Array(uvs), 2)
+    this.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(positions), 3))
+    this.attributes.position.needsUpdate = true
+    this.setAttribute('uv', new THREE.Float32BufferAttribute(new Float32Array(uvs), 2))
+    this.attributes.uv.needsUpdate = true
 
     const indexArr: number[] = []
     for (let y = 0; y < heightSegments; y++) {
