@@ -16,8 +16,9 @@ const TextLayer: Component<TextLayerProps> = props => {
       ...props,
     })
     _map.addLayer(textLayer)
-    onCleanup(() => _map.removeLayer(textLayer))
   })
+
+  onCleanup(() => map?.()?.removeLayer(textLayer))
 
   createUpdateEffect(
     () => props.source,

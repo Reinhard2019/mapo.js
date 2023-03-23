@@ -20,7 +20,10 @@ const Map: Component<MapProps> = props => {
       ...(mapOptions || {}),
     })
     setMap(_map)
-    onCleanup(() => _map.dispose())
+  })
+
+  onCleanup(() => {
+    map()?.dispose()
   })
 
   createUpdateEffect(

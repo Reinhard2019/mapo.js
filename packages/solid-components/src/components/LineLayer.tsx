@@ -16,7 +16,10 @@ const LineLayer: Component<LineLayerProps> = props => {
       ...props,
     })
     _map.addLayer(lineLayer)
-    onCleanup(() => _map.removeLayer(lineLayer))
+  })
+
+  onCleanup(() => {
+    map?.()?.removeLayer(lineLayer)
   })
 
   createUpdateEffect(
@@ -25,6 +28,7 @@ const LineLayer: Component<LineLayerProps> = props => {
       if (props.source) {
         lineLayer.setSource(props.source)
         lineLayer.refresh()
+        lineLayer.layerManager?.updateCanvas()
       }
     },
   )
