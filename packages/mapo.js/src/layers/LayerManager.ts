@@ -62,6 +62,7 @@ class LayerManager {
     const index = this.layers.findIndex(l => l === layer)
     this.layers.splice(index, 1)
     layer.dispose()
+    this.updateCanvas()
   }
 
   dispose() {

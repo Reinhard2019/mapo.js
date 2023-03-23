@@ -44,6 +44,7 @@ class BeforeLayerManager {
 
   removeLayer(layer: BaseBeforeLayer) {
     const index = this.layers.findIndex(l => l === layer)
+    this.container.removeChild(layer.canvas)
     this.layers.splice(index, 1)
   }
 }
