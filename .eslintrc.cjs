@@ -23,5 +23,6 @@ module.exports = {
     'no-shadow': 'error',
     '@typescript-eslint/no-dynamic-delete': 'off',
     '@typescript-eslint/no-extraneous-class': 'off',
+    '@typescript-eslint/consistent-type-assertions': 'off',
   },
 }

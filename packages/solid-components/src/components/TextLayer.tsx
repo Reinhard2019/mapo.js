@@ -21,6 +21,15 @@ const TextLayer: Component<TextLayerProps> = props => {
   onCleanup(() => map?.()?.removeLayer(textLayer))
 
   createUpdateEffect(
+    () => props.style,
+    () => {
+      if (props.style) {
+        textLayer.updateStyle(props.style)
+        textLayer.refresh()
+      }
+    },
+  )
+  createUpdateEffect(
     () => props.source,
     () => {
       if (props.source) {

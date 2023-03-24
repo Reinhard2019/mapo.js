@@ -23,6 +23,16 @@ const LineLayer: Component<LineLayerProps> = props => {
   })
 
   createUpdateEffect(
+    () => props.style,
+    () => {
+      if (props.style) {
+        lineLayer.updateStyle(props.style)
+        lineLayer.refresh()
+        lineLayer.layerManager?.updateCanvas()
+      }
+    },
+  )
+  createUpdateEffect(
     () => props.source,
     () => {
       if (props.source) {

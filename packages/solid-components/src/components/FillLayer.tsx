@@ -21,6 +21,16 @@ const FillLayer: Component<FillLayerProps> = props => {
   onCleanup(() => map?.()?.removeLayer(fillLayer))
 
   createUpdateEffect(
+    () => props.style,
+    () => {
+      if (props.style) {
+        fillLayer.updateStyle(props.style)
+        fillLayer.refresh()
+        fillLayer.layerManager?.updateCanvas()
+      }
+    },
+  )
+  createUpdateEffect(
     () => props.source,
     () => {
       if (props.source) {
