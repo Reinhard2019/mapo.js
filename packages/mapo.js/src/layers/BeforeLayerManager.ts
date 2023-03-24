@@ -27,16 +27,21 @@ class BeforeLayerManager {
     this.earthOrbitControls = options.earthOrbitControls
   }
 
+  private updateLayerCanvasSize(layer: BaseBeforeLayer) {
+    layer.canvas.width = this.container.clientWidth
+    layer.canvas.height = this.container.clientHeight
+  }
+
   refresh() {
     this.layers.forEach(layer => {
+      this.updateLayerCanvasSize(layer)
       layer.refresh()
     })
   }
 
   addLayer(layer: BaseBeforeLayer) {
     layer.beforeLayerManager = this
-    layer.canvas.width = this.container.clientWidth
-    layer.canvas.height = this.container.clientHeight
+    this.updateLayerCanvasSize(layer)
     layer.refresh()
     this.container.appendChild(layer.canvas)
     this.layers.push(layer)

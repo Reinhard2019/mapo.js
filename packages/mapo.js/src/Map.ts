@@ -140,6 +140,8 @@ class Map extends THREE.EventDispatcher<_Event> {
         const { camera } = this.earthOrbitControls
         camera.aspect = _pixelRatio
         camera.updateProjectionMatrix()
+
+        this.beforeLayerManager.refresh()
       })
       ro.observe(container)
       this.disposeFuncList.push(() => ro.disconnect())
