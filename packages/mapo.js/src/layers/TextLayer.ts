@@ -20,18 +20,10 @@ interface Style {
   /**
    * 字体颜色
    */
-  color?: string
+  textColor?: string
 }
 
-class TextLayer extends BaseBeforeLayer<Source> {
-  style?: Style
-
-  constructor(options: { source: Source; style?: Style }) {
-    super()
-    this.source = options.source
-    this.style = options.style
-  }
-
+class TextLayer extends BaseBeforeLayer<Source, Style> {
   refresh() {
     const { canvas, ctx, source, style } = this
 
@@ -45,8 +37,8 @@ class TextLayer extends BaseBeforeLayer<Source> {
       if (typeof style.fontSize === 'number') {
         fontSize = style.fontSize
       }
-      if (style.color) {
-        ctx.fillStyle = style.color
+      if (style.textColor) {
+        ctx.fillStyle = style.textColor
       }
     }
     ctx.font = `${fontSize}px sans-serif`

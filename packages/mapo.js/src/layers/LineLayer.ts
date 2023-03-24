@@ -11,16 +11,9 @@ interface Style {
   lineWidth?: number
 }
 
-class LineLayer extends BaseLayer<Source> {
+class LineLayer extends BaseLayer<Source, Style> {
   private readonly canvas = new OffscreenCanvas(1, 1)
   private readonly ctx = this.canvas.getContext('2d') as OffscreenCanvasRenderingContext2D
-  style?: Style
-
-  constructor(options: { source: Source; style?: Style }) {
-    super()
-    this.source = options.source
-    this.style = options.style
-  }
 
   refresh() {
     const { canvas, ctx, layerManager, source, style } = this
