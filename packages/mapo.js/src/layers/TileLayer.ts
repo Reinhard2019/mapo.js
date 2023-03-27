@@ -7,7 +7,7 @@ import { getSatelliteUrl } from '../utils/map'
 import TileCache from './TileCache'
 
 class TileLayer {
-  canvas: OffscreenCanvas
+  canvas: OffscreenCanvas = new OffscreenCanvas(1, 1)
   private readonly tileSize: number
   private readonly cache = new TileCache()
 
@@ -20,7 +20,7 @@ class TileLayer {
   z = 0
   onUpdate?: () => void
 
-  constructor (tileSize: number) {
+  constructor(tileSize: number) {
     this.tileSize = tileSize
   }
 
@@ -29,13 +29,13 @@ class TileLayer {
    * @param tileX
    * @returns
    */
-  private getFormattedTileX (tileX: number) {
+  private getFormattedTileX(tileX: number) {
     const z2 = Math.pow(2, this.z)
     return tileX < 0 ? z2 + tileX : tileX % z2
   }
 
-  async loadTile (xyz: XYZ) {
-    const promise = fetch(getSatelliteUrl(...xyz)).then(async (res) => {
+  async loadTile(xyz: XYZ) {
+    const promise = fetch(getSatelliteUrl(...xyz)).then(async res => {
       const imageBitmap = await createImageBitmap(await res.blob())
       this.cache.set(xyz, imageBitmap)
       return imageBitmap
@@ -54,7 +54,7 @@ class TileLayer {
    * @param y
    * @param formattedX
    */
-  private drawPreviewImage (x: number, y: number, rect: [number, number, number, number]) {
+  private drawPreviewImage(x: number, y: number, rect: [number, number, number, number]) {
     const { tileSize, cache, z } = this
     const ctx = this.canvas.getContext('2d') as OffscreenCanvasRenderingContext2D
     const z2 = Math.pow(2, z)
@@ -82,19 +82,27 @@ class TileLayer {
     }
   }
 
-  private draw (update?: boolean) {
+  private draw(update?: boolean) {
     const { tileSize, cache, bbox, z, displayBBox } = this
     const ctx = this.canvas.getContext('2d') as OffscreenCanvasRenderingContext2D
     const tileIndexBox = MercatorTile.bboxToTileIndexBox(bbox, z)
     const displayTileIndexBox = MercatorTile.bboxToTileIndexBox(displayBBox, z)
     const drawTileIndexBox = update ? displayTileIndexBox : tileIndexBox
 
-    const xyArr = multiplyArray(range(drawTileIndexBox.startX, drawTileIndexBox.endX), range(drawTileIndexBox.startY, drawTileIndexBox.endY))
+    const xyArr = multiplyArray(
+      range(drawTileIndexBox.startX, drawTileIndexBox.endX),
+      range(drawTileIndexBox.startY, drawTileIndexBox.endY),
+    )
     xyArr.forEach(([x, y]) => {
       const formattedX = this.getFormattedTileX(x)
       const xyz: XYZ = [formattedX, y, z]
       let value = cache.get(xyz)
-      const rect: [number, number, number, number] = [(x - tileIndexBox.startX) * tileSize, (y - tileIndexBox.startY) * tileSize, tileSize, tileSize]
+      const rect: [number, number, number, number] = [
+        (x - tileIndexBox.startX) * tileSize,
+        (y - tileIndexBox.startY) * tileSize,
+        tileSize,
+        tileSize,
+      ]
       const drawImage = (imageBitmap: ImageBitmap) => {
         ctx.clearRect(...rect)
         ctx.drawImage(imageBitmap, ...rect)
@@ -114,7 +122,7 @@ class TileLayer {
         value = this.loadTile(xyz)
       }
 
-      void value.then((imageBitmap) => {
+      void value.then(imageBitmap => {
         drawImage(imageBitmap)
         this.onUpdate?.()
       })
@@ -123,7 +131,7 @@ class TileLayer {
     this.onUpdate?.()
   }
 
-  async refresh () {
+  async refresh() {
     const defaultTileXyz: XYZ = [0, 0, 0]
     if (!this.cache.has(defaultTileXyz)) {
       await this.loadTile(defaultTileXyz)
@@ -147,7 +155,7 @@ class TileLayer {
     this.draw()
   }
 
-  update () {
+  update() {
     this.draw(true)
   }
 }

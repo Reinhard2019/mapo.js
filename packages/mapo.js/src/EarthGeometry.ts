@@ -44,9 +44,7 @@ class EarthGeometry extends THREE.BufferGeometry {
       }
     }
     this.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(positions), 3))
-    this.attributes.position.needsUpdate = true
     this.setAttribute('uv', new THREE.Float32BufferAttribute(new Float32Array(uvs), 2))
-    this.attributes.uv.needsUpdate = true
 
     const indexArr: number[] = []
     for (let y = 0; y < heightSegments; y++) {
