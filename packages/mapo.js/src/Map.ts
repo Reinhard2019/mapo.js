@@ -91,6 +91,7 @@ class Map extends THREE.EventDispatcher<_Event> {
       center: options.center,
       zoom: options.zoom,
       bearing: options.bearing,
+      pitch: options.pitch,
       ...hashOptions,
     })
     this.initEarthOrbitControls()
