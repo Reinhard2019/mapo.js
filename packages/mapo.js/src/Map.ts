@@ -683,6 +683,10 @@ class Map extends THREE.EventDispatcher<_Event> {
     this.earthOrbitControls.setBearing(value)
   }
 
+  setPitch(value: number) {
+    this.earthOrbitControls.setPitch(value)
+  }
+
   private clearContainer() {
     Array.from(this.container.childNodes).forEach(child => {
       this.container.removeChild(child)

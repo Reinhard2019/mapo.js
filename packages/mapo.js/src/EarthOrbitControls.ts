@@ -243,6 +243,14 @@ class EarthOrbitControls extends THREE.EventDispatcher {
     this.dispatchEvent({ type: 'rotate' })
   }
 
+  setPitch(value: number) {
+    this.pitch = value
+
+    this.lookAt()
+
+    this.dispatchEvent({ type: 'pitch' })
+  }
+
   dispose() {
     this.disposeFuncList.forEach(func => func())
     this.disposeFuncList = []
