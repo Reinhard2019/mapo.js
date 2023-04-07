@@ -30,21 +30,15 @@ class EarthGeometry extends THREE.BufferGeometry {
     const latGap = (n - s) / heightSegments
 
     const positions: number[] = []
-    const uvs: number[] = []
     for (let y = 0; y < heightPositionCount; y++) {
       const lat = s + y * latGap
       for (let x = 0; x < widthPositionCount; x++) {
         const lng = w + x * lngGap
         const position = lngLatToVector3([lng, lat], earthRadius)
         positions.push(...position.toArray())
-
-        const uvX = x / widthSegments
-        const uvY = y / heightSegments
-        uvs.push(uvX, uvY)
       }
     }
     this.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(positions), 3))
-    this.setAttribute('uv', new THREE.Float32BufferAttribute(new Float32Array(uvs), 2))
 
     const indexArr: number[] = []
     for (let y = 0; y < heightSegments; y++) {

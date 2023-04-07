@@ -320,9 +320,31 @@ class Map extends THREE.EventDispatcher<_Event> {
 
     const vertexShader = `
       varying vec2 vUv;
+      uniform vec4 bbox;
+
+      float radToDeg(float rad) {
+        return rad * 180.0 / ${Math.PI};
+      }
+      vec2 vec3ToLngLat(vec3 position) {
+        float radius = sqrt(position.x * position.x + position.y * position.y + position.z * position.z);
+        if (radius == 0.0) {
+          return vec2(0, 0);
+        }
+        float lng = radToDeg(atan(position.x, position.z));
+        float lat = 90.0 - radToDeg(acos(clamp(position.y / radius, -1.0, 1.0)));
+        return vec2(lng, lat);
+      }
+      vec2 lngLat2uv(vec2 lngLat) {
+        float w = bbox[0];
+        float s = bbox[1];
+        float e = bbox[2];
+        float n = bbox[3];
+        return vec2((lngLat.x - w) / (e - w), (lngLat.y - s) / (n - s));
+      }
+
       void main() {
-        vUv = uv;
-        gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+        vUv = lngLat2uv(vec3ToLngLat(position));
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
       }
     `
 
@@ -410,16 +432,16 @@ class Map extends THREE.EventDispatcher<_Event> {
       this.disposeFuncList.push(() => layerManager.dispose())
       const getTexture = () => new THREE.CanvasTexture(layerManager.canvas)
       layerManager.onUpdate = () => {
-        layersUniform.value.dispose()
-        layersUniform.value = getTexture()
+        uniforms.bbox.value = layerManager.bbox
+        uniforms.layers.value.dispose()
+        uniforms.layers.value = getTexture()
       }
-      const layersUniform: THREE.IUniform<THREE.CanvasTexture> = {
-        value: getTexture(),
+      const uniforms = {
+        layers: { value: getTexture() },
+        bbox: { value: fullBBox },
       }
       const layersMaterial = new THREE.ShaderMaterial({
-        uniforms: {
-          layers: layersUniform,
-        },
+        uniforms,
         vertexShader,
         fragmentShader: `
           uniform sampler2D layers;
