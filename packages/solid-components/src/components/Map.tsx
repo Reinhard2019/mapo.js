@@ -35,13 +35,19 @@ const Map: Component<MapProps> = props => {
   createUpdateEffect(
     () => props.zoom,
     () => {
-      props.zoom && map?.()?.setZoom(props.zoom)
+      typeof props.zoom === 'number' && map?.()?.setZoom(props.zoom)
     },
   )
   createUpdateEffect(
     () => props.bearing,
     () => {
-      props.bearing && map?.()?.setBearing(props.bearing)
+      typeof props.bearing === 'number' && map?.()?.setBearing(props.bearing)
+    },
+  )
+  createUpdateEffect(
+    () => props.pitch,
+    () => {
+      typeof props.pitch === 'number' && map?.()?.setPitch(props.pitch)
     },
   )
   return (
