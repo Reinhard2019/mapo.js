@@ -1,28 +1,30 @@
 import { XYZ } from '../types'
 
-type TileValue = ImageBitmap | Promise<ImageBitmap>
+class TileCache<T> {
+  private readonly data: Record<string, T> = {}
 
-class TileCache {
-  data: Record<string, TileValue> = {}
-
-  private getKey (xyz: XYZ) {
+  private getKey(xyz: XYZ) {
     return xyz.join('.')
   }
 
-  has (xyz: XYZ) {
+  has(xyz: XYZ) {
     return !!this.data[this.getKey(xyz)]
   }
 
-  get (xyz: XYZ) {
+  get(xyz: XYZ) {
     return this.data[this.getKey(xyz)]
   }
 
-  set (xyz: XYZ, value: TileValue) {
+  set(xyz: XYZ, value: T) {
     this.data[this.getKey(xyz)] = value
   }
 
-  delete (xyz: XYZ) {
+  delete(xyz: XYZ) {
     delete this.data[this.getKey(xyz)]
+  }
+
+  toArray() {
+    return Object.values(this.data)
   }
 }
 

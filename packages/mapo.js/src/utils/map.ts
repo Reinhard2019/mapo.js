@@ -81,3 +81,13 @@ export function normalizeLng(lng: number) {
     return ((lng - 180) % 360) + 180
   }
 }
+
+/**
+ * tileX 有可能小于 0 或者大于等于 z2，需要对其进行格式化
+ * @param tileX
+ * @returns
+ */
+export function formatTileX(tileX: number, z: number) {
+  const z2 = Math.pow(2, z)
+  return tileX < 0 ? z2 + tileX : tileX % z2
+}

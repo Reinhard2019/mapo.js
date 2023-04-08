@@ -3,13 +3,13 @@ import MercatorTile from '../utils/MercatorTile'
 import { BBox, XYZ } from '../types'
 import { multiplyArray } from '../utils/array'
 import { fullBBox } from '../utils/bbox'
-import { getSatelliteUrl } from '../utils/map'
-import TileCache from './TileCache'
+import { formatTileX, getSatelliteUrl } from '../utils/map'
+import TileCache from '../utils/TileCache'
 
 class TileLayer {
   canvas: OffscreenCanvas = new OffscreenCanvas(1, 1)
   private readonly tileSize: number
-  private readonly cache = new TileCache()
+  private readonly cache = new TileCache<ImageBitmap | Promise<ImageBitmap>>()
 
   bbox: BBox = fullBBox
   canvasBBox: BBox = fullBBox
@@ -22,16 +22,8 @@ class TileLayer {
 
   constructor(tileSize: number) {
     this.tileSize = tileSize
-  }
 
-  /**
-   * tileX 有可能小于 0 或者大于等于 z2，需要对其进行格式化
-   * @param tileX
-   * @returns
-   */
-  private getFormattedTileX(tileX: number) {
-    const z2 = Math.pow(2, this.z)
-    return tileX < 0 ? z2 + tileX : tileX % z2
+    void this.loadTile([0, 0, 0])
   }
 
   async loadTile(xyz: XYZ) {
@@ -58,7 +50,7 @@ class TileLayer {
     const { tileSize, cache, z } = this
     const ctx = this.canvas.getContext('2d') as OffscreenCanvasRenderingContext2D
     const z2 = Math.pow(2, z)
-    const formattedX = this.getFormattedTileX(x)
+    const formattedX = formatTileX(x, this.z)
     let cloneX = formattedX
     let cloneY = y
     let cloneZ = z
@@ -94,7 +86,7 @@ class TileLayer {
       range(drawTileIndexBox.startY, drawTileIndexBox.endY),
     )
     xyArr.forEach(([x, y]) => {
-      const formattedX = this.getFormattedTileX(x)
+      const formattedX = formatTileX(x, this.z)
       const xyz: XYZ = [formattedX, y, z]
       let value = cache.get(xyz)
       const rect: [number, number, number, number] = [
@@ -131,12 +123,7 @@ class TileLayer {
     this.onUpdate?.()
   }
 
-  async refresh() {
-    const defaultTileXyz: XYZ = [0, 0, 0]
-    if (!this.cache.has(defaultTileXyz)) {
-      await this.loadTile(defaultTileXyz)
-    }
-
+  refresh() {
     const { tileSize, bbox, z } = this
     const tileIndexBox = MercatorTile.bboxToTileIndexBox(bbox, z)
     const width = (tileIndexBox.endX - tileIndexBox.startX) * tileSize

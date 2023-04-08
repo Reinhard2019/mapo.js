@@ -1,41 +1,44 @@
 import * as THREE from 'three'
-import { BBox } from './types'
-import { fullBBox } from './utils/bbox'
+import { XYZ } from './types'
 import { lngLatToVector3 } from './utils/map'
+import EquirectangularTile from './utils/EquirectangularTile'
 
-class EarthGeometry extends THREE.BufferGeometry {
-  bbox: BBox = fullBBox
+class TileGeometry extends THREE.BufferGeometry {
   earthRadius: number
+  tileSize: number
+  xyz: XYZ
 
-  constructor(options: { bbox?: BBox; earthRadius: number; tileSize: number; z: number }) {
+  constructor(options: { xyz: XYZ; earthRadius: number; tileSize: number }) {
     super()
 
-    this.earthRadius = options.earthRadius
-    if (options.bbox) this.bbox = options.bbox
+    Object.assign(this, options)
 
-    // 为什么需要初始化时必须调用 update
-    // THREE.BufferGeometry 如果在 render 前 attribute.position 为空，则后续更新 attribute.position 后可能不显示
-    // 复现示例：https://stackblitz.com/edit/typescript-nweh1y?file=index.ts
     this.update()
   }
 
   update() {
-    const { bbox, earthRadius } = this
-    const heightSegments = 128
-    const widthSegments = heightSegments * 2
+    const { earthRadius, tileSize, xyz } = this
+    const [tileX, tileY, z] = xyz
+    const startWest = EquirectangularTile.xToLng(tileX, z)
+    const startNorth = EquirectangularTile.yToLat(tileY, z)
+
+    const scaledTileSize = tileSize / Math.pow(2, 3)
+    const widthSegments = scaledTileSize
+    const heightSegments = scaledTileSize / 2
     const widthPositionCount = widthSegments + 1
     const heightPositionCount = heightSegments + 1
-    const [w, s, e, n] = bbox
-    const lngGap = (e - w) / widthSegments
-    const latGap = (n - s) / heightSegments
+    const lngGap = 360 / Math.pow(2, z) / scaledTileSize
+    const latGap = lngGap
 
     const positions: number[] = []
+    const lngLats: number[][] = []
     for (let y = 0; y < heightPositionCount; y++) {
-      const lat = s + y * latGap
+      const lat = startNorth - y * latGap
       for (let x = 0; x < widthPositionCount; x++) {
-        const lng = w + x * lngGap
+        const lng = startWest + x * lngGap
         const position = lngLatToVector3([lng, lat], earthRadius)
         positions.push(...position.toArray())
+        lngLats.push([lng, lat])
       }
     }
     this.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(positions), 3))
@@ -47,8 +50,8 @@ class EarthGeometry extends THREE.BufferGeometry {
         const positionIndex2 = positionIndex1 + 1
         const positionIndex3 = positionIndex1 + widthPositionCount
         const positionIndex4 = positionIndex2 + widthPositionCount
-        const face1 = [positionIndex1, positionIndex2, positionIndex3]
-        const face2 = [positionIndex2, positionIndex4, positionIndex3]
+        const face1 = [positionIndex1, positionIndex3, positionIndex2]
+        const face2 = [positionIndex2, positionIndex3, positionIndex4]
         indexArr.push(...face1, ...face2)
       }
     }
@@ -56,4 +59,4 @@ class EarthGeometry extends THREE.BufferGeometry {
   }
 }
 
-export default EarthGeometry
+export default TileGeometry

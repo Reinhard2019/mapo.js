@@ -3,12 +3,7 @@ import type { Event } from 'three'
 import { BBox, EarthOrbitControlsOptions, LngLat, MapOptions, Point2 } from './types'
 import EarthOrbitControls from './EarthOrbitControls'
 import BaseLayer from './layers/BaseLayer'
-import LayerManager from './layers/LayerManager'
-import TileLayer from './layers/TileLayer'
-import { floor, last, remove, throttle } from 'lodash-es'
-import EarthGeometry from './EarthGeometry'
-import MercatorTile from './utils/MercatorTile'
-import { bboxContains, fullBBox, isFull, latPretreatmentBBox, scale } from './utils/bbox'
+import { floor, last, remove } from 'lodash-es'
 import { unwrapHTMLElement } from './utils/dom'
 import {
   getDisplayCentralAngle,
@@ -23,6 +18,7 @@ import { bbox, lineIntersect, lineString, polygon } from '@turf/turf'
 import { inRange } from './utils/number'
 import Control from './Control'
 import { Polygon } from 'geojson'
+import TileGroup from './TileGroup'
 
 interface _Event extends Event {
   type: 'render' | 'zoom' | 'rotate' | 'move' | 'pitch'
@@ -38,23 +34,16 @@ class Map extends THREE.EventDispatcher<_Event> {
   readonly hash: boolean = false
 
   private readonly earthOrbitControls: EarthOrbitControls
-  private readonly earthGeometry: EarthGeometry
-  private readonly earthMesh = new THREE.Mesh()
   readonly container: HTMLElement
 
-  private layerManager: LayerManager
   private readonly beforeLayerManager: BeforeLayerManager
-  private tileLayer: TileLayer
+  private readonly tileGroup: TileGroup
 
-  private disposeFuncList: Array<() => void> = []
-  private controlArr: Control[] = []
+  private readonly disposeFuncList: Array<() => void> = []
+  private readonly controlArr: Control[] = []
 
   private _displayPolygon: Polygon
-
-  /**
-   * 安全区域，如果 displayBBox 超出了安全区域，则需要更新 preloadBBox
-   */
-  secureBBox?: BBox
+  displayBBox: BBox
 
   constructor(options: MapOptions) {
     super()
@@ -76,8 +65,6 @@ class Map extends THREE.EventDispatcher<_Event> {
     if (!options.ssr) container.appendChild(this.renderer.domElement)
     this.disposeFuncList.push(() => this.renderer.dispose())
 
-    const { earthRadius, tileSize } = this
-
     this.scene.background = new THREE.Color(0x020924)
     // this.scene.fog = new THREE.Fog(0x020924, 200, 1000)
 
@@ -87,7 +74,7 @@ class Map extends THREE.EventDispatcher<_Event> {
     const hashOptions = this.parseHash()
     this.earthOrbitControls = new EarthOrbitControls({
       domElement: container,
-      earthRadius,
+      earthRadius: this.earthRadius,
       center: options.center,
       zoom: options.zoom,
       bearing: options.bearing,
@@ -96,24 +83,13 @@ class Map extends THREE.EventDispatcher<_Event> {
     })
     this.initEarthOrbitControls()
 
-    this.earthGeometry = new EarthGeometry({
-      earthRadius,
-      tileSize,
-      z: this.earthOrbitControls.z,
-    })
-    this.disposeFuncList.push(() => this.earthGeometry.dispose())
-    this.earthMesh.geometry = this.earthGeometry
-    this.scene.add(this.earthMesh)
-    if (!options.ssr) this.initEarthMaterial()
+    this.updateHash()
 
     this.beforeLayerManager = new BeforeLayerManager({
       container,
       map: this,
       earthOrbitControls: this.earthOrbitControls,
     })
-
-    // this.layerManager.canvas.style.width = '100%'
-    // container.insertBefore(this.layerManager.canvas, container.childNodes[0])
 
     // 页面重绘动画
     const tick = () => {
@@ -127,9 +103,16 @@ class Map extends THREE.EventDispatcher<_Event> {
     }
     tick()
 
-    // updateDisplayPolygon 中有调用 project，project 方法必须在 render 后面
-    this.updateDisplayPolygon()
-    this.updatePreloadBBox()
+    // getDisplayPolygon 中有调用 project，project 方法必须在 render 后面
+    this.displayPolygon = this.getDisplayPolygon()
+
+    this.tileGroup = new TileGroup({
+      map: this,
+      earthOrbitControls: this.earthOrbitControls,
+    })
+    this.scene.add(this.tileGroup)
+    this.disposeFuncList.push(() => this.tileGroup.dispose())
+    console.log(this.scene)
 
     if (!options.ssr) {
       const ro = new ResizeObserver(() => {
@@ -195,53 +178,23 @@ class Map extends THREE.EventDispatcher<_Event> {
     return this._displayPolygon
   }
 
-  private updatePreloadBBox(_preloadBBox?: BBox) {
-    const preloadBBox = _preloadBBox ?? this.getPreloadBBox()
-    const displayBBox = bbox(this.displayPolygon) as BBox
-    if (!isFull(preloadBBox)) {
-      this.secureBBox = this.getSecureBBox()
-    }
-
-    this.earthGeometry.bbox = preloadBBox
-    this.earthGeometry.update()
-
-    this.tileLayer.bbox = preloadBBox
-    this.tileLayer.displayBBox = displayBBox
-    this.tileLayer.z = this.earthOrbitControls.z
-    void this.tileLayer.refresh()
-
-    this.layerManager.bbox = preloadBBox
-    this.layerManager.displayBBox = displayBBox
-    this.layerManager.z = this.earthOrbitControls.z
-    this.layerManager.updateCanvasSize(this.earthOrbitControls.getPxDeg())
-    this.layerManager.refresh()
+  set displayPolygon(value: Polygon) {
+    this._displayPolygon = value
+    this.displayBBox = bbox(value) as BBox
   }
 
   private initEarthOrbitControls() {
-    const onMove = throttle(() => {
+    const onMove = () => {
       // camera move、rotate、zoom、pitch 时，需要立刻调用 render，以避免 new THREE.Vector3.project(camera) 方法返回错误的结果
       this.renderer.render(this.scene, this.earthOrbitControls.camera)
 
       this.updateHash()
       this.beforeLayerManager.refresh()
 
-      this.updateDisplayPolygon()
+      this.displayPolygon = this.getDisplayPolygon()
 
-      const secureBBox = this.secureBBox
-      const cachePreloadBBox = this.earthGeometry.bbox
-      const preloadBBox = this.getPreloadBBox()
-      const displayBBox = bbox(this.displayPolygon) as BBox
-
-      if (bboxContains(cachePreloadBBox, preloadBBox)) {
-        this.updatePreloadBBox()
-        return
-      }
-
-      const overflowSecureBBox = secureBBox && !bboxContains(secureBBox, displayBBox)
-      if (overflowSecureBBox) {
-        this.updatePreloadBBox()
-      }
-    }, 500)
+      this.tileGroup.update()
+    }
     this.earthOrbitControls.addEventListener('move', () => {
       this.dispatchEvent({ type: 'move' })
       onMove()
@@ -258,22 +211,6 @@ class Map extends THREE.EventDispatcher<_Event> {
       this.dispatchEvent({ type: 'pitch' })
       onMove()
     })
-  }
-
-  private getPreloadBBox(): BBox {
-    let preloadBBox: BBox = scale(bbox(this.displayPolygon) as BBox, 3)
-    preloadBBox = latPretreatmentBBox(preloadBBox)
-
-    if (preloadBBox[2] - preloadBBox[0] > 180) {
-      preloadBBox[0] = -180
-      preloadBBox[2] = 180
-    }
-
-    return preloadBBox
-  }
-
-  private getSecureBBox(): BBox {
-    return latPretreatmentBBox(scale(bbox(this.displayPolygon) as BBox, 2))
   }
 
   private parseHash():
@@ -302,164 +239,6 @@ class Map extends THREE.EventDispatcher<_Event> {
       ]
       history.replaceState(null, '', `#${arr.join('/')}`)
     }
-  }
-
-  private initEarthMaterial() {
-    const { tileSize } = this
-
-    const materials: THREE.ShaderMaterial[] = []
-
-    const backgroundMaterial = new THREE.ShaderMaterial({
-      fragmentShader: `
-        void main() {
-          gl_FragColor = vec4(0, 0, 0, 1);
-        }
-      `,
-    })
-    materials.push(backgroundMaterial)
-
-    const vertexShader = `
-      varying vec2 vUv;
-      uniform vec4 bbox;
-
-      float radToDeg(float rad) {
-        return rad * 180.0 / ${Math.PI};
-      }
-      vec2 vec3ToLngLat(vec3 position) {
-        float radius = sqrt(position.x * position.x + position.y * position.y + position.z * position.z);
-        if (radius == 0.0) {
-          return vec2(0, 0);
-        }
-        float lng = radToDeg(atan(position.x, position.z));
-        float lat = 90.0 - radToDeg(acos(clamp(position.y / radius, -1.0, 1.0)));
-        return vec2(lng, lat);
-      }
-      vec2 lngLat2uv(vec2 lngLat) {
-        float w = bbox[0];
-        float s = bbox[1];
-        float e = bbox[2];
-        float n = bbox[3];
-        return vec2((lngLat.x - w) / (e - w), (lngLat.y - s) / (n - s));
-      }
-
-      void main() {
-        vUv = lngLat2uv(vec3ToLngLat(position));
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-      }
-    `
-
-    // 创建 tileMaterial
-    {
-      const tileLayer = new TileLayer(tileSize)
-      this.tileLayer = tileLayer
-      const getTexture = () => new THREE.CanvasTexture(tileLayer.canvas)
-      tileLayer.onUpdate = () => {
-        uniforms.bbox.value = tileLayer.bbox
-        uniforms.canvasBBox.value = tileLayer.canvasBBox
-        uniforms.startCanvasY.value = MercatorTile.latToY(tileLayer.canvasBBox[1], 0)
-        uniforms.endCanvasY.value = MercatorTile.latToY(tileLayer.canvasBBox[3], 0)
-        uniforms.tile.value.dispose()
-        uniforms.tile.value = getTexture()
-      }
-      const uniforms = {
-        tile: { value: getTexture() },
-        bbox: { value: fullBBox },
-        canvasBBox: { value: fullBBox },
-        startCanvasY: { value: MercatorTile.latToY(fullBBox[1], 0) },
-        endCanvasY: { value: MercatorTile.latToY(fullBBox[3], 0) },
-      }
-      // 将 lat(纬度) 转化为墨卡托投影中的 y(0-1)
-      const latToY = `
-        float latToY(float lat) {
-          if (lat >= ${MercatorTile.maxLat}) {
-            return 0.0;
-          }
-          if (lat <= ${-MercatorTile.maxLat}) {
-            return 1.0;
-          }
-
-          float sinValue = sin(radians(lat));
-          float y = (0.5 - (0.25 * log((1.0 + sinValue) / (1.0 - sinValue))) / ${Math.PI});
-          return y;
-        }
-      `
-      const fragmentShader = `
-        uniform sampler2D tile;
-        uniform sampler2D layers;
-        uniform vec4 bbox;
-        uniform vec4 canvasBBox;
-        uniform float startCanvasY;
-        uniform float endCanvasY;
-        varying vec2 vUv;
-
-        ${latToY}
-
-        void main() {
-          float w = bbox[0];
-          float s = bbox[1];
-          float e = bbox[2];
-          float n = bbox[3];
-          float canvasW = canvasBBox[0];
-          float canvasS = canvasBBox[1];
-          float canvasE = canvasBBox[2];
-          float canvasN = canvasBBox[3];
-
-          float canvasLatGap = canvasE - canvasW;
-          float scaleX = (e - w) / canvasLatGap;
-          float startX = (w - canvasW) / canvasLatGap;
-          float x = vUv.x * scaleX + startX;
-
-          float lat = s + vUv.y * (n - s);
-          float y = (latToY(lat) - startCanvasY) / (endCanvasY - startCanvasY);
-
-          vec2 uv = vec2(x, y);
-          gl_FragColor = texture2D(tile, uv);
-        }
-      `
-      const tileMaterial = new THREE.ShaderMaterial({
-        uniforms,
-        vertexShader,
-        fragmentShader,
-        transparent: true,
-      })
-      materials.push(tileMaterial)
-    }
-
-    // 创建 layersMaterial
-    {
-      const layerManager = new LayerManager()
-      this.layerManager = layerManager
-      this.disposeFuncList.push(() => layerManager.dispose())
-      const getTexture = () => new THREE.CanvasTexture(layerManager.canvas)
-      layerManager.onUpdate = () => {
-        uniforms.bbox.value = layerManager.bbox
-        uniforms.layers.value.dispose()
-        uniforms.layers.value = getTexture()
-      }
-      const uniforms = {
-        layers: { value: getTexture() },
-        bbox: { value: fullBBox },
-      }
-      const layersMaterial = new THREE.ShaderMaterial({
-        uniforms,
-        vertexShader,
-        fragmentShader: `
-          uniform sampler2D layers;
-          varying vec2 vUv;
-          void main() {
-            gl_FragColor = texture2D(layers, vUv);
-          }
-        `,
-        transparent: true,
-      })
-      materials.push(layersMaterial)
-    }
-
-    materials.forEach((material, i) => {
-      this.earthGeometry.addGroup(0, Infinity, i)
-      this.disposeFuncList.push(() => material.dispose())
-    })
-    this.earthMesh.material = materials
   }
 
   private inContainerRange(point: Point2) {
@@ -554,7 +333,7 @@ class Map extends THREE.EventDispatcher<_Event> {
     return vector3ToLngLat(vector3)
   }
 
-  private updateDisplayPolygon() {
+  private getDisplayPolygon() {
     let bearing = this.earthOrbitControls.bearing
     bearing %= 180
     bearing = bearing >= 0 ? bearing : 180 + bearing
@@ -633,8 +412,7 @@ class Map extends THREE.EventDispatcher<_Event> {
       lngLatArr.unshift([-180, topLat])
       lngLatArr.push([180, topLat])
 
-      this._displayPolygon = polygon([[...lngLatArr, lngLatArr[0]]]).geometry
-      return
+      return polygon([[...lngLatArr, lngLatArr[0]]]).geometry
     }
 
     const halfLength = lngLatArr.length / 2
@@ -650,14 +428,14 @@ class Map extends THREE.EventDispatcher<_Event> {
       }
     })
 
-    this._displayPolygon = polygon([[...lngLatArr, lngLatArr[0]]]).geometry
+    return polygon([[...lngLatArr, lngLatArr[0]]]).geometry
   }
 
   addLayer(layer: BaseLayer | BaseBeforeLayer) {
     if (layer instanceof BaseBeforeLayer) {
       this.beforeLayerManager.addLayer(layer)
     } else {
-      this.layerManager.addLayer(layer)
+      this.tileGroup.tileMaterials.layerManager.addLayer(layer)
     }
   }
 
@@ -665,7 +443,7 @@ class Map extends THREE.EventDispatcher<_Event> {
     if (layer instanceof BaseBeforeLayer) {
       this.beforeLayerManager.removeLayer(layer)
     } else {
-      this.layerManager.removeLayer(layer)
+      this.tileGroup.tileMaterials.layerManager.removeLayer(layer)
     }
   }
 
@@ -717,10 +495,8 @@ class Map extends THREE.EventDispatcher<_Event> {
 
   dispose() {
     this.disposeFuncList.forEach(func => func())
-    this.disposeFuncList = []
 
     this.controlArr.forEach(control => control.onRemove(this))
-    this.controlArr = []
 
     this.clearContainer()
   }
