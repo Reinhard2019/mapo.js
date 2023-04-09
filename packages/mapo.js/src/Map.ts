@@ -1,9 +1,17 @@
 import * as THREE from 'three'
 import type { Event } from 'three'
-import { BBox, EarthOrbitControlsOptions, LngLat, MapOptions, Point2 } from './types'
+import {
+  AnimationOptions,
+  BBox,
+  CameraOptions,
+  EarthOrbitControlsOptions,
+  LngLat,
+  MapOptions,
+  Point2,
+} from './types'
 import EarthOrbitControls from './EarthOrbitControls'
 import BaseLayer from './layers/BaseLayer'
-import { floor, last, remove } from 'lodash-es'
+import { floor, isNil, last, pick, pickBy, remove } from 'lodash-es'
 import { unwrapHTMLElement } from './utils/dom'
 import {
   getDisplayCentralAngle,
@@ -19,6 +27,7 @@ import { inRange } from './utils/number'
 import Control from './Control'
 import { Polygon } from 'geojson'
 import TileGroup from './TileGroup'
+import anime from 'animejs'
 
 interface _Event extends Event {
   type: 'render' | 'zoom' | 'rotate' | 'move' | 'pitch'
@@ -112,7 +121,6 @@ class Map extends THREE.EventDispatcher<_Event> {
     })
     this.scene.add(this.tileGroup)
     this.disposeFuncList.push(() => this.tileGroup.dispose())
-    console.log(this.scene)
 
     if (!options.ssr) {
       const ro = new ResizeObserver(() => {
@@ -457,6 +465,39 @@ class Map extends THREE.EventDispatcher<_Event> {
   removeControl(control: Control) {
     control.onRemove(this)
     remove(this.controlArr, v => v === control)
+  }
+
+  flyTo(options: CameraOptions & AnimationOptions) {
+    const targetsTransformer = (cameraOptions: CameraOptions) => {
+      const [lng, lat] = cameraOptions.center ?? []
+      return pickBy(
+        {
+          lng,
+          lat,
+          zoom: cameraOptions.zoom,
+          bearing: cameraOptions.bearing,
+          pitch: cameraOptions.pitch,
+        },
+        v => !isNil(v),
+      )
+    }
+    const animationOptions = pick(options, ['duration'])
+
+    const targets = targetsTransformer(this.earthOrbitControls)
+
+    anime({
+      targets,
+      ...targetsTransformer(options),
+      duration: 300,
+      easing: 'linear',
+      ...animationOptions,
+      update: () => {
+        !isNil(options.center) && this.setCenter([targets.lng!, targets.lat!])
+        !isNil(options.zoom) && this.setZoom(targets.zoom!)
+        !isNil(options.bearing) && this.setZoom(targets.bearing!)
+        !isNil(options.pitch) && this.setZoom(targets.pitch!)
+      },
+    })
   }
 
   getCenter() {

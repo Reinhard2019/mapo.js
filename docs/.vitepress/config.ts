@@ -50,6 +50,10 @@ export default defineConfig({
             { text: 'FPS', link: '/examples/fps' },
           ],
         },
+        {
+          text: 'api',
+          items: [{ text: 'flyTo', link: '/examples/flyTo' }],
+        },
       ],
     },
     footer: {
