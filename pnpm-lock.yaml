@@ -65,6 +65,9 @@ importers:
       canvas:
         specifier: ^2.11.0
         version: 2.11.0
+      chokidar:
+        specifier: ^3.5.3
+        version: 3.5.3
       eslint:
         specifier: ^8.0.1
         version: 8.28.0

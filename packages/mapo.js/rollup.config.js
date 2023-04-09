@@ -15,7 +15,7 @@ export default [
       }),
       commonjs(),
     ],
-    external: ['lodash-es', 'three', '@turf/turf'],
+    external: ['lodash-es', 'three', '@turf/turf', 'animejs'],
   },
   process.env.NODE_ENV === 'production' && {
     input: 'src/index.ts',

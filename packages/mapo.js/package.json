@@ -8,7 +8,7 @@
   "type": "module",
   "license": "MIT",
   "scripts": {
-    "dev": "export NODE_ENV=development && rollup -c --watch",
+    "dev": "export NODE_ENV=development && node listen.js",
     "build": "export NODE_ENV=production && rollup -c"
   },
   "devDependencies": {
