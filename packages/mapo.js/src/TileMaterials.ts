@@ -5,6 +5,8 @@ import TileLayer from './layers/TileLayer'
 import LayerManager from './layers/LayerManager'
 import EarthOrbitControls from './EarthOrbitControls'
 import Map from './Map'
+import EquirectangularTile from './utils/EquirectangularTile'
+import { BBox } from './types'
 
 class TileMaterials {
   readonly materials: THREE.ShaderMaterial[] = []
@@ -172,8 +174,14 @@ class TileMaterials {
   }
 
   update() {
-    const bbox = this.map.displayBBox
     const z = this.earthOrbitControls.z
+    const tileIndexBox = EquirectangularTile.bboxToTileIndexBox(this.map.displayBBox, z)
+    const bbox: BBox = [
+      EquirectangularTile.xToLng(tileIndexBox.startX, z),
+      EquirectangularTile.yToLat(tileIndexBox.endY, z),
+      EquirectangularTile.xToLng(tileIndexBox.endX, z),
+      EquirectangularTile.yToLat(tileIndexBox.startY, z),
+    ]
 
     this.tileLayer.bbox = bbox
     this.tileLayer.displayBBox = bbox
