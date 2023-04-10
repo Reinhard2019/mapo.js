@@ -494,8 +494,8 @@ class Map extends THREE.EventDispatcher<_Event> {
       update: () => {
         !isNil(options.center) && this.setCenter([targets.lng!, targets.lat!])
         !isNil(options.zoom) && this.setZoom(targets.zoom!)
-        !isNil(options.bearing) && this.setZoom(targets.bearing!)
-        !isNil(options.pitch) && this.setZoom(targets.pitch!)
+        !isNil(options.bearing) && this.setBearing(targets.bearing!)
+        !isNil(options.pitch) && this.setPitch(targets.pitch!)
       },
     })
   }
