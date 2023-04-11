@@ -106,8 +106,9 @@ class TileLayer {
         return
       }
 
+      this.drawPreviewImage(x, y, rect)
+
       if (isNil(value)) {
-        this.drawPreviewImage(x, y, rect)
         const inXRange = inRange(x, displayTileIndexBox.startX, displayTileIndexBox.endX)
         const inYRange = inRange(y, displayTileIndexBox.startY, displayTileIndexBox.endY)
         if (!inXRange || !inYRange) {
