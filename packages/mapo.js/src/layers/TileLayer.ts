@@ -11,6 +11,8 @@ class TileLayer {
   private readonly tileSize: number
   private readonly cache = new TileCache<ImageBitmap | Promise<ImageBitmap>>()
 
+  refreshKey?: number | undefined
+
   bbox: BBox = fullBBox
   canvasBBox: BBox = fullBBox
   /**
@@ -75,7 +77,7 @@ class TileLayer {
   }
 
   private draw(update?: boolean) {
-    const { tileSize, cache, bbox, z, displayBBox } = this
+    const { tileSize, cache, bbox, z, displayBBox, refreshKey } = this
     const ctx = this.canvas.getContext('2d') as OffscreenCanvasRenderingContext2D
     const tileIndexBox = MercatorTile.bboxToTileIndexBox(bbox, z)
     const displayTileIndexBox = MercatorTile.bboxToTileIndexBox(displayBBox, z)
@@ -115,8 +117,11 @@ class TileLayer {
       }
 
       void value.then(imageBitmap => {
-        drawImage(imageBitmap)
-        this.onUpdate?.()
+        // 防止异步导致的渲染混乱
+        if (refreshKey === this.refreshKey) {
+          drawImage(imageBitmap)
+          this.onUpdate?.()
+        }
       })
     })
 
@@ -126,11 +131,9 @@ class TileLayer {
   refresh() {
     const { tileSize, bbox, z } = this
     const tileIndexBox = MercatorTile.bboxToTileIndexBox(bbox, z)
-    const width = (tileIndexBox.endX - tileIndexBox.startX) * tileSize
-    const height = (tileIndexBox.endY - tileIndexBox.startY) * tileSize
-    const canvas = new OffscreenCanvas(width, height)
-    // 每次刷新时更新 canvas，防止图片异步加载的情况下 ctx.drawImage 错误
-    this.canvas = canvas
+    this.canvas.width = (tileIndexBox.endX - tileIndexBox.startX) * tileSize
+    this.canvas.height = (tileIndexBox.endY - tileIndexBox.startY) * tileSize
+    this.refreshKey = new Date().valueOf()
 
     this.canvasBBox = [
       MercatorTile.xToLng(tileIndexBox.startX, z),
