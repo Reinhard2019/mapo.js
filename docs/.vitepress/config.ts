@@ -57,8 +57,13 @@ export default defineConfig({
       ],
     },
     footer: {
-      message: 'Released under the MIT License.',
-      copyright: 'Copyright © 2023-present 丁磊',
+      message: `
+        <a href="http://beian.miit.gov.cn/" target="_blank" style="display: flex; justify-content: center; align-items: center; opacity: 0.7;">
+          <img src="https://www.beian.gov.cn/img/new/gongan.png" alt="公安备案icon" style="margin-right: 4px;">
+          赣ICP备2023002130号
+        </a>
+      `,
+      copyright: 'Released under the MIT License. Copyright © 2023-present 丁磊',
     },
   },
   vite: {
