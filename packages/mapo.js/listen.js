@@ -9,7 +9,7 @@ import { spawn } from 'child_process'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 
-chokidar.watch(__dirname + '/src').on('change', () => {
+const build = () => {
   const bat = spawn('npx', ['rollup', '-c'])
 
   bat.stdout.on('data', data => {
@@ -23,4 +23,8 @@ chokidar.watch(__dirname + '/src').on('change', () => {
   bat.on('exit', code => {
     console.log(`Child exited with code ${code}`)
   })
-})
+}
+
+chokidar.watch(__dirname + '/src').on('change', build)
+
+build()
