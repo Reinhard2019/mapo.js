@@ -29,11 +29,11 @@ import { Polygon } from 'geojson'
 import TileGroup from './TileGroup'
 import anime from 'animejs'
 
-interface _Event extends Event {
-  type: 'render' | 'zoom' | 'rotate' | 'move' | 'pitch'
+interface MapEvent extends Event {
+  type: 'render' | 'zoom' | 'rotate' | 'move' | 'pitch' | 'click'
 }
 
-class Map extends THREE.EventDispatcher<_Event> {
+class Map extends THREE.EventDispatcher<MapEvent> {
   tileSize = 512
   // 地球半径 6371km
   readonly earthRadius = 6371
@@ -64,6 +64,14 @@ class Map extends THREE.EventDispatcher<_Event> {
     }
     container.style.position = 'relative'
     this.container = container
+
+    const eventListenerList: Array<[keyof HTMLElementEventMap, EventListener]> = [
+      ['click', this.onClick.bind(this)],
+    ]
+    eventListenerList.forEach(([type, listener]) => {
+      this.container.addEventListener(type, listener)
+      this.disposeFuncList.push(() => this.container.removeEventListener(type, listener))
+    })
 
     if (typeof options.hash === 'boolean') this.hash = options.hash
     this.renderer = new THREE.WebGLRenderer(options.webGLRendererParameters)
@@ -293,6 +301,7 @@ class Map extends THREE.EventDispatcher<_Event> {
 
   /**
    * 将像素位置转化为 LngLat
+   *
    * 为什么不使用 THREE.Raycaster: https://github.com/mrdoob/three.js/issues/11449
    * @param point
    * @param options.allowFovLimitExceeded 是否允许该点对应的视角超出球体相切角度，如果为 true，即便超出相切角度，也会将其转化为相切角度然后返回经纬度
@@ -531,6 +540,13 @@ class Map extends THREE.EventDispatcher<_Event> {
   private clearContainer() {
     Array.from(this.container.childNodes).forEach(child => {
       this.container.removeChild(child)
+    })
+  }
+
+  private onClick(e) {
+    this.dispatchEvent({
+      type: 'click',
+      lngLat: this.unproject([e.offsetX, e.offsetY]),
     })
   }
 
