@@ -1,6 +1,6 @@
 {
-  "name": "fps-control",
-  "version": "1.0.0",
+  "name": "@mapo.js/fps-control",
+  "version": "0.0.1",
   "description": "",
   "type": "module",
   "main": "esm/index.js",

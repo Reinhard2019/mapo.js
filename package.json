@@ -48,7 +48,7 @@
   },
   "dependencies": {
     "@stackblitz/sdk": "^1.8.2",
-    "fps-control": "workspace:*",
+    "@mapo.js/fps-control": "workspace:*",
     "interactjs": "^1.10.17",
     "lodash-es": "^4.17.21",
     "mapo.js": "workspace:*",
