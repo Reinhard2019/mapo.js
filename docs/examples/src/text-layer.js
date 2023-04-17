@@ -22,6 +22,7 @@ fetch('/json/100000_full.json')
       }))
     const textLayer = new TextLayer({
       source: data,
+      textField: 'name',
     })
     map.addLayer(textLayer)
   })

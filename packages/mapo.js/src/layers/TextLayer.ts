@@ -3,6 +3,7 @@ import { bboxContains, bboxOverlap } from 'src/utils/bbox'
 import { features2featureArr } from 'src/utils/layers'
 import { BBox, Features, LngLat } from '../types'
 import BaseBeforeLayer from './BaseBeforeLayer'
+import { get } from 'lodash-es'
 
 type Source = Features<Point>
 
@@ -24,8 +25,16 @@ interface Style {
 }
 
 class TextLayer extends BaseBeforeLayer<Source, Style> {
+  textField: string
+
+  constructor(options: { source: Source; style?: Style; textField: string }) {
+    super(options)
+
+    this.textField = options.textField
+  }
+
   refresh() {
-    const { canvas, ctx, source, style } = this
+    const { canvas, ctx, source, style, textField } = this
 
     ctx.clearRect(0, 0, canvas.width, canvas.height)
 
@@ -51,7 +60,7 @@ class TextLayer extends BaseBeforeLayer<Source, Style> {
       if (!point) return
 
       const [x, y] = point
-      const text = feature.properties?.name
+      const text = get(feature.properties, textField) ?? ''
       const textMetrics = ctx.measureText(text)
       const left = x - textMetrics.width / 2
       const right = x + textMetrics.width / 2
