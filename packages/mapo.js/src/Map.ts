@@ -1,11 +1,11 @@
 import * as THREE from 'three'
-import type { Event } from 'three'
 import {
   AnimationOptions,
   BBox,
   CameraOptions,
   EarthOrbitControlsOptions,
   LngLat,
+  MapEvent,
   MapOptions,
   Point2,
 } from './types'
@@ -28,10 +28,6 @@ import Control from './Control'
 import { Polygon } from 'geojson'
 import TileGroup from './TileGroup'
 import anime from 'animejs'
-
-interface MapEvent extends Event {
-  type: 'render' | 'zoom' | 'rotate' | 'move' | 'pitch' | 'click'
-}
 
 class Map extends THREE.EventDispatcher<MapEvent> {
   tileSize = 512
@@ -500,11 +496,23 @@ class Map extends THREE.EventDispatcher<MapEvent> {
       duration: 300,
       easing: 'linear',
       ...animationOptions,
+      begin: () => {
+        !isNil(options.center) && this.earthOrbitControls.onMoveStart()
+        !isNil(options.zoom) && this.earthOrbitControls.onZoomStart()
+        !isNil(options.bearing) && this.earthOrbitControls.onRotateStart()
+        !isNil(options.pitch) && this.earthOrbitControls.onPitchStart()
+      },
       update: () => {
         !isNil(options.center) && this.setCenter([targets.lng!, targets.lat!])
         !isNil(options.zoom) && this.setZoom(targets.zoom!)
         !isNil(options.bearing) && this.setBearing(targets.bearing!)
         !isNil(options.pitch) && this.setPitch(targets.pitch!)
+      },
+      complete: () => {
+        !isNil(options.center) && this.earthOrbitControls.onMoveEnd()
+        !isNil(options.zoom) && this.earthOrbitControls.onZoomEnd()
+        !isNil(options.bearing) && this.earthOrbitControls.onRotateEnd()
+        !isNil(options.pitch) && this.earthOrbitControls.onPitchEnd()
       },
     })
   }
@@ -514,7 +522,9 @@ class Map extends THREE.EventDispatcher<MapEvent> {
   }
 
   setCenter(value: LngLat) {
+    this.earthOrbitControls.onMoveStart()
     this.earthOrbitControls.setCenter(value)
+    this.earthOrbitControls.onMoveEnd()
   }
 
   getZoom() {
@@ -522,7 +532,9 @@ class Map extends THREE.EventDispatcher<MapEvent> {
   }
 
   setZoom(value: number) {
+    this.earthOrbitControls.onZoomStart()
     this.earthOrbitControls.setZoom(value)
+    this.earthOrbitControls.onZoomEnd()
   }
 
   getBearing() {
@@ -530,11 +542,19 @@ class Map extends THREE.EventDispatcher<MapEvent> {
   }
 
   setBearing(value: number) {
+    this.earthOrbitControls.onRotateStart()
     this.earthOrbitControls.setBearing(value)
+    this.earthOrbitControls.onRotateEnd()
+  }
+
+  getPitch() {
+    return this.earthOrbitControls.pitch
   }
 
   setPitch(value: number) {
+    this.earthOrbitControls.onPitchStart()
     this.earthOrbitControls.setPitch(value)
+    this.earthOrbitControls.onPitchEnd()
   }
 
   private clearContainer() {

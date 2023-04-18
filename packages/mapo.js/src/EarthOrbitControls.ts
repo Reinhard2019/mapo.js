@@ -1,10 +1,10 @@
 import { clamp, debounce, isNumber } from 'lodash-es'
 import * as THREE from 'three'
-import { EarthOrbitControlsOptions, LngLat } from './types'
+import { CameraEvent, EarthOrbitControlsOptions, LngLat } from './types'
 import { getDisplayCentralAngle, lngLatToVector3, normalizeLng } from './utils/map'
 import { degToRad, radToDeg, getQuadraticEquationRes } from './utils/math'
 
-class EarthOrbitControls extends THREE.EventDispatcher {
+class EarthOrbitControls extends THREE.EventDispatcher<CameraEvent> {
   readonly camera: THREE.PerspectiveCamera
   domElement: HTMLElement = document.body
   private readonly earthRadius: number = 6371
@@ -24,10 +24,36 @@ class EarthOrbitControls extends THREE.EventDispatcher {
   minDistance = this.earthRadius + 0.2
   maxDistance = this.earthRadius * 4
 
-  private disposeFuncList: Array<() => void> = []
-  private readonly onEnd = debounce(function () {
-    this.dispatchEvent({ type: 'end' })
+  private moving = false
+  private zooming = false
+  private rotating = false
+  private pitching = false
+
+  readonly onMoveEnd = debounce(function () {
+    const _self = this as EarthOrbitControls
+    _self.dispatchEvent({ type: 'moveend' })
+    _self.moving = false
   }, 250)
+
+  readonly onZoomEnd = debounce(function () {
+    const _self = this as EarthOrbitControls
+    _self.dispatchEvent({ type: 'zoomend' })
+    _self.zooming = false
+  }, 250)
+
+  readonly onRotateEnd = debounce(function () {
+    const _self = this as EarthOrbitControls
+    _self.dispatchEvent({ type: 'rotateend' })
+    _self.rotating = false
+  }, 250)
+
+  readonly onPitchEnd = debounce(function () {
+    const _self = this as EarthOrbitControls
+    _self.dispatchEvent({ type: 'pitchend' })
+    _self.pitching = false
+  }, 250)
+
+  private disposeFuncList: Array<() => void> = []
 
   constructor(options: EarthOrbitControlsOptions) {
     super()
@@ -51,7 +77,7 @@ class EarthOrbitControls extends THREE.EventDispatcher {
       ['mousemove', this.onMousemove.bind(this)],
       ['contextmenu', this.onContextmenu.bind(this)],
       ['wheel', this.onMousewheel.bind(this)],
-      ['pointerup', this.onPointerup.bind(this)],
+      // ['pointerup', this.onPointerup.bind(this)],
     ]
     eventListenerList.forEach(([type, listener]) => {
       this.domElement.addEventListener(type, listener)
@@ -81,6 +107,22 @@ class EarthOrbitControls extends THREE.EventDispatcher {
     const { tileSize } = this
     const zoom = Math.log2(360 / this.getPxDeg() / tileSize)
     return zoom
+  }
+
+  isMoving() {
+    return this.moving
+  }
+
+  isZooming() {
+    return this.zooming
+  }
+
+  isRotating() {
+    return this.rotating
+  }
+
+  isPitching() {
+    return this.pitching
   }
 
   /**
@@ -140,6 +182,34 @@ class EarthOrbitControls extends THREE.EventDispatcher {
     this.camera.rotateX(degToRad(this.pitch))
   }
 
+  onMoveStart() {
+    if (!this.moving) {
+      this.dispatchEvent({ type: 'movestart' })
+    }
+    this.moving = true
+  }
+
+  onRotateStart() {
+    if (!this.rotating) {
+      this.dispatchEvent({ type: 'rotatestart' })
+    }
+    this.rotating = true
+  }
+
+  onPitchStart() {
+    if (!this.pitching) {
+      this.dispatchEvent({ type: 'pitchstart' })
+    }
+    this.pitching = true
+  }
+
+  onZoomStart() {
+    if (!this.zooming) {
+      this.dispatchEvent({ type: 'zoomstart' })
+    }
+    this.zooming = true
+  }
+
   private onMousemove(e: MouseEvent) {
     e.preventDefault()
 
@@ -165,7 +235,9 @@ class EarthOrbitControls extends THREE.EventDispatcher {
       camera.position.copy(lngLatToVector3(this.center, this.distance))
       this.lookAt()
 
+      this.onMoveStart()
       this.dispatchEvent({ type: 'move' })
+      this.onMoveEnd()
       return
     }
 
@@ -175,7 +247,9 @@ class EarthOrbitControls extends THREE.EventDispatcher {
       this.bearing -= movementDeg
       this.lookAt()
 
+      this.onRotateStart()
       this.dispatchEvent({ type: 'rotate' })
+      this.onRotateEnd()
       return
     }
 
@@ -183,7 +257,9 @@ class EarthOrbitControls extends THREE.EventDispatcher {
     this.pitch = clamp(this.pitch + movementDeg, 0, 85)
     this.lookAt()
 
+    this.onPitchStart()
     this.dispatchEvent({ type: 'pitch' })
+    this.onPitchEnd()
   }
 
   private onContextmenu(e: PointerEvent) {
@@ -208,15 +284,14 @@ class EarthOrbitControls extends THREE.EventDispatcher {
 
     this.distance = spherical.radius
 
+    this.onZoomStart()
     this.dispatchEvent({ type: 'zoom' })
-    this.onEnd()
+    this.onZoomEnd()
   }
 
-  private onPointerup(e: PointerEvent) {
-    e.preventDefault()
-
-    this.dispatchEvent({ type: 'end' })
-  }
+  // private onPointerup(e: PointerEvent) {
+  //   e.preventDefault()
+  // }
 
   setCenter(value: LngLat) {
     this.center = value

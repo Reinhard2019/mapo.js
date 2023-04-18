@@ -1,5 +1,5 @@
 import { Feature, FeatureCollection, Geometry } from 'geojson'
-import type { WebGLRendererParameters } from 'three'
+import type { WebGLRendererParameters, Event } from 'three'
 
 export interface MapOptions extends CameraOptions {
   container: string | HTMLElement
@@ -9,6 +9,28 @@ export interface MapOptions extends CameraOptions {
    * 服务器端渲染
    */
   ssr?: boolean
+}
+
+export type CameraEventType =
+  | 'zoomstart'
+  | 'zoom'
+  | 'zoomend'
+  | 'rotatestart'
+  | 'rotate'
+  | 'rotateend'
+  | 'movestart'
+  | 'move'
+  | 'moveend'
+  | 'pitchstart'
+  | 'pitch'
+  | 'pitchend'
+
+export interface CameraEvent extends Event {
+  type: CameraEventType
+}
+
+export interface MapEvent extends Event {
+  type: 'render' | 'click' | CameraEventType
 }
 
 export interface CameraOptions {
