@@ -1,7 +1,6 @@
-import { inRange, isNil, range } from 'lodash-es'
+import { inRange, isNil } from 'lodash-es'
 import MercatorTile from '../utils/MercatorTile'
 import { BBox, XYZ } from '../types'
-import { multiplyArray } from '../utils/array'
 import { fullBBox } from '../utils/bbox'
 import { formatTileX, getSatelliteUrl } from '../utils/map'
 import TileCache from '../utils/TileCache'
@@ -83,48 +82,64 @@ class TileLayer {
     const displayTileIndexBox = MercatorTile.bboxToTileIndexBox(displayBBox, z)
     const drawTileIndexBox = update ? displayTileIndexBox : tileIndexBox
 
-    const xyArr = multiplyArray(
-      range(drawTileIndexBox.startX, drawTileIndexBox.endX),
-      range(drawTileIndexBox.startY, drawTileIndexBox.endY),
-    )
-    xyArr.forEach(([x, y]) => {
-      const formattedX = formatTileX(x, this.z)
-      const xyz: XYZ = [formattedX, y, z]
-      let value = cache.get(xyz)
-      const rect: [number, number, number, number] = [
-        (x - tileIndexBox.startX) * tileSize,
-        (y - tileIndexBox.startY) * tileSize,
-        tileSize,
-        tileSize,
-      ]
-      const drawImage = (imageBitmap: ImageBitmap) => {
-        ctx.clearRect(...rect)
-        ctx.drawImage(imageBitmap, ...rect)
+    // 加载瓦片时优先加载距离中心近的瓦片
+    const xyObjArr: Array<{
+      x: number
+      y: number
+      level: number
+    }> = []
+    const centerX = (drawTileIndexBox.endX - 1) / 2 + drawTileIndexBox.startX / 2
+    const centerY = (drawTileIndexBox.endY - 1) / 2 + drawTileIndexBox.startY / 2
+    for (let x = drawTileIndexBox.startX; x < drawTileIndexBox.endX; x++) {
+      for (let y = drawTileIndexBox.startY; y < drawTileIndexBox.endY; y++) {
+        const level = Math.pow(x - centerX, 2) + Math.pow(y - centerY, 2)
+        xyObjArr.push({
+          x,
+          y,
+          level,
+        })
       }
-      if (value instanceof ImageBitmap) {
-        drawImage(value)
-        return
-      }
-
-      this.drawPreviewImage(x, y, rect)
-
-      if (isNil(value)) {
-        const inXRange = inRange(x, displayTileIndexBox.startX, displayTileIndexBox.endX)
-        const inYRange = inRange(y, displayTileIndexBox.startY, displayTileIndexBox.endY)
-        if (!inXRange || !inYRange) {
+    }
+    xyObjArr
+      .sort((a, b) => a.level - b.level)
+      .forEach(({ x, y }) => {
+        const formattedX = formatTileX(x, this.z)
+        const xyz: XYZ = [formattedX, y, z]
+        let value = cache.get(xyz)
+        const rect: [number, number, number, number] = [
+          (x - tileIndexBox.startX) * tileSize,
+          (y - tileIndexBox.startY) * tileSize,
+          tileSize,
+          tileSize,
+        ]
+        const drawImage = (imageBitmap: ImageBitmap) => {
+          ctx.clearRect(...rect)
+          ctx.drawImage(imageBitmap, ...rect)
+        }
+        if (value instanceof ImageBitmap) {
+          drawImage(value)
           return
         }
-        value = this.loadTile(xyz)
-      }
 
-      void value.then(imageBitmap => {
-        // 防止异步导致的渲染混乱
-        if (refreshKey === this.refreshKey) {
-          drawImage(imageBitmap)
-          this.onUpdate?.()
+        this.drawPreviewImage(x, y, rect)
+
+        if (isNil(value)) {
+          const inXRange = inRange(x, displayTileIndexBox.startX, displayTileIndexBox.endX)
+          const inYRange = inRange(y, displayTileIndexBox.startY, displayTileIndexBox.endY)
+          if (!inXRange || !inYRange) {
+            return
+          }
+          value = this.loadTile(xyz)
         }
+
+        void value.then(imageBitmap => {
+          // 防止异步导致的渲染混乱
+          if (refreshKey === this.refreshKey) {
+            drawImage(imageBitmap)
+            this.onUpdate?.()
+          }
+        })
       })
-    })
 
     this.onUpdate?.()
   }
