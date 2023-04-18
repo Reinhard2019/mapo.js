@@ -221,9 +221,10 @@ class EarthOrbitControls extends THREE.EventDispatcher<CameraEvent> {
 
     const isMove = !e.ctrlKey
     if (isMove) {
+      const pxDeg = this.getPxDeg()
       // TODO 增加阻尼效果
-      const movementXDeg = -(e.movementX / domElement.clientWidth) * 36
-      const movementYDeg = (e.movementY / domElement.clientHeight) * 36
+      const movementXDeg = -(e.movementX * pxDeg)
+      const movementYDeg = e.movementY * pxDeg
       this.center[0] +=
         movementXDeg * Math.cos(degToRad(this.bearing)) +
         movementYDeg * Math.sin(degToRad(this.bearing))
