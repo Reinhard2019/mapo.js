@@ -17,18 +17,27 @@ class TileGeometry extends THREE.BufferGeometry {
   }
 
   update() {
-    const { earthRadius, tileSize, xyz } = this
-    const [tileX, tileY, z] = xyz
-    const startWest = EquirectangularTile.xToLng(tileX, z)
-    const startNorth = EquirectangularTile.yToLat(tileY, z)
+    const { earthRadius, xyz } = this
+    const [, , z] = xyz
+    const [w, s, e, n] = EquirectangularTile.tileToBBox(xyz)
+    const startWest = w
+    const startNorth = n
 
-    const scaledTileSize = tileSize / Math.pow(2, 3)
-    const widthSegments = scaledTileSize
-    const heightSegments = scaledTileSize / 2
+    const totalHeightSegments = 128
+    const heightSegments = totalHeightSegments / Math.min(Math.pow(2, z), totalHeightSegments)
+    const widthSegments = heightSegments * 2
     const widthPositionCount = widthSegments + 1
     const heightPositionCount = heightSegments + 1
-    const lngGap = 360 / Math.pow(2, z) / scaledTileSize
-    const latGap = lngGap
+    const lngGap = (e - w) / widthSegments
+    const latGap = (n - s) / heightSegments
+
+    // const scaledTileSize = tileSize / Math.pow(2, 3)
+    // const widthSegments = scaledTileSize
+    // const heightSegments = scaledTileSize / 2
+    // const widthPositionCount = widthSegments + 1
+    // const heightPositionCount = heightSegments + 1
+    // const lngGap = 360 / Math.pow(2, z) / scaledTileSize
+    // const latGap = lngGap
 
     const positions: number[] = []
     const lngLats: number[][] = []
