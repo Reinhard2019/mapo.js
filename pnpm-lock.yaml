@@ -45,6 +45,9 @@ importers:
       '@rollup/plugin-node-resolve':
         specifier: ^15.0.1
         version: 15.0.1(rollup@3.18.0)
+      '@types/geojson':
+        specifier: ^7946.0.10
+        version: 7946.0.10
       '@types/gl':
         specifier: ^6.0.2
         version: 6.0.2
@@ -169,6 +172,12 @@ importers:
 
   packages/solid-components:
     dependencies:
+      '@mapo.js/fps-control':
+        specifier: workspace:^
+        version: link:../fps-control
+      '@turf/turf':
+        specifier: ^6.5.0
+        version: 6.5.0
       mapo.js:
         specifier: workspace:*
         version: link:../mapo.js

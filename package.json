@@ -17,6 +17,7 @@
     "@iconify-json/ant-design": "^1.1.5",
     "@rollup/plugin-commonjs": "^24.0.1",
     "@rollup/plugin-node-resolve": "^15.0.1",
+    "@types/geojson": "^7946.0.10",
     "@types/gl": "^6.0.2",
     "@types/lodash-es": "^4.17.6",
     "@typescript-eslint/eslint-plugin": "^5.0.0",
@@ -47,8 +48,8 @@
     "vue": "^3.2.45"
   },
   "dependencies": {
-    "@stackblitz/sdk": "^1.8.2",
     "@mapo.js/fps-control": "workspace:*",
+    "@stackblitz/sdk": "^1.8.2",
     "interactjs": "^1.10.17",
     "lodash-es": "^4.17.21",
     "mapo.js": "workspace:*",

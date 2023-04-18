@@ -1,12 +1,14 @@
 import { Component, onCleanup, onMount, splitProps, JSXElement, createSignal } from 'solid-js'
 import { Map as _Map } from 'mapo.js'
-import { MapOptions } from 'mapo.js/esm/types'
+import { MapOptions, AnimationOptions } from 'mapo.js/esm/types'
 import { MapContext } from './mapContext'
-import createUpdateEffect from '../hooks/deferCreateEffect'
+import createUpdateEffect from '../hooks/createUpdateEffect'
+import { isNil, pick, pickBy } from 'lodash-es'
 
 interface MapProps extends Omit<MapOptions, 'container'> {
   class?: string
   children?: JSXElement
+  animationOptions?: AnimationOptions
 }
 
 const Map: Component<MapProps> = props => {
@@ -27,27 +29,21 @@ const Map: Component<MapProps> = props => {
   })
 
   createUpdateEffect(
-    () => props.center,
+    [
+      () => mapOptions.center,
+      () => mapOptions.zoom,
+      () => mapOptions.bearing,
+      () => mapOptions.pitch,
+    ],
     () => {
-      props.center && map?.()?.setCenter(props.center)
-    },
-  )
-  createUpdateEffect(
-    () => props.zoom,
-    () => {
-      typeof props.zoom === 'number' && map?.()?.setZoom(props.zoom)
-    },
-  )
-  createUpdateEffect(
-    () => props.bearing,
-    () => {
-      typeof props.bearing === 'number' && map?.()?.setBearing(props.bearing)
-    },
-  )
-  createUpdateEffect(
-    () => props.pitch,
-    () => {
-      typeof props.pitch === 'number' && map?.()?.setPitch(props.pitch)
+      const options = pickBy(
+        {
+          ...pick(mapOptions, ['center', 'zoom', 'bearing', 'pitch']),
+          ...mapOptions.animationOptions,
+        },
+        v => !isNil(v),
+      )
+      map?.()?.flyTo(options)
     },
   )
   return (

@@ -8,7 +8,9 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "solid-js": "^1.6.15",
-    "mapo.js": "workspace:*"
+    "@mapo.js/fps-control": "workspace:^",
+    "@turf/turf": "^6.5.0",
+    "mapo.js": "workspace:*",
+    "solid-js": "^1.6.15"
   }
 }
