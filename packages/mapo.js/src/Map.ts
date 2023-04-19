@@ -116,17 +116,17 @@ class Map extends THREE.EventDispatcher<MapEvent> {
     }
     tick()
 
-    // getDisplayPolygon 中有调用 project，project 方法必须在 render 后面
-    this.displayPolygon = this.getDisplayPolygon()
-
-    this.tileGroup = new TileGroup({
-      map: this,
-      earthOrbitControls: this.earthOrbitControls,
-    })
-    this.scene.add(this.tileGroup)
-    this.disposeFuncList.push(() => this.tileGroup.dispose())
-
     if (!options.ssr) {
+      // getDisplayPolygon 中有调用 project，project 方法必须在 render 后面
+      this.displayPolygon = this.getDisplayPolygon()
+
+      this.tileGroup = new TileGroup({
+        map: this,
+        earthOrbitControls: this.earthOrbitControls,
+      })
+      this.scene.add(this.tileGroup)
+      this.disposeFuncList.push(() => this.tileGroup.dispose())
+
       const ro = new ResizeObserver(() => {
         const _pixelRatio = container.clientWidth / container.clientHeight
 

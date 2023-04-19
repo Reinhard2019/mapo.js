@@ -5,14 +5,14 @@
 import { BBox, TileIndexBox, XYZ } from '../types'
 
 class EquirectangularTile {
-  static pointToTile (lng: number, lat: number, z: number): [number, number] {
+  static pointToTile(lng: number, lat: number, z: number): [number, number] {
     return [
       Math.floor(EquirectangularTile.lngToX(lng, z)),
       Math.floor(EquirectangularTile.latToY(lat, z)),
     ]
   }
 
-  static tileToBBox (xyz: XYZ): BBox {
+  static tileToBBox(xyz: XYZ): BBox {
     const [x, y, z] = xyz
     const e = EquirectangularTile.xToLng(x + 1, z)
     const w = EquirectangularTile.xToLng(x, z)
@@ -24,7 +24,7 @@ class EquirectangularTile {
   /**
    * 将边界 box 转化为 tile 索引的 box
    */
-  static bboxToTileIndexBox (bbox: BBox, z: number): TileIndexBox {
+  static bboxToTileBox(bbox: BBox, z: number): TileIndexBox {
     const [w, s, e, n] = bbox
     const [startX, startY] = EquirectangularTile.pointToTile(w, n, z)
     const [x2, y2] = EquirectangularTile.pointToTile(e, s, z)
@@ -34,23 +34,32 @@ class EquirectangularTile {
       startX,
       startY,
       endX,
-      endY
+      endY,
     }
   }
 
-  static lngToX (lng: number, z: number) {
+  static tileBoxToBBox(tileBox: TileIndexBox, z: number): BBox {
+    return [
+      EquirectangularTile.xToLng(tileBox.startX, z),
+      EquirectangularTile.yToLat(tileBox.endY, z),
+      EquirectangularTile.xToLng(tileBox.endX, z),
+      EquirectangularTile.yToLat(tileBox.startY, z),
+    ]
+  }
+
+  static lngToX(lng: number, z: number) {
     return ((lng + 180) / 360) * Math.pow(2, z)
   }
 
-  static xToLng (x: number, z: number) {
+  static xToLng(x: number, z: number) {
     return (360 / Math.pow(2, z)) * x - 180
   }
 
-  static latToY (lat: number, z: number) {
+  static latToY(lat: number, z: number) {
     return ((90 - lat) / 180) * Math.pow(2, z)
   }
 
-  static yToLat (y: number, z: number) {
+  static yToLat(y: number, z: number) {
     return 90 - (180 / Math.pow(2, z)) * y
   }
 }

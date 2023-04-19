@@ -9,7 +9,8 @@
     "docs:preview": "vitepress preview docs",
     "build": "pnpm -F './packages/**' build",
     "preinstall": "husky install",
-    "test": "vitest",
+    "test": "vitest --watch false",
+    "test:watch": "vitest",
     "coverage": "vitest run --coverage"
   },
   "license": "MIT",
@@ -64,7 +65,8 @@
   "lint-staged": {
     "**/*.{js,jsx,ts,tsx}": [
       "prettier --write",
-      "eslint --fix"
+      "eslint --fix",
+      "npm test"
     ]
   },
   "husky": {

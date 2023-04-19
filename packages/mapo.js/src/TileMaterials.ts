@@ -5,7 +5,6 @@ import TileLayer from './layers/TileLayer'
 import LayerManager from './layers/LayerManager'
 import EarthOrbitControls from './EarthOrbitControls'
 import Map from './Map'
-import EquirectangularTile from './utils/EquirectangularTile'
 import { BBox } from './types'
 
 class TileMaterials {
@@ -14,6 +13,7 @@ class TileMaterials {
   readonly layerManager: LayerManager
   private readonly map: Map
   private readonly earthOrbitControls: EarthOrbitControls
+  tileGeometryBBox: BBox = fullBBox
 
   constructor(options: { map: Map; earthOrbitControls: EarthOrbitControls }) {
     this.map = options.map
@@ -33,6 +33,7 @@ class TileMaterials {
     const vertexShader = `
       varying vec2 vUv;
       uniform vec4 bbox;
+      uniform vec4 tileGeometryBBox;
 
       float radToDeg(float rad) {
         return rad * 180.0 / ${Math.PI};
@@ -47,16 +48,32 @@ class TileMaterials {
         return vec2(lng, lat);
       }
       vec2 lngLat2uv(vec2 lngLat) {
+        float gW = tileGeometryBBox[0];
+        float gE = tileGeometryBBox[2];
+        float lng = lngLat.x;
+        if (gW < -180.0) {
+          float formattedGW = 360.0 + gW;
+          if (lng >= formattedGW) {
+            lng -= 360.0;
+          } else if (lng < formattedGW && lng > gE) {
+            // 消除误差，取距离最近的 w 或 e
+            lng = abs(lng - gE) > abs(formattedGW - lng) ? gE : formattedGW;
+          }
+        }
+        if (gE > 180.0) {
+          float formattedGE = gE - 360.0;
+          if (lng <= formattedGE) {
+            lng += 360.0;
+          } else if (lng > formattedGE && lng < gW) {
+            // 消除误差，取距离最近的 w 或 e
+            lng = abs(lng - gW) > abs(formattedGE - lng) ? gW : formattedGE;
+          }
+        }
+
         float w = bbox[0];
         float s = bbox[1];
         float e = bbox[2];
         float n = bbox[3];
-        float lng = lngLat.x;
-        if (lng < w) {
-          lng += 360.0;
-        } else if (lng > e) {
-          lng -= 360.0;
-        }
         return vec2((lng - w) / (e - w), (lngLat.y - s) / (n - s));
       }
 
@@ -76,12 +93,14 @@ class TileMaterials {
         uniforms.canvasBBox.value = tileLayer.canvasBBox
         uniforms.startCanvasY.value = MercatorTile.latToY(tileLayer.canvasBBox[1], 0)
         uniforms.endCanvasY.value = MercatorTile.latToY(tileLayer.canvasBBox[3], 0)
-        uniforms.tile.value.dispose()
-        uniforms.tile.value = getTexture()
+        uniforms.tileGeometryBBox.value = this.tileGeometryBBox
+        uniforms.canvasTexture.value.dispose()
+        uniforms.canvasTexture.value = getTexture()
       }
       const uniforms = {
-        tile: { value: getTexture() },
+        canvasTexture: { value: getTexture() },
         bbox: { value: fullBBox },
+        tileGeometryBBox: { value: this.tileGeometryBBox },
         canvasBBox: { value: fullBBox },
         startCanvasY: { value: MercatorTile.latToY(fullBBox[1], 0) },
         endCanvasY: { value: MercatorTile.latToY(fullBBox[3], 0) },
@@ -102,7 +121,7 @@ class TileMaterials {
         }
       `
       const fragmentShader = `
-        uniform sampler2D tile;
+        uniform sampler2D canvasTexture;
         uniform sampler2D layers;
         uniform vec4 bbox;
         uniform vec4 canvasBBox;
@@ -131,7 +150,7 @@ class TileMaterials {
           float y = (latToY(lat) - startCanvasY) / (endCanvasY - startCanvasY);
 
           vec2 uv = vec2(x, y);
-          gl_FragColor = texture2D(tile, uv);
+          gl_FragColor = texture2D(canvasTexture, uv);
         }
       `
       const tileMaterial = new THREE.ShaderMaterial({
@@ -150,21 +169,23 @@ class TileMaterials {
       const getTexture = () => new THREE.CanvasTexture(layerManager.canvas)
       layerManager.onUpdate = () => {
         uniforms.bbox.value = layerManager.bbox
-        uniforms.layers.value.dispose()
-        uniforms.layers.value = getTexture()
+        uniforms.tileGeometryBBox.value = this.tileGeometryBBox
+        uniforms.canvasTexture.value.dispose()
+        uniforms.canvasTexture.value = getTexture()
       }
       const uniforms = {
-        layers: { value: getTexture() },
+        canvasTexture: { value: getTexture() },
         bbox: { value: fullBBox },
+        tileGeometryBBox: { value: this.tileGeometryBBox },
       }
       const layersMaterial = new THREE.ShaderMaterial({
         uniforms,
         vertexShader,
         fragmentShader: `
-          uniform sampler2D layers;
+          uniform sampler2D canvasTexture;
           varying vec2 vUv;
           void main() {
-            gl_FragColor = texture2D(layers, vUv);
+            gl_FragColor = texture2D(canvasTexture, vUv);
           }
         `,
         transparent: true,
@@ -175,21 +196,13 @@ class TileMaterials {
 
   update() {
     const z = this.earthOrbitControls.z
-    const tileIndexBox = EquirectangularTile.bboxToTileIndexBox(this.map.displayBBox, z)
-    const bbox: BBox = [
-      EquirectangularTile.xToLng(tileIndexBox.startX, z),
-      EquirectangularTile.yToLat(tileIndexBox.endY, z),
-      EquirectangularTile.xToLng(tileIndexBox.endX, z),
-      EquirectangularTile.yToLat(tileIndexBox.startY, z),
-    ]
+    const bbox = this.map.displayBBox
 
     this.tileLayer.bbox = bbox
-    this.tileLayer.displayBBox = bbox
     this.tileLayer.z = z
     this.tileLayer.refresh()
 
     this.layerManager.bbox = bbox
-    this.layerManager.displayBBox = bbox
     this.layerManager.z = z
     this.layerManager.updateCanvasSize(this.earthOrbitControls.getPxDeg())
     this.layerManager.refresh()
@@ -197,6 +210,11 @@ class TileMaterials {
 
   dispose() {
     this.layerManager.dispose()
+
+    this.materials.forEach(m => {
+      const texture = m.uniforms?.canvasTexture?.value as THREE.CanvasTexture
+      texture?.dispose()
+    })
   }
 }
 

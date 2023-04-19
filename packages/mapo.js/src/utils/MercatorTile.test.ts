@@ -10,8 +10,8 @@ test('MercatorTile.pointToTile()', () => {
   expect(MercatorTile.latToY(-90, z)).toEqual(z2)
 })
 
-test('MercatorTile.bboxToTileIndexBox()', () => {
-  expect(MercatorTile.bboxToTileIndexBox([-90, -90, 90, 90], 0)).toEqual({
+test('MercatorTile.bboxToTileBox()', () => {
+  expect(MercatorTile.bboxToTileBox([-90, -90, 90, 90], 0)).toEqual({
     startX: 0,
     startY: 0,
     endX: 1,

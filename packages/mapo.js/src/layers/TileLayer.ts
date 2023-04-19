@@ -14,10 +14,6 @@ class TileLayer {
 
   bbox: BBox = fullBBox
   canvasBBox: BBox = fullBBox
-  /**
-   * 当前实际显示区域的 BBox，只会比 bbox 更小
-   */
-  displayBBox: BBox = fullBBox
   z = 0
   onUpdate?: () => void
 
@@ -75,12 +71,10 @@ class TileLayer {
     }
   }
 
-  private draw(update?: boolean) {
-    const { tileSize, cache, bbox, z, displayBBox, refreshKey } = this
+  private draw() {
+    const { tileSize, cache, bbox, z, refreshKey } = this
     const ctx = this.canvas.getContext('2d') as OffscreenCanvasRenderingContext2D
-    const tileIndexBox = MercatorTile.bboxToTileIndexBox(bbox, z)
-    const displayTileIndexBox = MercatorTile.bboxToTileIndexBox(displayBBox, z)
-    const drawTileIndexBox = update ? displayTileIndexBox : tileIndexBox
+    const tileBox = MercatorTile.bboxToTileBox(bbox, z)
 
     // 加载瓦片时优先加载距离中心近的瓦片
     const xyObjArr: Array<{
@@ -88,10 +82,10 @@ class TileLayer {
       y: number
       level: number
     }> = []
-    const centerX = (drawTileIndexBox.endX - 1) / 2 + drawTileIndexBox.startX / 2
-    const centerY = (drawTileIndexBox.endY - 1) / 2 + drawTileIndexBox.startY / 2
-    for (let x = drawTileIndexBox.startX; x < drawTileIndexBox.endX; x++) {
-      for (let y = drawTileIndexBox.startY; y < drawTileIndexBox.endY; y++) {
+    const centerX = (tileBox.endX - 1) / 2 + tileBox.startX / 2
+    const centerY = (tileBox.endY - 1) / 2 + tileBox.startY / 2
+    for (let x = tileBox.startX; x < tileBox.endX; x++) {
+      for (let y = tileBox.startY; y < tileBox.endY; y++) {
         const level = Math.pow(x - centerX, 2) + Math.pow(y - centerY, 2)
         xyObjArr.push({
           x,
@@ -107,8 +101,8 @@ class TileLayer {
         const xyz: XYZ = [formattedX, y, z]
         let value = cache.get(xyz)
         const rect: [number, number, number, number] = [
-          (x - tileIndexBox.startX) * tileSize,
-          (y - tileIndexBox.startY) * tileSize,
+          (x - tileBox.startX) * tileSize,
+          (y - tileBox.startY) * tileSize,
           tileSize,
           tileSize,
         ]
@@ -124,8 +118,8 @@ class TileLayer {
         this.drawPreviewImage(x, y, rect)
 
         if (isNil(value)) {
-          const inXRange = inRange(x, displayTileIndexBox.startX, displayTileIndexBox.endX)
-          const inYRange = inRange(y, displayTileIndexBox.startY, displayTileIndexBox.endY)
+          const inXRange = inRange(x, tileBox.startX, tileBox.endX)
+          const inYRange = inRange(y, tileBox.startY, tileBox.endY)
           if (!inXRange || !inYRange) {
             return
           }
@@ -146,23 +140,19 @@ class TileLayer {
 
   refresh() {
     const { tileSize, bbox, z } = this
-    const tileIndexBox = MercatorTile.bboxToTileIndexBox(bbox, z)
-    this.canvas.width = (tileIndexBox.endX - tileIndexBox.startX) * tileSize
-    this.canvas.height = (tileIndexBox.endY - tileIndexBox.startY) * tileSize
+    const tileBox = MercatorTile.bboxToTileBox(bbox, z)
+    this.canvas.width = (tileBox.endX - tileBox.startX) * tileSize
+    this.canvas.height = (tileBox.endY - tileBox.startY) * tileSize
     this.refreshKey = new Date().valueOf()
 
     this.canvasBBox = [
-      MercatorTile.xToLng(tileIndexBox.startX, z),
-      MercatorTile.yToLat(tileIndexBox.endY, z),
-      MercatorTile.xToLng(tileIndexBox.endX, z),
-      MercatorTile.yToLat(tileIndexBox.startY, z),
+      MercatorTile.xToLng(tileBox.startX, z),
+      MercatorTile.yToLat(tileBox.endY, z),
+      MercatorTile.xToLng(tileBox.endX, z),
+      MercatorTile.yToLat(tileBox.startY, z),
     ]
 
     this.draw()
-  }
-
-  update() {
-    this.draw(true)
   }
 }
 

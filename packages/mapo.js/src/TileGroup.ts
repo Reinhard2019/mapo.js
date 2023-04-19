@@ -29,11 +29,11 @@ class TileGroup extends THREE.Group {
   update() {
     const { displayBBox: bbox, earthRadius, tileSize } = this.map
     const z = this.earthOrbitControls.z
-    const tileIndexBox = EquirectangularTile.bboxToTileIndexBox(bbox, z)
+    const tileBox = EquirectangularTile.bboxToTileBox(bbox, z)
 
     const tileMap: Record<string, true> = {}
-    range(tileIndexBox.startY, tileIndexBox.endY).forEach(y => {
-      range(tileIndexBox.startX, tileIndexBox.endX).forEach(x => {
+    range(tileBox.startY, tileBox.endY).forEach(y => {
+      range(tileBox.startX, tileBox.endX).forEach(x => {
         const xyz: XYZ = [formatTileX(x, z), y, z]
         tileMap[xyz.toString()] = true
 
@@ -54,6 +54,7 @@ class TileGroup extends THREE.Group {
 
     this.children = this.children.filter(child => tileMap[child.userData.xyz.toString()])
 
+    this.tileMaterials.tileGeometryBBox = EquirectangularTile.tileBoxToBBox(tileBox, z)
     this.tileMaterials.update()
   }
 

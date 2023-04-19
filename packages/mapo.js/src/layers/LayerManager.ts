@@ -10,10 +10,6 @@ class LayerManager {
   private readonly ctx = this.canvas.getContext('2d')!
   private readonly layers: BaseLayer[] = []
   bbox: BBox = fullBBox
-  /**
-   * 当前实际显示区域的 BBox，只会比 bbox 更小
-   */
-  displayBBox: BBox = fullBBox
   z = 0
   onUpdate?: () => void
 
