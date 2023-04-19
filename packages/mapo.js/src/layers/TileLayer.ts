@@ -14,13 +14,23 @@ class TileLayer {
 
   bbox: BBox = fullBBox
   canvasBBox: BBox = fullBBox
-  z = 0
+  private _z = 0
+  private prevZ = 0
   onUpdate?: () => void
 
   constructor(tileSize: number) {
     this.tileSize = tileSize
 
     void this.loadTile([0, 0, 0])
+  }
+
+  get z() {
+    return this._z
+  }
+
+  set z(value: number) {
+    this.prevZ = this._z
+    this._z = value
   }
 
   async loadTile(xyz: XYZ) {
@@ -44,7 +54,7 @@ class TileLayer {
    * @param formattedX
    */
   private drawPreviewImage(x: number, y: number, rect: [number, number, number, number]) {
-    const { tileSize, cache, z } = this
+    const { tileSize, cache, z, prevZ } = this
     const ctx = this.canvas.getContext('2d') as OffscreenCanvasRenderingContext2D
     const z2 = Math.pow(2, z)
     const formattedX = formatTileX(x, this.z)
@@ -67,6 +77,26 @@ class TileLayer {
         ctx.clearRect(...rect)
         ctx.drawImage(imageBitmap, sx, sy, sw, sh, ...rect)
         continue
+      }
+    }
+
+    // p\
+    if (prevZ - z === 1) {
+      for (let _x = 0; _x < 2; _x++) {
+        for (let _y = 0; _y < 2; _y++) {
+          const prevX = x * 2 + _x
+          const prevY = y * 2 + _y
+          const imageBitmap = cache.get([prevX, prevY, prevZ])
+          if (imageBitmap instanceof ImageBitmap) {
+            let [dx, dy, dw, dh] = rect
+            dw /= 2
+            dh /= 2
+            dx += _x * dw
+            dy += _y * dh
+            ctx.clearRect(dx, dy, dw, dh)
+            ctx.drawImage(imageBitmap, dx, dy, dw, dh)
+          }
+        }
       }
     }
   }
