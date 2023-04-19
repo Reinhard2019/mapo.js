@@ -2,7 +2,7 @@
  * 等距长方投影
  * !!! 会用于 Web Worker
  */
-import { BBox, TileIndexBox, XYZ } from '../types'
+import { BBox, TileBox, XYZ } from '../types'
 
 class EquirectangularTile {
   static pointToTile(lng: number, lat: number, z: number): [number, number] {
@@ -24,7 +24,7 @@ class EquirectangularTile {
   /**
    * 将边界 box 转化为 tile 索引的 box
    */
-  static bboxToTileBox(bbox: BBox, z: number): TileIndexBox {
+  static bboxToTileBox(bbox: BBox, z: number): TileBox {
     const [w, s, e, n] = bbox
     const [startX, startY] = EquirectangularTile.pointToTile(w, n, z)
     const [x2, y2] = EquirectangularTile.pointToTile(e, s, z)
@@ -38,7 +38,7 @@ class EquirectangularTile {
     }
   }
 
-  static tileBoxToBBox(tileBox: TileIndexBox, z: number): BBox {
+  static tileBoxToBBox(tileBox: TileBox, z: number): BBox {
     return [
       EquirectangularTile.xToLng(tileBox.startX, z),
       EquirectangularTile.yToLat(tileBox.endY, z),

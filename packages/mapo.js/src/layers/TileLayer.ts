@@ -1,6 +1,6 @@
-import { inRange, isNil } from 'lodash-es'
+import { inRange, isEqual, isNil } from 'lodash-es'
 import MercatorTile from '../utils/MercatorTile'
-import { BBox, XYZ } from '../types'
+import { BBox, TileBox, XYZ } from '../types'
 import { fullBBox } from '../utils/bbox'
 import { formatTileX, getSatelliteUrl } from '../utils/map'
 import TileCache from '../utils/TileCache'
@@ -16,6 +16,7 @@ class TileLayer {
   canvasBBox: BBox = fullBBox
   private _z = 0
   private prevZ = 0
+  private prevTileBox: TileBox
   onUpdate?: () => void
 
   constructor(tileSize: number) {
@@ -169,18 +170,17 @@ class TileLayer {
   }
 
   refresh() {
-    const { tileSize, bbox, z } = this
+    const { tileSize, prevTileBox, bbox, z } = this
     const tileBox = MercatorTile.bboxToTileBox(bbox, z)
+
+    if (isEqual(tileBox, prevTileBox)) return
+    this.prevTileBox = tileBox
+
     this.canvas.width = (tileBox.endX - tileBox.startX) * tileSize
     this.canvas.height = (tileBox.endY - tileBox.startY) * tileSize
     this.refreshKey = new Date().valueOf()
 
-    this.canvasBBox = [
-      MercatorTile.xToLng(tileBox.startX, z),
-      MercatorTile.yToLat(tileBox.endY, z),
-      MercatorTile.xToLng(tileBox.endX, z),
-      MercatorTile.yToLat(tileBox.startY, z),
-    ]
+    this.canvasBBox = MercatorTile.tileBoxToBBox(tileBox, z)
 
     this.draw()
   }

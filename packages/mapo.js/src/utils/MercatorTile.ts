@@ -2,7 +2,7 @@
  * 墨卡托投影
  * !!! 会用于 Web Worker
  */
-import { BBox, TileIndexBox, XYZ } from '../types'
+import { BBox, TileBox, XYZ } from '../types'
 import { degToRad } from './math'
 import { clamp, round } from './number'
 
@@ -27,7 +27,7 @@ class MercatorTile {
   /**
    * 将边界 box 转化为 tile 索引的 box
    */
-  static bboxToTileBox(bbox: BBox, z: number): TileIndexBox {
+  static bboxToTileBox(bbox: BBox, z: number): TileBox {
     const [w, s, e, n] = bbox
     const [startX, startY] = MercatorTile.pointToTile(w, n, z)
     const [x2, y2] = MercatorTile.pointToTile(e, s, z)
@@ -40,6 +40,15 @@ class MercatorTile {
       endX,
       endY,
     }
+  }
+
+  static tileBoxToBBox(tileBox: TileBox, z: number): BBox {
+    return [
+      MercatorTile.xToLng(tileBox.startX, z),
+      MercatorTile.yToLat(tileBox.endY, z),
+      MercatorTile.xToLng(tileBox.endX, z),
+      MercatorTile.yToLat(tileBox.startY, z),
+    ]
   }
 
   static lngToX(lng: number, z: number) {

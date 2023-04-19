@@ -59,7 +59,7 @@ export type XYZ = [number, number, number]
  * [west, south, east, north]
  */
 export type BBox = [number, number, number, number]
-export interface TileIndexBox {
+export interface TileBox {
   startX: number
   startY: number
   endX: number
