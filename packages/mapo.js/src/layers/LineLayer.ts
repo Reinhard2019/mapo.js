@@ -3,12 +3,15 @@ import { Features } from 'src/types'
 import { features2featureArr } from 'src/utils/layers'
 import geoEquirectangular from '../utils/geoEquirectangular'
 import BaseLayer from './BaseLayer'
+import { mapKeys } from 'lodash-es'
 
 type Source = Features<LineString | MultiLineString | Polygon | MultiPolygon>
 
 interface Style {
   lineColor?: string
   lineWidth?: number
+  lineCap?: CanvasLineCap
+  lineJoin?: CanvasLineJoin
 }
 
 class LineLayer extends BaseLayer<Source, Style> {
@@ -29,14 +32,10 @@ class LineLayer extends BaseLayer<Source, Style> {
 
     ctx.beginPath()
 
-    if (style) {
-      if (style.lineColor) {
-        this.ctx.strokeStyle = style.lineColor
-      }
-      if (typeof style.lineWidth === 'number') {
-        this.ctx.lineWidth = style.lineWidth
-      }
-    }
+    Object.assign(
+      this.ctx,
+      mapKeys(style, (_, key) => (key === 'lineColor' ? 'strokeStyle' : key)),
+    )
 
     features2featureArr(source).forEach(feature => {
       let lineStringArr: Position[][] = []
