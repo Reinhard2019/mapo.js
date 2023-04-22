@@ -1,35 +1,34 @@
-import { FillLayer as _FillLayer } from 'mapo.js'
+import { PointLayer as _PointLayer } from 'mapo.js'
 import { Component, onCleanup, onMount, useContext } from 'solid-js'
 import createUpdateEffect from '../hooks/createUpdateEffect'
 import { MapContext } from './mapContext'
 import createSource from '../hooks/createSource'
 
-type FillLayerProps = ConstructorParameters<typeof _FillLayer>[0] & {
+type PointLayerProps = ConstructorParameters<typeof _PointLayer>[0] & {
   remoteSourceUrls?: string[]
 }
 
-const FillLayer: Component<FillLayerProps> = props => {
+const PointLayer: Component<PointLayerProps> = props => {
   const { map } = useContext(MapContext)
-  let fillLayer: _FillLayer
+  let pointLayer: _PointLayer
   onMount(() => {
     const _map = map?.()
     if (!_map) return
 
-    fillLayer = new _FillLayer({
+    pointLayer = new _PointLayer({
       ...props,
     })
-    _map.addLayer(fillLayer)
+    _map.addLayer(pointLayer)
   })
 
-  onCleanup(() => map?.()?.removeLayer(fillLayer))
+  onCleanup(() => map?.()?.removeLayer(pointLayer))
 
   createUpdateEffect(
     () => props.style,
     () => {
       if (props.style) {
-        fillLayer.updateStyle(props.style)
-        fillLayer.refresh()
-        fillLayer.layerManager?.updateCanvas()
+        pointLayer.updateStyle(props.style)
+        pointLayer.refresh()
       }
     },
   )
@@ -37,12 +36,11 @@ const FillLayer: Component<FillLayerProps> = props => {
   const source = createSource(props)
   createUpdateEffect(source, () => {
     if (props.source) {
-      fillLayer.setSource(props.source)
-      fillLayer.refresh()
-      fillLayer.layerManager?.updateCanvas()
+      pointLayer.setSource(props.source)
+      pointLayer.refresh()
     }
   })
   return null
 }
 
-export default FillLayer
+export default PointLayer

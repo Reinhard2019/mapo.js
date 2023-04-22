@@ -19,8 +19,6 @@ import {
   lngLatToVector3,
   vector3ToLngLat,
 } from './utils/map'
-import BeforeLayerManager from './layers/BeforeLayerManager'
-import BaseBeforeLayer from './layers/BaseBeforeLayer'
 import { degToRad, hypotenuse, radToDeg, rectangleIntersect } from './utils/math'
 import { bbox, lineIntersect, lineString, polygon } from '@turf/turf'
 import { inRange } from './utils/number'
@@ -28,6 +26,8 @@ import Control from './Control'
 import { Polygon } from 'geojson'
 import TileGroup from './TileGroup'
 import anime from 'animejs'
+import PointLayer from './layers/PointLayer'
+import PointLayerManager from './layers/PointLayerManager'
 
 class Map extends THREE.EventDispatcher<MapEvent> {
   tileSize = 512
@@ -38,11 +38,12 @@ class Map extends THREE.EventDispatcher<MapEvent> {
   readonly scene = new THREE.Scene()
   readonly hash: boolean = false
 
-  private readonly earthOrbitControls: EarthOrbitControls
+  readonly earthOrbitControls: EarthOrbitControls
   readonly container: HTMLElement
 
-  private readonly beforeLayerManager: BeforeLayerManager
   private readonly tileGroup: TileGroup
+
+  private readonly pointLayerManager = new PointLayerManager(this)
 
   private readonly disposeFuncList: Array<() => void> = []
   private readonly controlArr: Control[] = []
@@ -98,12 +99,6 @@ class Map extends THREE.EventDispatcher<MapEvent> {
 
     this.updateHash()
 
-    this.beforeLayerManager = new BeforeLayerManager({
-      container,
-      map: this,
-      earthOrbitControls: this.earthOrbitControls,
-    })
-
     // 页面重绘动画
     const tick = () => {
       // 更新渲染器
@@ -127,6 +122,8 @@ class Map extends THREE.EventDispatcher<MapEvent> {
       this.scene.add(this.tileGroup)
       this.disposeFuncList.push(() => this.tileGroup.dispose())
 
+      this.scene.add(this.pointLayerManager)
+
       const ro = new ResizeObserver(() => {
         const _pixelRatio = container.clientWidth / container.clientHeight
 
@@ -136,8 +133,6 @@ class Map extends THREE.EventDispatcher<MapEvent> {
         const { camera } = this.earthOrbitControls
         camera.aspect = _pixelRatio
         camera.updateProjectionMatrix()
-
-        this.beforeLayerManager.refresh()
       })
       ro.observe(container)
       this.disposeFuncList.push(() => ro.disconnect())
@@ -201,11 +196,12 @@ class Map extends THREE.EventDispatcher<MapEvent> {
       this.renderer.render(this.scene, this.earthOrbitControls.camera)
 
       this.updateHash()
-      this.beforeLayerManager.refresh()
 
       this.displayPolygon = this.getDisplayPolygon()
 
       this.tileGroup.update()
+
+      this.pointLayerManager.refresh()
     }
     this.earthOrbitControls.addEventListener('move', () => {
       this.dispatchEvent({ type: 'move' })
@@ -444,17 +440,17 @@ class Map extends THREE.EventDispatcher<MapEvent> {
     return polygon([[...lngLatArr, lngLatArr[0]]]).geometry
   }
 
-  addLayer(layer: BaseLayer | BaseBeforeLayer) {
-    if (layer instanceof BaseBeforeLayer) {
-      this.beforeLayerManager.addLayer(layer)
+  addLayer(layer: BaseLayer | PointLayer) {
+    if (layer instanceof PointLayer) {
+      this.pointLayerManager.addLayer(layer)
     } else {
       this.tileGroup.tileMaterials.layerManager.addLayer(layer)
     }
   }
 
-  removeLayer(layer: BaseLayer | BaseBeforeLayer) {
-    if (layer instanceof BaseBeforeLayer) {
-      this.beforeLayerManager.removeLayer(layer)
+  removeLayer(layer: BaseLayer | PointLayer) {
+    if (layer instanceof PointLayer) {
+      this.pointLayerManager.removeLayer(layer)
     } else {
       this.tileGroup.tileMaterials.layerManager.removeLayer(layer)
     }

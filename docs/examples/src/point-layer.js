@@ -1,4 +1,4 @@
-import { Map, TextLayer } from 'mapo.js'
+import { Map, PointLayer } from 'mapo.js'
 
 const map = new Map({
   container: '#map',
@@ -20,9 +20,9 @@ fetch('/json/100000_full.json')
           coordinates: f.properties.center,
         },
       }))
-    const textLayer = new TextLayer({
+    const pointLayer = new PointLayer({
       source: data,
       textField: 'name',
     })
-    map.addLayer(textLayer)
+    map.addLayer(pointLayer)
   })

@@ -33,3 +33,20 @@ export function ternaryOperation<T, F = undefined>(
 ) {
   return when(value) ? value : fallback
 }
+
+interface ChainWrapper<T> {
+  value: () => T
+  next: <R>(fn: (prevInput: T) => R) => ChainWrapper<R>
+}
+
+export function chain<T>(input: T) {
+  let value: any = input
+  const wrapper = {
+    value: () => value,
+    next<R>(fn: (prevInput: T) => R) {
+      value = fn(value)
+      return this as ChainWrapper<R>
+    },
+  }
+  return wrapper
+}

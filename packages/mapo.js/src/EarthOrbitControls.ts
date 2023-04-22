@@ -11,7 +11,7 @@ class EarthOrbitControls extends THREE.EventDispatcher<CameraEvent> {
   /**
    * 垂直方向的视角
    */
-  private readonly fov = 60
+  readonly fov = 60
 
   tileSize = 512
   center: LngLat = [0, 0]

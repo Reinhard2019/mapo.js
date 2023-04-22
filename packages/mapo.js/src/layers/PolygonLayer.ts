@@ -10,7 +10,7 @@ interface Style {
   fillColor?: string
 }
 
-class FillLayer extends BaseLayer<Source, Style> {
+class PolygonLayer extends BaseLayer<Source, Style> {
   private readonly canvas = new OffscreenCanvas(1, 1)
   private readonly ctx = this.canvas.getContext('2d') as OffscreenCanvasRenderingContext2D
 
@@ -58,4 +58,4 @@ class FillLayer extends BaseLayer<Source, Style> {
   }
 }
 
-export default FillLayer
+export default PolygonLayer

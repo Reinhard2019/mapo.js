@@ -1,7 +1,7 @@
 <template>
-  <div ref="container" :class="['flex', expand && 'fixed top-0 left-0 z-10000 w-screen h-screen']">
-    <div ref="map" id="map" class="h-full w-50% bg-black" />
-    <div class="h-full w-50%" ref="editorContainer">
+  <div ref="container" :class="[expand && 'fixed top-0 left-0 z-10000 w-screen !h-screen']">
+    <div ref="map" id="map" class="h-50% bg-black" />
+    <div class="h-50%" ref="editorContainer">
       <n-config-provider :theme="theme">
         <div class="h-[36px] flex justify-between">
           <div class="px-12px leading-36px bg-[var(--vp-nav-bg-color)]">

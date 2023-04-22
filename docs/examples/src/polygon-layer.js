@@ -1,4 +1,4 @@
-import { Map, FillLayer, LineLayer } from 'mapo.js'
+import { Map, PolygonLayer, LineLayer } from 'mapo.js'
 
 const map = new Map({
   container: '#map',
@@ -9,13 +9,13 @@ const map = new Map({
 fetch('/json/100000_full.json')
   .then(resp => resp.json())
   .then(resp => {
-    const fillLayer = new FillLayer({
+    const polygonLayer = new PolygonLayer({
       source: resp,
       style: {
         fillColor: '#ff0',
       },
     })
-    map.addLayer(fillLayer)
+    map.addLayer(polygonLayer)
 
     const lineLayer = new LineLayer({
       source: resp,

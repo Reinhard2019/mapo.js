@@ -34,9 +34,9 @@ export default defineConfig({
         {
           text: '图层',
           items: [
-            { text: '文字', link: '/examples/text-layer' },
-            { text: '线条', link: '/examples/line-layer' },
-            { text: '填充', link: '/examples/fill-layer' },
+            { text: '点', link: '/examples/point-layer' },
+            { text: '线', link: '/examples/line-layer' },
+            { text: '面', link: '/examples/polygon-layer' },
           ],
         },
         {
