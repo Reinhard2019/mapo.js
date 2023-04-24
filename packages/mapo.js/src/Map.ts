@@ -118,6 +118,7 @@ class Map extends THREE.EventDispatcher<MapEvent> {
       this.tileGroup = new TileGroup({
         map: this,
         earthOrbitControls: this.earthOrbitControls,
+        terrain: options.terrain,
       })
       this.scene.add(this.tileGroup)
       this.disposeFuncList.push(() => this.tileGroup.dispose())

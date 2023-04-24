@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 import { degToRad, getQuadraticEquationRes, radToDeg } from './math'
-import { LngLat } from '../types'
+import { LngLat, XYZ } from '../types'
 
 /**
  * 获取当前距离上刚好与球体相切的视角
@@ -69,8 +69,14 @@ export function getTerrainUrl(x: number, y: number, z: number) {
   return `https://api.mapbox.com/raster/v1/mapbox.mapbox-terrain-dem-v1/${z}/${x}/${y}.webp?sku=101Tt60mCQMaF&access_token=pk.eyJ1IjoiZGluZ2xlaTIwMjEiLCJhIjoiY2wxbHh1aW54MDl6NDNrcGcwODNtaXNtbSJ9.6G649bdbNApupw2unoY0Yg`
 }
 
-// https://docs.mapbox.com/data/tilesets/guides/access-elevation-data/
-export function rgb2elevation(color: number[]) {
+/**
+ * 根据像素获取海拔
+ * 单位: m
+ * https://docs.mapbox.com/data/tilesets/guides/access-elevation-data/
+ * @param color
+ * @returns
+ */
+export function rgb2elevation(color: ArrayLike<number>) {
   return -10000 + (color[0] * 256 * 256 + color[1] * 256 + color[2]) * 0.1
 }
 
@@ -83,11 +89,51 @@ export function normalizeLng(lng: number) {
 }
 
 /**
- * tileX 有可能小于 0 或者大于等于 z2，需要对其进行格式化
- * @param tileX
+ * tileXOrY 有可能小于 0 或者大于等于 z2，需要对其进行格式化
+ * @param tileXOrY
  * @returns
  */
-export function formatTileX(tileX: number, z: number) {
+export function formatTileXOrY(tileXOrY: number, z: number) {
   const z2 = Math.pow(2, z)
-  return tileX < 0 ? z2 + tileX : tileX % z2
+  return tileXOrY < 0 ? z2 + tileXOrY : tileXOrY % z2
+}
+
+/**
+ * 获取上方邻近的 xyz
+ * @param xyz
+ * @returns
+ */
+export function getTopNearXYZ(xyz: XYZ): XYZ {
+  const [x, y, z] = xyz
+  return [x, formatTileXOrY(y - 1, z), z]
+}
+
+/**
+ * 获取左边邻近的 xyz
+ * @param xyz
+ * @returns
+ */
+export function getLeftNearXYZ(xyz: XYZ): XYZ {
+  const [x, y, z] = xyz
+  return [formatTileXOrY(x - 1, z), y, z]
+}
+
+/**
+ * 获取下方邻近的 xyz
+ * @param xyz
+ * @returns
+ */
+export function getBottomNearXYZ(xyz: XYZ): XYZ {
+  const [x, y, z] = xyz
+  return [x, formatTileXOrY(y + 1, z), z]
+}
+
+/**
+ * 获取右边邻近的 xyz
+ * @param xyz
+ * @returns
+ */
+export function getRightNearXYZ(xyz: XYZ): XYZ {
+  const [x, y, z] = xyz
+  return [formatTileXOrY(x + 1, z), y, z]
 }

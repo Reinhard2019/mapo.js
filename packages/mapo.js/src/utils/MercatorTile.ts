@@ -8,7 +8,8 @@ import { clamp, round } from './number'
 
 // https://wiki.openstreetmap.org/wiki/Slippy_map_tilenames
 class MercatorTile {
-  static workerScripts = [clamp, round, degToRad, MercatorTile]
+  // 用于 Web Worker
+  static workerScripts = [MercatorTile, clamp, round, degToRad]
   static maxLat = round((Math.atan(Math.sinh(Math.PI)) * 180) / Math.PI, 12)
 
   static pointToTile(lng: number, lat: number, z: number): [number, number] {

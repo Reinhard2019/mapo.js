@@ -4,14 +4,14 @@ class TileCache<T> {
   private readonly data: Record<string, T> = {}
 
   private getKey(xyz: XYZ) {
-    return xyz.join('.')
+    return xyz.toString()
   }
 
   has(xyz: XYZ) {
     return !!this.data[this.getKey(xyz)]
   }
 
-  get(xyz: XYZ) {
+  get(xyz: XYZ): T | undefined {
     return this.data[this.getKey(xyz)]
   }
 

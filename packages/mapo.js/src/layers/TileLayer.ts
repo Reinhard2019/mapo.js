@@ -2,7 +2,7 @@ import { inRange, isEqual, isNil } from 'lodash-es'
 import MercatorTile from '../utils/MercatorTile'
 import { BBox, TileBox, XYZ } from '../types'
 import { fullBBox } from '../utils/bbox'
-import { formatTileX, getSatelliteUrl } from '../utils/map'
+import { formatTileXOrY, getSatelliteUrl } from '../utils/map'
 import TileCache from '../utils/TileCache'
 
 class TileLayer {
@@ -58,7 +58,7 @@ class TileLayer {
     const { tileSize, cache, z, prevZ } = this
     const ctx = this.canvas.getContext('2d') as OffscreenCanvasRenderingContext2D
     const z2 = Math.pow(2, z)
-    const formattedX = formatTileX(x, this.z)
+    const formattedX = formatTileXOrY(x, this.z)
     let cloneX = formattedX
     let cloneY = y
     let cloneZ = z
@@ -128,7 +128,7 @@ class TileLayer {
     xyObjArr
       .sort((a, b) => a.level - b.level)
       .forEach(({ x, y }) => {
-        const formattedX = formatTileX(x, this.z)
+        const formattedX = formatTileXOrY(x, this.z)
         const xyz: XYZ = [formattedX, y, z]
         let value = cache.get(xyz)
         const rect: [number, number, number, number] = [

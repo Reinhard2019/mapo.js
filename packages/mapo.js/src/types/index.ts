@@ -6,6 +6,14 @@ export interface MapOptions extends CameraOptions {
   hash?: boolean
   webGLRendererParameters?: WebGLRendererParameters
   /**
+   * 是否开启地形
+   */
+  terrain?:
+    | boolean
+    | {
+        exaggeration: number
+      }
+  /**
    * 服务器端渲染
    */
   ssr?: boolean

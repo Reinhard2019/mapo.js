@@ -29,6 +29,7 @@ export default defineConfig({
           items: [
             { text: '你好，世界', link: '/examples/hello-world' },
             { text: 'hash', link: '/examples/hash' },
+            { text: '地形', link: '/examples/terrain' },
           ],
         },
         {
