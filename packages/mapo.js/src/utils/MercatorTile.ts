@@ -71,6 +71,10 @@ class MercatorTile {
     const n = Math.PI - (2 * Math.PI * y) / Math.pow(2, z)
     return round((180 / Math.PI) * Math.atan(0.5 * (Math.exp(n) - Math.exp(-n))), 12)
   }
+
+  // TODO 添加一行 constructor 使得在代码被转换后调用 toString 不会丢失类名
+  // eslint-disable-next-line @typescript-eslint/no-useless-constructor
+  constructor() {}
 }
 
 export default MercatorTile

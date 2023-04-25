@@ -2,6 +2,10 @@ import { defineConfig } from 'vitepress'
 import UnoCSS from 'unocss/vite'
 import { visualizer } from 'rollup-plugin-visualizer'
 
+// 在 node 环境中没有 Worker，为避免报错，模拟 Worker
+// eslint-disable-next-line @typescript-eslint/no-unused-expressions
+globalThis.Worker = globalThis.Worker ?? class {}
+
 // https://github1s.com/vitejs/vite/blob/HEAD/docs/.vitepress/config.ts#L1
 export default defineConfig({
   title: 'Mapo.js',
