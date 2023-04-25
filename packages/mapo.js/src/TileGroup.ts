@@ -48,8 +48,8 @@ class TileGroup extends THREE.Group {
     this.prevTileBox = tileBox
 
     //  高程的 z 比正常的 z 缩小 3 倍
-    const terrainZ = Math.max(0, z - 3)
-    const terrainTileBox = MercatorTile.bboxToTileBox(displayBBox, terrainZ)
+    const scaleZ = 3
+    const terrainZ = Math.max(0, z - scaleZ)
     const scaleZ2 = Math.pow(2, z - terrainZ)
     const getTerrainTileIndex = (tileIndex: number) => Math.floor(tileIndex / scaleZ2)
 
@@ -84,25 +84,42 @@ class TileGroup extends THREE.Group {
     const { terrain } = this
     if (!terrain) return
 
+    const terrainTileBox = MercatorTile.bboxToTileBox(displayBBox, terrainZ)
     for (let terrainY = terrainTileBox.startY; terrainY < terrainTileBox.endY; terrainY++) {
       for (let _terrainX = terrainTileBox.startX; _terrainX < terrainTileBox.endX; _terrainX++) {
         const terrainX = formatTileXOrY(_terrainX, terrainZ)
 
         const terrainXYZ: XYZ = [terrainX, terrainY, terrainZ]
         void this.terrainTileWorker.loadTile({ xyz: terrainXYZ, tileSize }).then(imageData => {
-          const startX = terrainX * Math.pow(2, 3)
-          const endX = startX + Math.pow(2, 3)
-          const startY = terrainY * Math.pow(2, 3)
-          const endY = startY + Math.pow(2, 3)
+          const updateTerrain = (xyz: XYZ) => {
+            const geometry = this.getTileGeometry(xyz)
+            if (geometry) {
+              geometry.updateTerrain(
+                imageData,
+                typeof terrain === 'object' ? terrain.exaggeration : 1,
+              )
+            }
+          }
+
+          if (terrainX === 0) {
+            for (let zi = 0; zi <= 3; zi++) {
+              const z2 = Math.pow(2, zi)
+              for (let yi = 0; yi < z2; yi++) {
+                for (let xi = 0; xi < z2; xi++) {
+                  updateTerrain([xi, yi, zi])
+                }
+              }
+            }
+            return
+          }
+
+          const startX = terrainX * scaleZ2
+          const endX = startX + scaleZ2
+          const startY = terrainY * scaleZ2
+          const endY = startY + scaleZ2
           for (let yi = startY; yi < endY; yi++) {
             for (let xi = startX; xi < endX; xi++) {
-              const geometry = this.getTileGeometry([xi, yi, z])
-              if (geometry) {
-                geometry.updateTerrain(
-                  imageData,
-                  typeof terrain === 'object' ? terrain.exaggeration : 1,
-                )
-              }
+              updateTerrain([xi, yi, z])
             }
           }
         })
