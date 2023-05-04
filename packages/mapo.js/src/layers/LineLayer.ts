@@ -2,8 +2,8 @@ import { LineString, Polygon, MultiPolygon, MultiLineString, Position } from 'ge
 import { Features } from 'src/types'
 import { features2featureArr } from 'src/utils/layers'
 import geoEquirectangular from '../utils/geoEquirectangular'
-import BaseLayer from './BaseLayer'
 import { mapKeys } from 'lodash-es'
+import CanvasLayer from './CanvasLayer'
 
 type Source = Features<LineString | MultiLineString | Polygon | MultiPolygon>
 
@@ -14,11 +14,11 @@ interface Style {
   lineJoin?: CanvasLineJoin
 }
 
-class LineLayer extends BaseLayer<Source, Style> {
+class LineLayer extends CanvasLayer<Source, Style> {
   private readonly canvas = new OffscreenCanvas(1, 1)
   private readonly ctx = this.canvas.getContext('2d') as OffscreenCanvasRenderingContext2D
 
-  refresh() {
+  update() {
     const { canvas, ctx, layerManager, source, style } = this
 
     canvas.width = layerManager!.canvas.width

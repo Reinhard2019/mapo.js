@@ -1,14 +1,12 @@
 import { isEmpty } from 'lodash-es'
 import { BBox } from '../types'
 import { fullBBox } from '../utils/bbox'
-import BaseLayer from './BaseLayer'
+import CanvasLayer from './CanvasLayer'
 
-class LayerManager {
-  // readonly canvas = new OffscreenCanvas(1, 1)
-  // private readonly ctx = this.canvas.getContext('2d') as OffscreenCanvasRenderingContext2D
+class CanvasLayerManager {
   readonly canvas = document.createElement('canvas')
   private readonly ctx = this.canvas.getContext('2d')!
-  private readonly layers: BaseLayer[] = []
+  private readonly layers: CanvasLayer[] = []
   bbox: BBox = fullBBox
   z = 0
   onUpdate?: () => void
@@ -19,7 +17,7 @@ class LayerManager {
     canvas.height = Math.ceil((bbox[3] - bbox[1]) / pxDeg)
   }
 
-  updateCanvas() {
+  update() {
     const { ctx, canvas } = this
     ctx.clearRect(0, 0, this.canvas.width, this.canvas.height)
     this.layers
@@ -30,40 +28,32 @@ class LayerManager {
     this.onUpdate?.()
   }
 
-  refresh() {
+  /**
+   * 触发所有子 layer 的重渲染
+   */
+  updateLayers() {
     if (isEmpty(this.layers)) {
       return
     }
 
     this.layers.forEach(layer => {
-      layer.refresh()
-    })
-    this.updateCanvas()
-  }
-
-  update() {
-    this.layers.forEach(layer => {
       layer.update()
     })
+    this.update()
   }
 
-  addLayer(layer: BaseLayer) {
+  addLayer(layer: CanvasLayer) {
     layer.layerManager = this
+    layer.update()
     this.layers.push(layer)
-    layer.refresh()
-    this.updateCanvas()
+    this.update()
   }
 
-  removeLayer(layer: BaseLayer) {
+  removeLayer(layer: CanvasLayer) {
     const index = this.layers.findIndex(l => l === layer)
     this.layers.splice(index, 1)
-    layer.dispose()
-    this.updateCanvas()
-  }
-
-  dispose() {
-    this.layers.forEach(layer => layer.dispose())
+    this.update()
   }
 }
 
-export default LayerManager
+export default CanvasLayerManager

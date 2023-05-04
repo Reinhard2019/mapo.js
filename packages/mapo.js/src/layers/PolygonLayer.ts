@@ -2,7 +2,8 @@ import { MultiPolygon, Polygon, Position } from 'geojson'
 import { Features } from 'src/types'
 import { features2featureArr } from 'src/utils/layers'
 import geoEquirectangular from '../utils/geoEquirectangular'
-import BaseLayer from './BaseLayer'
+import Layer from './Layer'
+import CanvasLayerManager from './CanvasLayerManager'
 
 type Source = Features<Polygon | MultiPolygon>
 
@@ -10,11 +11,13 @@ interface Style {
   fillColor?: string
 }
 
-class PolygonLayer extends BaseLayer<Source, Style> {
+class PolygonLayer extends Layer<Source, Style> {
   private readonly canvas = new OffscreenCanvas(1, 1)
   private readonly ctx = this.canvas.getContext('2d') as OffscreenCanvasRenderingContext2D
+  layerManager?: CanvasLayerManager
+  imageBitmap?: ImageBitmap
 
-  refresh() {
+  update() {
     const { canvas, ctx, layerManager, source, style } = this
 
     canvas.width = layerManager!.canvas.width

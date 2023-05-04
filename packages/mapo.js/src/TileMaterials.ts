@@ -2,7 +2,7 @@ import * as THREE from 'three'
 import { fullBBox } from './utils/bbox'
 import MercatorTile from './utils/MercatorTile'
 import TileLayer from './layers/TileLayer'
-import LayerManager from './layers/LayerManager'
+import CanvasLayerManager from './layers/CanvasLayerManager'
 import EarthOrbitControls from './EarthOrbitControls'
 import Map from './Map'
 import { BBox } from './types'
@@ -10,7 +10,7 @@ import { BBox } from './types'
 class TileMaterials {
   readonly materials: THREE.ShaderMaterial[] = []
   readonly tileLayer: TileLayer
-  readonly layerManager: LayerManager
+  readonly canvasLayerManager: CanvasLayerManager
   private readonly map: Map
   private readonly earthOrbitControls: EarthOrbitControls
   tileGeometryBBox: BBox = fullBBox
@@ -164,8 +164,8 @@ class TileMaterials {
 
     // 创建 layersMaterial
     {
-      const layerManager = new LayerManager()
-      this.layerManager = layerManager
+      const layerManager = new CanvasLayerManager()
+      this.canvasLayerManager = layerManager
       const getTexture = () => new THREE.CanvasTexture(layerManager.canvas)
       layerManager.onUpdate = () => {
         uniforms.bbox.value = layerManager.bbox
@@ -200,17 +200,15 @@ class TileMaterials {
 
     this.tileLayer.bbox = bbox
     this.tileLayer.z = z
-    this.tileLayer.refresh()
+    this.tileLayer.update()
 
-    this.layerManager.bbox = bbox
-    this.layerManager.z = z
-    this.layerManager.updateCanvasSize(this.earthOrbitControls.getPxDeg())
-    this.layerManager.refresh()
+    this.canvasLayerManager.bbox = bbox
+    this.canvasLayerManager.z = z
+    this.canvasLayerManager.updateCanvasSize(this.earthOrbitControls.getPxDeg())
+    this.canvasLayerManager.updateLayers()
   }
 
   dispose() {
-    this.layerManager.dispose()
-
     this.materials.forEach(m => {
       const texture = m.uniforms?.canvasTexture?.value as THREE.CanvasTexture
       texture?.dispose()

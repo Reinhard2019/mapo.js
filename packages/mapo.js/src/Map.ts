@@ -10,7 +10,6 @@ import {
   Point2,
 } from './types'
 import EarthOrbitControls from './EarthOrbitControls'
-import BaseLayer from './layers/BaseLayer'
 import { floor, isNil, last, pick, pickBy, remove } from 'lodash-es'
 import { unwrapHTMLElement } from './utils/dom'
 import {
@@ -28,6 +27,8 @@ import TileGroup from './TileGroup'
 import anime from 'animejs'
 import PointLayer from './layers/PointLayer'
 import PointLayerManager from './layers/PointLayerManager'
+import Layer from './layers/Layer'
+import CanvasLayer from './layers/CanvasLayer'
 
 class Map extends THREE.EventDispatcher<MapEvent> {
   tileSize = 512
@@ -47,6 +48,7 @@ class Map extends THREE.EventDispatcher<MapEvent> {
 
   private readonly disposeFuncList: Array<() => void> = []
   private readonly controlArr: Control[] = []
+  private readonly layers: Layer[] = []
 
   private _displayPolygon: Polygon
   displayBBox: BBox
@@ -202,7 +204,7 @@ class Map extends THREE.EventDispatcher<MapEvent> {
 
       this.tileGroup.update()
 
-      this.pointLayerManager.refresh()
+      this.pointLayerManager.update()
     }
     this.earthOrbitControls.addEventListener('move', () => {
       this.dispatchEvent({ type: 'move' })
@@ -441,19 +443,30 @@ class Map extends THREE.EventDispatcher<MapEvent> {
     return polygon([[...lngLatArr, lngLatArr[0]]]).geometry
   }
 
-  addLayer(layer: BaseLayer | PointLayer) {
+  /**
+   * 重渲染 CanvasLayerManager
+   */
+  updateCanvasLayerManager() {
+    this.tileGroup.tileMaterials.canvasLayerManager.update()
+  }
+
+  addLayer(layer: Layer) {
+    if (this.layers.find(v => v === layer)) return
+
+    this.layers.push(layer)
+
     if (layer instanceof PointLayer) {
       this.pointLayerManager.addLayer(layer)
     } else {
-      this.tileGroup.tileMaterials.layerManager.addLayer(layer)
+      this.tileGroup.tileMaterials.canvasLayerManager.addLayer(layer as CanvasLayer)
     }
   }
 
-  removeLayer(layer: BaseLayer | PointLayer) {
+  removeLayer(layer: Layer) {
     if (layer instanceof PointLayer) {
       this.pointLayerManager.removeLayer(layer)
     } else {
-      this.tileGroup.tileMaterials.layerManager.removeLayer(layer)
+      this.tileGroup.tileMaterials.canvasLayerManager.removeLayer(layer as CanvasLayer)
     }
   }
 

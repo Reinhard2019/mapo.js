@@ -1,26 +1,20 @@
 import { Features } from 'src/types'
 import * as THREE from 'three'
-import LayerManager from './LayerManager'
 
-abstract class BaseLayer<
+abstract class Layer<
   Source extends Features = Features,
   Style extends {} = {},
 > extends THREE.EventDispatcher {
-  disposeFuncList: Array<() => void> = []
   source: Source
-  style?: Style
-  layerManager?: LayerManager
-  imageBitmap?: ImageBitmap
+  style?: Style | undefined
   zIndex = 0
 
   constructor(options: { source: Source; style?: Style }) {
     super()
 
     this.source = options.source
-    if (options.style) this.style = options.style
+    this.style = options.style
   }
-
-  abstract refresh(): void
 
   updateStyle(style: Style) {
     this.style = {
@@ -33,12 +27,7 @@ abstract class BaseLayer<
     this.source = source
   }
 
-  update() {}
-
-  dispose() {
-    this.disposeFuncList.forEach(func => func())
-    this.disposeFuncList = []
-  }
+  abstract update(): void
 }
 
-export default BaseLayer
+export default Layer

@@ -8,6 +8,7 @@ import { lngLatToVector3 } from 'src/utils/map'
 import { degToRad } from 'src/utils/math'
 import PointLayerManager from './PointLayerManager'
 import { chain } from 'src/utils'
+import Layer from './Layer'
 
 type Source = Features<Point>
 
@@ -84,19 +85,16 @@ class TextSprite extends THREE.Sprite {
   }
 }
 
-class PointLayer extends THREE.Group {
-  source: Source
-  style?: Style | undefined
+class PointLayer extends Layer<Source, Style> {
   textField: string
   canvas = new OffscreenCanvas(1, 1)
   ctx = this.canvas.getContext('2d') as OffscreenCanvasRenderingContext2D
   private pointLayerManager: PointLayerManager
+  readonly group = new THREE.Group()
 
   constructor(options: { source: Source; style?: Style; textField: string }) {
-    super()
+    super(options)
 
-    this.source = options.source
-    this.style = options.style
     this.textField = options.textField
   }
 
@@ -104,22 +102,11 @@ class PointLayer extends THREE.Group {
     this.pointLayerManager = pointLayerManager
   }
 
-  updateStyle(style: Style) {
-    this.style = {
-      ...this.style,
-      ...style,
-    }
-  }
-
-  setSource(source: Source) {
-    this.source = source
-  }
-
-  refresh() {
+  update() {
     const { canvas, ctx, source, style, textField } = this
     const { map } = this.pointLayerManager
 
-    this.children = []
+    this.group.children = []
 
     canvas.width = map.container.clientWidth
     canvas.height = map.container.clientHeight
@@ -168,7 +155,7 @@ class PointLayer extends THREE.Group {
         textWidth: textMetrics.width,
         styles: contextStyles,
       })
-      this.add(textSprite)
+      this.group.add(textSprite)
     })
   }
 }

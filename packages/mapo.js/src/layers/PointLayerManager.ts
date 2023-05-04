@@ -3,9 +3,8 @@ import PointLayer from './PointLayer'
 import Map from 'src/Map'
 
 class PointLayerManager extends THREE.Group {
-  declare children: PointLayer[]
-
   readonly map: Map
+  private pointLayers: PointLayer[] = []
 
   constructor(map: Map) {
     super()
@@ -15,17 +14,19 @@ class PointLayerManager extends THREE.Group {
 
   addLayer(layer: PointLayer) {
     layer.setPointLayerManager(this)
-    layer.refresh()
-    this.add(layer)
+    layer.update()
+    this.pointLayers.push(layer)
+    this.add(layer.group)
   }
 
   removeLayer(layer: PointLayer) {
-    this.remove(layer)
+    this.pointLayers = this.pointLayers.filter(l => l !== layer)
+    this.remove(layer.group)
   }
 
-  refresh() {
-    this.children.forEach(child => {
-      child.refresh()
+  update() {
+    this.pointLayers.forEach(child => {
+      child.update()
     })
   }
 }
