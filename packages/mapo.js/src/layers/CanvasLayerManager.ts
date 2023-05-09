@@ -8,13 +8,22 @@ class CanvasLayerManager {
   private readonly ctx = this.canvas.getContext('2d')!
   private readonly layers: CanvasLayer[] = []
   bbox: BBox = fullBBox
-  z = 0
+  /**
+   * 一个像素对应的经纬度
+   */
+  private _pxDeg = 0
   onUpdate?: () => void
 
-  updateCanvasSize(pxDeg: number) {
+  get pxDeg() {
+    return this._pxDeg
+  }
+
+  set pxDeg(value) {
+    this._pxDeg = value
+
     const { bbox, canvas } = this
-    canvas.width = Math.ceil((bbox[2] - bbox[0]) / pxDeg)
-    canvas.height = Math.ceil((bbox[3] - bbox[1]) / pxDeg)
+    canvas.width = Math.ceil((bbox[2] - bbox[0]) / value)
+    canvas.height = Math.ceil((bbox[3] - bbox[1]) / value)
   }
 
   update() {

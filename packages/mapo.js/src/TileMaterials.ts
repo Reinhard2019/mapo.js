@@ -203,8 +203,7 @@ class TileMaterials {
     this.tileLayer.update()
 
     this.canvasLayerManager.bbox = bbox
-    this.canvasLayerManager.z = z
-    this.canvasLayerManager.updateCanvasSize(this.earthOrbitControls.getPxDeg())
+    this.canvasLayerManager.pxDeg = this.earthOrbitControls.getPxDeg()
     this.canvasLayerManager.updateLayers()
   }
 

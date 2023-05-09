@@ -87,8 +87,8 @@ class EarthOrbitControls extends THREE.EventDispatcher<CameraEvent> {
 
   private getDistance() {
     const { earthRadius, fov, tileSize, zoom, domElement } = this
-    const pxLat = 360 / (Math.pow(2, zoom) * tileSize)
-    const pxLength = Math.sin(degToRad(pxLat)) * earthRadius
+    const pxDeg = 360 / (Math.pow(2, zoom) * tileSize)
+    const pxLength = Math.sin(degToRad(pxDeg)) * earthRadius
     const chordLength = pxLength * domElement.clientHeight
     // 摄像头到弦心的距离
     const distanceFromTheCameraToTheChord = chordLength / 2 / Math.tan(degToRad(fov / 2))

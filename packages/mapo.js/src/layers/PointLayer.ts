@@ -124,7 +124,9 @@ class PointLayer extends Layer<Source, Style> {
       if (!point) return
 
       const [x, y] = point as Point2
-      const text = get(feature.properties, textField) ?? ''
+      const text = get(feature.properties, textField)
+      if (!text) return
+
       const textMetrics = ctx.measureText(text)
       const left = x - textMetrics.width / 2
       const right = x + textMetrics.width / 2
