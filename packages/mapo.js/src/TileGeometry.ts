@@ -48,11 +48,13 @@ class TileGeometry extends THREE.BufferGeometry {
     const heightPositionCount = heightSegments + 1
 
     const positions: number[] = []
+    const uvs: number[] = []
     const addLine = (lat: number) => {
       for (let xi = 0; xi < widthPositionCount; xi++) {
         const lng = MercatorTile.xToLng(x + xi / widthSegments, z)
         const position = lngLatToVector3([lng, lat], earthRadius)
         positions.push(...position.toArray())
+        uvs.push(lng, lat)
       }
     }
 
@@ -70,6 +72,7 @@ class TileGeometry extends THREE.BufferGeometry {
       extraHeightSegments++
     }
     this.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(positions), 3))
+    this.setAttribute('uv', new THREE.Float32BufferAttribute(new Float32Array(uvs), 2))
 
     const indexes: number[] = []
     for (let yi = 0; yi < heightSegments + extraHeightSegments; yi++) {
@@ -100,6 +103,7 @@ class TileGeometry extends THREE.BufferGeometry {
       tileGeometryWorker.onmessage = (e: MessageEvent<OnMessageEventData>) => {
         const positions = new THREE.Float32BufferAttribute(new Float32Array(e.data.positions), 3)
         this.setAttribute('position', positions)
+        this.setAttribute('uv', new THREE.Float32BufferAttribute(new Float32Array(e.data.uvs), 2))
         this.setIndex(new THREE.Uint32BufferAttribute(new Uint32Array(e.data.indexes), 1))
         this.widthPositionCount = e.data.widthPositionCount
 
@@ -174,7 +178,7 @@ class TileGeometry extends THREE.BufferGeometry {
         for (let i = 0; i < this.widthPositionCount - 1; i++) {
           const xi = startXI + i
           const nearXI = i
-          positions?.setXYZ(
+          positions.setXYZ(
             xi,
             nearPositions.getX(nearXI),
             nearPositions.getY(nearXI),
@@ -186,7 +190,7 @@ class TileGeometry extends THREE.BufferGeometry {
         for (let i = 0; i < heightPositionCount - 1; i++) {
           const yi = (i + 1) * this.widthPositionCount - 1
           const nearYI = i * this.widthPositionCount
-          positions?.setXYZ(
+          positions.setXYZ(
             yi,
             nearPositions.getX(nearYI),
             nearPositions.getY(nearYI),

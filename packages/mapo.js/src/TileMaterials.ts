@@ -35,18 +35,6 @@ class TileMaterials {
       uniform vec4 bbox;
       uniform vec4 tileGeometryBBox;
 
-      float radToDeg(float rad) {
-        return rad * 180.0 / ${Math.PI};
-      }
-      vec2 vec3ToLngLat(vec3 position) {
-        float radius = distance(position, vec3(0,0,0));
-        if (radius == 0.0) {
-          return vec2(0, 0);
-        }
-        float lng = radToDeg(atan(position.x, position.z));
-        float lat = 90.0 - radToDeg(acos(clamp(position.y / radius, -1.0, 1.0)));
-        return vec2(lng, lat);
-      }
       vec2 lngLat2uv(vec2 lngLat) {
         float gW = tileGeometryBBox[0];
         float gE = tileGeometryBBox[2];
@@ -78,7 +66,7 @@ class TileMaterials {
       }
 
       void main() {
-        vUv = lngLat2uv(vec3ToLngLat(position));
+        vUv = lngLat2uv(uv);
         gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
       }
     `

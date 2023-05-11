@@ -1,8 +1,5 @@
 import { expect, test } from 'vitest'
-import {
-  getDisplayCentralAngle,
-  // getDisplayArcLength
-} from './map'
+import { getDisplayCentralAngle, formatTileXOrY } from './map'
 
 test('getCentralAngle()', () => {
   const r = 1
@@ -13,11 +10,8 @@ test('getCentralAngle()', () => {
   expect(getDisplayCentralAngle(4, r, 60)).toBe(151.04497562814015)
 })
 
-// test('getDisplayArcLength()', () => {
-//   const r = 1
-//   expect(getDisplayArcLength(1, r, 60)).toBe(0)
-//   expect(getDisplayArcLength(1.5, r, 60)).toBe(0.6489266067663644)
-//   expect(getDisplayArcLength(2, r, 60)).toBe(2.0943951023931957)
-//   expect(getDisplayArcLength(3, r, 60)).toBe(2.4619188346815495)
-//   expect(getDisplayArcLength(4, r, 60)).toBe(2.636232143305636)
-// })
+test('formatTileXOrY()', () => {
+  expect(formatTileXOrY(-1, 2)).toBe(3)
+  expect(formatTileXOrY(1, 2)).toBe(1)
+  expect(formatTileXOrY(4, 2)).toBe(0)
+})
