@@ -16,6 +16,7 @@ interface MessageEventData {
 export interface OnMessageEventData {
   positions: number[]
   indexes: number[]
+  widthPositionCount: number
 }
 
 function lngLatToVector3(lngLat: LngLat, radius: number) {
@@ -45,24 +46,39 @@ function onmessage(event: MessageEvent<MessageEventData>) {
   const positionCount = segments + 1
 
   const positions: number[] = []
-  for (let yi = startY; yi < startY + positionCount; yi++) {
+  const addLine = (lat: number, yi?: number) => {
     for (let xi = startX; xi < startX + positionCount; xi++) {
-      const sliceStart = (yi * tileSize + xi) * 4
       let elevation = 0
-      if (xi < tileSize && yi < tileSize) {
-        const color = data.slice(sliceStart, sliceStart + 4)
-        elevation = (rgb2elevation(color) / 1000) * exaggeration
+      if (typeof yi === 'number') {
+        if (xi < tileSize && yi < tileSize) {
+          const sliceStart = (yi * tileSize + xi) * 4
+          const color = data.slice(sliceStart, sliceStart + 4)
+          elevation = (rgb2elevation(color) / 1000) * exaggeration
+        }
       }
 
       const lng = MercatorTile.xToLng(terrainX + xi / tileSize, terrainZ)
-      const lat = MercatorTile.yToLat(terrainY + yi / tileSize, terrainZ)
       const position = lngLatToVector3([lng, lat], earthRadius + elevation)
       positions.push(...position)
     }
   }
 
+  let extraHeightSegments = 0
+  if (y === 0) {
+    addLine(90)
+    extraHeightSegments++
+  }
+  for (let yi = startY; yi < startY + positionCount; yi++) {
+    const lat = MercatorTile.yToLat(terrainY + yi / tileSize, terrainZ)
+    addLine(lat, yi)
+  }
+  if (y === Math.pow(2, z) - 1) {
+    addLine(-90)
+    extraHeightSegments++
+  }
+
   const indexes: number[] = []
-  for (let yi = 0; yi < segments; yi++) {
+  for (let yi = 0; yi < segments + extraHeightSegments; yi++) {
     for (let xi = 0; xi < segments; xi++) {
       const positionIndex1 = xi + yi * positionCount
       const positionIndex2 = positionIndex1 + 1
@@ -77,6 +93,7 @@ function onmessage(event: MessageEvent<MessageEventData>) {
   postMessage({
     positions,
     indexes,
+    widthPositionCount: positionCount,
   } as OnMessageEventData)
 }
 

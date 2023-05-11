@@ -21,6 +21,8 @@ class TileGeometry extends THREE.BufferGeometry {
   private updateTerrainPromise: Promise<THREE.Float32BufferAttribute> | undefined
   private readonly disposeFuncList: Array<() => void> = []
 
+  private widthPositionCount = 0
+
   constructor(options: {
     tileGroup: TileGroup
     xyz: XYZ
@@ -37,7 +39,7 @@ class TileGeometry extends THREE.BufferGeometry {
 
   update() {
     const { earthRadius, xyz } = this
-    const [tileX, tileY, z] = xyz
+    const [x, y, z] = xyz
 
     const totalHeightSegments = 128
     const heightSegments = totalHeightSegments / Math.min(Math.pow(2, z), totalHeightSegments)
@@ -46,22 +48,33 @@ class TileGeometry extends THREE.BufferGeometry {
     const heightPositionCount = heightSegments + 1
 
     const positions: number[] = []
-    const lngLats: number[][] = []
-    for (let y = 0; y < heightPositionCount; y++) {
-      const lat = MercatorTile.yToLat(tileY + y / heightSegments, z)
-      for (let x = 0; x < widthPositionCount; x++) {
-        const lng = MercatorTile.xToLng(tileX + x / widthSegments, z)
+    const addLine = (lat: number) => {
+      for (let xi = 0; xi < widthPositionCount; xi++) {
+        const lng = MercatorTile.xToLng(x + xi / widthSegments, z)
         const position = lngLatToVector3([lng, lat], earthRadius)
         positions.push(...position.toArray())
-        lngLats.push([lng, lat])
       }
+    }
+
+    let extraHeightSegments = 0
+    if (y === 0) {
+      addLine(90)
+      extraHeightSegments++
+    }
+    for (let yi = 0; yi < heightPositionCount; yi++) {
+      const lat = MercatorTile.yToLat(y + yi / heightSegments, z)
+      addLine(lat)
+    }
+    if (y === Math.pow(2, z) - 1) {
+      addLine(-90)
+      extraHeightSegments++
     }
     this.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(positions), 3))
 
     const indexes: number[] = []
-    for (let y = 0; y < heightSegments; y++) {
-      for (let x = 0; x < widthSegments; x++) {
-        const positionIndex1 = x + y * widthPositionCount
+    for (let yi = 0; yi < heightSegments + extraHeightSegments; yi++) {
+      for (let xi = 0; xi < widthSegments; xi++) {
+        const positionIndex1 = xi + yi * widthPositionCount
         const positionIndex2 = positionIndex1 + 1
         const positionIndex3 = positionIndex1 + widthPositionCount
         const positionIndex4 = positionIndex2 + widthPositionCount
@@ -71,6 +84,8 @@ class TileGeometry extends THREE.BufferGeometry {
       }
     }
     this.setIndex(new THREE.Uint32BufferAttribute(new Uint32Array(indexes), 1))
+
+    this.widthPositionCount = widthPositionCount
   }
 
   updateTerrain(terrainImageData: ImageData, exaggeration: number) {
@@ -86,6 +101,7 @@ class TileGeometry extends THREE.BufferGeometry {
         const positions = new THREE.Float32BufferAttribute(new Float32Array(e.data.positions), 3)
         this.setAttribute('position', positions)
         this.setIndex(new THREE.Uint32BufferAttribute(new Uint32Array(e.data.indexes), 1))
+        this.widthPositionCount = e.data.widthPositionCount
 
         tileGeometryWorker.terminate()
 
@@ -130,6 +146,13 @@ class TileGeometry extends THREE.BufferGeometry {
    * @returns
    */
   async updateSideTerrain(side: 'right' | 'bottom' | 'rightBottom') {
+    // 更新底边时，如果 y 是最后一个，则无需更新
+    if (side === 'bottom' || side === 'rightBottom') {
+      const [, y, z] = this.xyz
+      const z2 = Math.pow(2, z)
+      if (y === z2 - 1) return
+    }
+
     let nearXYZ: XYZ
     if (side === 'bottom') {
       nearXYZ = getBottomNearXYZ(this.xyz)
@@ -146,10 +169,9 @@ class TileGeometry extends THREE.BufferGeometry {
       const positions = this.getAttribute('position') as THREE.Float32BufferAttribute
       const nearPositions = nearGeometry?.getAttribute('position') as THREE.Float32BufferAttribute
 
-      const positionCount = Math.sqrt(positions.count)
       if (side === 'bottom') {
-        const startXI = (positionCount - 1) * positionCount
-        for (let i = 0; i < positionCount; i++) {
+        const startXI = positions.count - this.widthPositionCount
+        for (let i = 0; i < this.widthPositionCount - 1; i++) {
           const xi = startXI + i
           const nearXI = i
           positions?.setXYZ(
@@ -160,11 +182,10 @@ class TileGeometry extends THREE.BufferGeometry {
           )
         }
       } else if (side === 'right') {
-        console.groupCollapsed(this.xyz.toString())
-        for (let i = 0; i < positionCount; i++) {
-          const yi = (i + 1) * positionCount - 1
-          const nearYI = i * positionCount
-          console.log(yi, nearYI)
+        const heightPositionCount = positions.count / this.widthPositionCount
+        for (let i = 0; i < heightPositionCount - 1; i++) {
+          const yi = (i + 1) * this.widthPositionCount - 1
+          const nearYI = i * this.widthPositionCount
           positions?.setXYZ(
             yi,
             nearPositions.getX(nearYI),
@@ -172,8 +193,7 @@ class TileGeometry extends THREE.BufferGeometry {
             nearPositions.getZ(nearYI),
           )
         }
-        console.groupEnd()
-      } else {
+      } else if (side === 'rightBottom') {
         const i = positions.count - 1
         const nearI = 0
         positions.setXYZ(

@@ -85,6 +85,7 @@ class TileGroup extends THREE.Group {
     if (!terrain) return
 
     const terrainTileBox = MercatorTile.bboxToTileBox(displayBBox, terrainZ)
+    // 更新高程数据
     for (let terrainY = terrainTileBox.startY; terrainY < terrainTileBox.endY; terrainY++) {
       for (let _terrainX = terrainTileBox.startX; _terrainX < terrainTileBox.endX; _terrainX++) {
         const terrainX = formatTileXOrY(_terrainX, terrainZ)

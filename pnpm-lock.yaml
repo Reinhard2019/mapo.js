@@ -170,21 +170,6 @@ importers:
         specifier: ^0.149.0
         version: 0.149.0
 
-  packages/solid-components:
-    dependencies:
-      '@mapo.js/fps-control':
-        specifier: workspace:^
-        version: link:../fps-control
-      '@turf/turf':
-        specifier: ^6.5.0
-        version: 6.5.0
-      mapo.js:
-        specifier: workspace:*
-        version: link:../mapo.js
-      solid-js:
-        specifier: ^1.6.15
-        version: 1.6.15
-
 packages:
 
   /@algolia/autocomplete-core@1.7.4:
@@ -4429,10 +4414,6 @@ packages:
     resolution: {integrity: sha512-sa6P2wJ+CAbgyy4KFssIb/JNMLxFvKF1pCYCSXS8ZMuqZnMsrxqI2E5sPyoTpxoPU/gVZMzr2zjOfg8GIZOMsw==}
     dev: false
 
-  /csstype@3.1.1:
-    resolution: {integrity: sha512-DJR/VvkAvSZW9bTouZue2sSxDwdTN92uHjqeKVm+0dAqdfNykRzQ95tay8aXMBAAPpUiq4Qcug2L7neoRh2Egw==}
-    dev: false
-
   /d3-array@1.2.4:
     resolution: {integrity: sha512-KHW6M86R+FUPYGb3R5XiYjXPq7VzwxZ22buHhAEVG5ztoEcZZMLov530mmccaqA1GghZArjQV46fuc8kUqhhHw==}
     dev: false
@@ -7399,12 +7380,6 @@ packages:
       smart-buffer: 4.2.0
     dev: false
     optional: true
-
-  /solid-js@1.6.15:
-    resolution: {integrity: sha512-xEuMUIdDf4YRFT4i3XEJCNg4Y21lZiWWPSEqj0R3UnLLpENGJVXkqpmbIyRU5CuMImKPIEu5CYgmFKL7Npfe1A==}
-    dependencies:
-      csstype: 3.1.1
-    dev: false
 
   /source-map-js@1.0.2:
     resolution: {integrity: sha512-R0XvVJ9WusLiqTCEiGCmICCMplcCkIwwR11mOSD9CR5u+IXYdiseeEuXCVAjS54zqwkLcPNnmU4OeJ6tUrWhDw==}
