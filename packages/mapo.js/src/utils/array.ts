@@ -8,7 +8,7 @@ import { ID } from '../types'
  * @param row 是否按行来排列
  * @returns
  */
-export function multiplyArray<T1, T2> (xArray: T1[], yArray: T2[], row?: boolean) {
+export function multiplyArray<T1, T2>(xArray: T1[], yArray: T2[], row?: boolean) {
   const arr: Array<[T1, T2]> = []
   if (row) {
     for (const y of yArray) {
@@ -31,7 +31,7 @@ export function multiplyArray<T1, T2> (xArray: T1[], yArray: T2[], row?: boolean
  * @param value
  * @returns
  */
-export function inflate<T> (value: T | T[]) {
+export function toArray<T>(value: T | T[]) {
   return Array.isArray(value) ? value : [value]
 }
 
@@ -40,7 +40,7 @@ export function inflate<T> (value: T | T[]) {
  * @param arr
  * @returns
  */
-export function sortByAverage (arr: number[]) {
+export function sortByAverage(arr: number[]) {
   const total = sum(arr)
   const average = total / arr.length
   return arr.sort((v1, v2) => {
@@ -54,7 +54,7 @@ export function sortByAverage (arr: number[]) {
  * @param size
  * @returns
  */
-export function slice<T> (array: ArrayLike<T>, start: number, end?: number) {
+export function slice<T>(array: ArrayLike<T>, start: number, end?: number) {
   let length = array == null ? 0 : array.length
   if (!length) {
     return []
@@ -63,13 +63,13 @@ export function slice<T> (array: ArrayLike<T>, start: number, end?: number) {
   end = end === undefined ? length : end
 
   if (start < 0) {
-    start = -start > length ? 0 : (length + start)
+    start = -start > length ? 0 : length + start
   }
   end = end > length ? length : end
   if (end < 0) {
     end += length
   }
-  length = start > end ? 0 : ((end - start) >>> 0)
+  length = start > end ? 0 : (end - start) >>> 0
   start >>>= 0
 
   let index = -1
@@ -86,7 +86,7 @@ export function slice<T> (array: ArrayLike<T>, start: number, end?: number) {
  * @param size
  * @returns
  */
-export function chunk<T> (array: ArrayLike<T>, size: number) {
+export function chunk<T>(array: ArrayLike<T>, size: number) {
   const result = new Array(Math.ceil(array.length / size))
   for (let i = 0; i < result.length; i++) {
     result[i] = slice(array, i * size, (i + 1) * size)
@@ -99,7 +99,7 @@ export function chunk<T> (array: ArrayLike<T>, size: number) {
  * @param arr
  * @returns
  */
-export function last<T> (arr: T[]) {
+export function last<T>(arr: T[]) {
   return arr[arr.length - 1]
 }
 
@@ -108,6 +108,6 @@ export function last<T> (arr: T[]) {
  * @param arr
  * @returns
  */
-export function keyBy<T> (arr: T[], iteratee: (v: T) => ID) {
+export function keyBy<T>(arr: T[], iteratee: (v: T) => ID) {
   return Object.fromEntries(arr.map(v => [iteratee(v), v]))
 }

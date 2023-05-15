@@ -447,7 +447,7 @@ class Map extends THREE.EventDispatcher<MapEvent> {
    * 重渲染 CanvasLayerManager
    */
   updateCanvasLayerManager() {
-    this.tileGroup.tileMaterials.canvasLayerManager.update()
+    this.tileGroup.canvasLayerMaterial.canvasLayerManager.update()
   }
 
   addLayer(layer: Layer) {
@@ -458,7 +458,7 @@ class Map extends THREE.EventDispatcher<MapEvent> {
     if (layer instanceof PointLayer) {
       this.pointLayerManager.addLayer(layer)
     } else {
-      this.tileGroup.tileMaterials.canvasLayerManager.addLayer(layer as CanvasLayer)
+      this.tileGroup.canvasLayerMaterial.canvasLayerManager.addLayer(layer as CanvasLayer)
     }
   }
 
@@ -466,7 +466,7 @@ class Map extends THREE.EventDispatcher<MapEvent> {
     if (layer instanceof PointLayer) {
       this.pointLayerManager.removeLayer(layer)
     } else {
-      this.tileGroup.tileMaterials.canvasLayerManager.removeLayer(layer as CanvasLayer)
+      this.tileGroup.canvasLayerMaterial.canvasLayerManager.removeLayer(layer as CanvasLayer)
     }
   }
 

@@ -2,23 +2,27 @@ import * as THREE from 'three'
 import { MapOptions, TileBox, XYZ } from './types'
 import TileCache from './utils/TileCache'
 import TileGeometry from './TileGeometry'
-import TileMaterials from './TileMaterials'
+import CanvasLayerMaterial from './CanvasLayerMaterial'
 import EarthOrbitControls from './EarthOrbitControls'
 import Map from './Map'
 import { formatTileXOrY } from './utils/map'
 import TerrainTileWorker from './TerrainTileWorker'
 import MercatorTile from './utils/MercatorTile'
 import { isEqual } from 'lodash-es'
+import TileMesh from './TileMesh'
+import { toArray } from './utils/array'
+import TileMaterial from './TileMaterial'
 
 class TileGroup extends THREE.Group {
   private readonly map: Map
   private readonly earthOrbitControls: EarthOrbitControls
-  readonly tileMaterials: TileMaterials
-  private readonly tileCache = new TileCache<THREE.Mesh<TileGeometry>>()
+  readonly canvasLayerMaterial = new CanvasLayerMaterial()
+  private readonly tileMeshCache = new TileCache<TileMesh>()
+  private readonly tileCache = new TileCache<ImageBitmap | Promise<ImageBitmap>>()
   private readonly terrainTileWorker = new TerrainTileWorker()
   private readonly terrain: MapOptions['terrain']
   private prevTileBox: TileBox
-  declare children: Array<THREE.Mesh<TileGeometry>>
+  declare children: TileMesh[]
 
   constructor(options: {
     map: Map
@@ -31,18 +35,19 @@ class TileGroup extends THREE.Group {
     this.map = options.map
     this.terrain = options.terrain
 
-    this.tileMaterials = new TileMaterials(options)
-
     this.update()
   }
 
   update() {
+    const { tileCache, canvasLayerMaterial } = this
     const { displayBBox, earthRadius, tileSize } = this.map
     const z = this.earthOrbitControls.z
     const tileBox = MercatorTile.bboxToTileBox(displayBBox, z)
 
-    this.tileMaterials.tileGeometryBBox = MercatorTile.tileBoxToBBox(tileBox, z)
-    this.tileMaterials.update()
+    canvasLayerMaterial.update(
+      MercatorTile.tileBoxToBBox(tileBox, z),
+      this.earthOrbitControls.getPxDeg(),
+    )
 
     if (isEqual(tileBox, this.prevTileBox)) return
     this.prevTileBox = tileBox
@@ -60,7 +65,7 @@ class TileGroup extends THREE.Group {
         const xyz: XYZ = [x, y, z]
         childrenMap.set(xyz, true)
 
-        let mesh = this.tileCache.get(xyz)
+        let mesh = this.tileMeshCache.get(xyz)
         if (!mesh) {
           const tileGeometry = new TileGeometry({
             tileGroup: this,
@@ -69,11 +74,11 @@ class TileGroup extends THREE.Group {
             earthRadius,
             tileSize,
           })
-          this.tileMaterials.materials.forEach((_, i) => {
-            tileGeometry.addGroup(0, Infinity, i)
-          })
-          mesh = new THREE.Mesh(tileGeometry, this.tileMaterials.materials)
-          this.tileCache.set(xyz, mesh)
+          mesh = new TileMesh(tileGeometry, [
+            canvasLayerMaterial,
+            new TileMaterial({ xyz, tileCache, tileSize }),
+          ])
+          this.tileMeshCache.set(xyz, mesh)
         }
 
         this.add(mesh)
@@ -131,7 +136,7 @@ class TileGroup extends THREE.Group {
   getTileMesh(xyz: XYZ | undefined) {
     if (!xyz) return
 
-    return this.tileCache.get(xyz)
+    return this.tileMeshCache.get(xyz)
   }
 
   getTileGeometry(xyz: XYZ | undefined) {
@@ -139,9 +144,12 @@ class TileGroup extends THREE.Group {
   }
 
   dispose() {
-    this.tileMaterials.dispose()
+    this.canvasLayerMaterial.dispose()
     this.terrainTileWorker.terminate()
-    this.tileCache.toArray().forEach(mesh => mesh.geometry.dispose())
+    this.tileMeshCache.toArray().forEach(mesh => {
+      mesh.geometry.dispose()
+      toArray(mesh.material).forEach(m => m.dispose())
+    })
   }
 }
 

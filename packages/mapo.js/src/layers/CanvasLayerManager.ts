@@ -4,8 +4,8 @@ import { fullBBox } from '../utils/bbox'
 import CanvasLayer from './CanvasLayer'
 
 class CanvasLayerManager {
-  readonly canvas = document.createElement('canvas')
-  private readonly ctx = this.canvas.getContext('2d')!
+  readonly canvas = new OffscreenCanvas(1, 1)
+  private readonly ctx = this.canvas.getContext('2d') as OffscreenCanvasRenderingContext2D
   private readonly layers: CanvasLayer[] = []
   bbox: BBox = fullBBox
   /**
@@ -28,11 +28,12 @@ class CanvasLayerManager {
 
   update() {
     const { ctx, canvas } = this
-    ctx.clearRect(0, 0, this.canvas.width, this.canvas.height)
+    const rect = [0, 0, canvas.width, canvas.height] as const
+    ctx.clearRect(...rect)
     this.layers
       .sort((v1, v2) => v1.zIndex - v2.zIndex)
       .forEach(layer => {
-        layer.imageBitmap && ctx.drawImage(layer.imageBitmap, 0, 0, canvas.width, canvas.height)
+        layer.imageBitmap && ctx.drawImage(layer.imageBitmap, ...rect)
       })
     this.onUpdate?.()
   }

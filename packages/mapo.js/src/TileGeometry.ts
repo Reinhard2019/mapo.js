@@ -13,13 +13,12 @@ import TileGroup from './TileGroup'
 import { isNil } from './utils'
 
 class TileGeometry extends THREE.BufferGeometry {
-  earthRadius: number
-  tileSize: number
-  xyz: XYZ
-  terrainXYZ: XYZ
+  readonly xyz: XYZ
+  private readonly earthRadius: number
+  private readonly tileSize: number
+  private readonly terrainXYZ: XYZ
   private readonly tileGroup: TileGroup
   private updateTerrainPromise: Promise<THREE.Float32BufferAttribute> | undefined
-  private readonly disposeFuncList: Array<() => void> = []
 
   private widthPositionCount = 0
 
@@ -210,11 +209,6 @@ class TileGeometry extends THREE.BufferGeometry {
 
       positions.needsUpdate = true
     })
-  }
-
-  dispose() {
-    super.dispose()
-    this.disposeFuncList.forEach(func => func())
   }
 }
 
