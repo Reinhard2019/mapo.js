@@ -2,8 +2,9 @@ import { MultiPolygon, Polygon, Position } from 'geojson'
 import { Features } from 'src/types'
 import { features2featureArr } from 'src/utils/layers'
 import geoEquirectangular from '../utils/geoEquirectangular'
-import Layer from './Layer'
 import CanvasLayerManager from './CanvasLayerManager'
+import CanvasLayer from './CanvasLayer'
+import { BBox } from '../types'
 
 type Source = Features<Polygon | MultiPolygon>
 
@@ -11,22 +12,23 @@ interface Style {
   fillColor?: string
 }
 
-class PolygonLayer extends Layer<Source, Style> {
+class PolygonLayer extends CanvasLayer<Source, Style> {
   private readonly canvas = new OffscreenCanvas(1, 1)
   private readonly ctx = this.canvas.getContext('2d') as OffscreenCanvasRenderingContext2D
   layerManager?: CanvasLayerManager
   imageBitmap?: ImageBitmap
 
-  update() {
-    const { canvas, ctx, layerManager, source, style } = this
+  draw(options: { bbox: BBox; pxDeg: number; canvas: OffscreenCanvas }) {
+    const { canvas, bbox } = options
+    const { source, style } = this
 
-    canvas.width = layerManager!.canvas.width
-    canvas.height = layerManager!.canvas.height
+    const ctx = canvas.getContext('2d') as OffscreenCanvasRenderingContext2D
+
     ctx.clearRect(0, 0, canvas.width, canvas.height)
 
     const projection = geoEquirectangular({
-      bbox: this.layerManager!.bbox,
-      size: [this.layerManager!.canvas.width, this.layerManager!.canvas.height],
+      bbox,
+      size: [canvas.width, canvas.height],
     })
 
     ctx.beginPath()

@@ -307,21 +307,19 @@ class Map extends THREE.EventDispatcher<MapEvent> {
       return null
     }
 
+    const { distance, center, bearing } = this.earthOrbitControls
+
     // 将像素位置转化为以 container 中心点为原点的 xy 轴坐标
     const x = point[0] - this.container.clientWidth / 2
     const y = -(point[1] - this.container.clientHeight / 2)
 
     const diagonal = hypotenuse(x, y) * 2
-    const tangentFov = getTangentFov(this.earthOrbitControls.distance, this.earthRadius)
     const fov = this.earthOrbitControls.getFov(diagonal)
+    const tangentFov = getTangentFov(distance, this.earthRadius)
     if (!options?.allowFovLimitExceeded && fov > tangentFov) {
       return null
     }
-    const centralAngle = getDisplayCentralAngle(
-      this.earthOrbitControls.distance,
-      this.earthRadius,
-      fov,
-    )
+    const centralAngle = getDisplayCentralAngle(distance, this.earthRadius, fov)
 
     const aspect = x / y
     let deg = Number.isNaN(aspect) ? 0 : radToDeg(Math.atan(Math.abs(x / y)))
@@ -333,15 +331,10 @@ class Map extends THREE.EventDispatcher<MapEvent> {
       deg = 360 - deg
     }
 
-    const xAxis = new THREE.Vector3(-1, 0, 0).applyEuler(
-      new THREE.Euler(0, degToRad(this.earthOrbitControls.center[0])),
-    )
-    const vector3 = lngLatToVector3(this.earthOrbitControls.center, this.earthRadius)
+    const xAxis = new THREE.Vector3(-1, 0, 0).applyEuler(new THREE.Euler(0, degToRad(center[0])))
+    const vector3 = lngLatToVector3(center, this.earthRadius)
       .applyAxisAngle(xAxis, degToRad(centralAngle / 2))
-      .applyAxisAngle(
-        lngLatToVector3(this.earthOrbitControls.center, 1),
-        degToRad(deg - this.earthOrbitControls.bearing),
-      )
+      .applyAxisAngle(lngLatToVector3(center, 1), degToRad(deg - bearing))
     return vector3ToLngLat(vector3)
   }
 
@@ -447,7 +440,7 @@ class Map extends THREE.EventDispatcher<MapEvent> {
    * 重渲染 CanvasLayerManager
    */
   updateCanvasLayerManager() {
-    this.tileGroup.canvasLayerMaterial.canvasLayerManager.update()
+    this.tileGroup.canvasLayerManager.update()
   }
 
   addLayer(layer: Layer) {
@@ -458,7 +451,7 @@ class Map extends THREE.EventDispatcher<MapEvent> {
     if (layer instanceof PointLayer) {
       this.pointLayerManager.addLayer(layer)
     } else {
-      this.tileGroup.canvasLayerMaterial.canvasLayerManager.addLayer(layer as CanvasLayer)
+      this.tileGroup.canvasLayerManager.addLayer(layer as CanvasLayer)
     }
   }
 
@@ -466,7 +459,7 @@ class Map extends THREE.EventDispatcher<MapEvent> {
     if (layer instanceof PointLayer) {
       this.pointLayerManager.removeLayer(layer)
     } else {
-      this.tileGroup.canvasLayerMaterial.canvasLayerManager.removeLayer(layer as CanvasLayer)
+      this.tileGroup.canvasLayerManager.removeLayer(layer as CanvasLayer)
     }
   }
 

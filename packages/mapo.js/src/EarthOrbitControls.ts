@@ -2,7 +2,7 @@ import { clamp, debounce, isNumber } from 'lodash-es'
 import * as THREE from 'three'
 import { CameraEvent, EarthOrbitControlsOptions, LngLat } from './types'
 import { getDisplayCentralAngle, lngLatToVector3, normalizeLng } from './utils/map'
-import { degToRad, radToDeg, getQuadraticEquationRes } from './utils/math'
+import { degToRad, getQuadraticEquationRes, radToDeg } from './utils/math'
 
 class EarthOrbitControls extends THREE.EventDispatcher<CameraEvent> {
   readonly camera: THREE.PerspectiveCamera
@@ -85,8 +85,8 @@ class EarthOrbitControls extends THREE.EventDispatcher<CameraEvent> {
     })
   }
 
-  private getDistance() {
-    const { earthRadius, fov, tileSize, zoom, domElement } = this
+  zoomToDistance(zoom: number) {
+    const { earthRadius, fov, tileSize, domElement } = this
     const pxDeg = 360 / (Math.pow(2, zoom) * tileSize)
     const pxLength = Math.sin(degToRad(pxDeg)) * earthRadius
     const chordLength = pxLength * domElement.clientHeight
@@ -103,9 +103,9 @@ class EarthOrbitControls extends THREE.EventDispatcher<CameraEvent> {
     return distance
   }
 
-  private getZoom() {
+  distanceToZoom(distance?: number) {
     const { tileSize } = this
-    const zoom = Math.log2(360 / this.getPxDeg() / tileSize)
+    const zoom = Math.log2(360 / this.getPxDeg(distance) / tileSize)
     return zoom
   }
 
@@ -128,8 +128,9 @@ class EarthOrbitControls extends THREE.EventDispatcher<CameraEvent> {
   /**
    * 每 1 个像素对应的最小度数
    */
-  getPxDeg() {
-    const { earthRadius, fov, distance, domElement } = this
+  getPxDeg(_distance?: number) {
+    const { earthRadius, fov, domElement } = this
+    const distance = _distance ?? this.distance
     const centralAngle = getDisplayCentralAngle(distance, earthRadius, fov)
     // 弦心到圆心的距离
     const distanceFromTheChordToTheCentre = Math.cos(degToRad(centralAngle / 2)) * earthRadius
@@ -149,7 +150,7 @@ class EarthOrbitControls extends THREE.EventDispatcher<CameraEvent> {
 
   private set distance(value: number) {
     this._distance = value
-    this._zoom = this.getZoom()
+    this._zoom = this.distanceToZoom()
   }
 
   get zoom() {
@@ -158,7 +159,7 @@ class EarthOrbitControls extends THREE.EventDispatcher<CameraEvent> {
 
   private set zoom(value: number) {
     this._zoom = value
-    this._distance = this.getDistance()
+    this._distance = this.zoomToDistance(value)
   }
 
   get z() {
@@ -173,7 +174,7 @@ class EarthOrbitControls extends THREE.EventDispatcher<CameraEvent> {
   getFov(diagonal: number) {
     // 邻边
     const adjacent = this.domElement.clientHeight / Math.tan(degToRad(this.fov / 2))
-    return radToDeg(Math.atan(diagonal / adjacent)) * 2
+    return (radToDeg(Math.atan(diagonal / adjacent)) + this.pitch) * 2
   }
 
   private lookAt() {

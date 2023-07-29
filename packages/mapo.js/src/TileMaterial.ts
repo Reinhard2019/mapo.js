@@ -58,8 +58,6 @@ class TileMaterial extends THREE.ShaderMaterial {
   }) {
     const { xyz, tileSize, tileCache } = options
 
-    // const { tileSize, tileCache } = this
-
     const canvas = new OffscreenCanvas(tileSize, tileSize)
     const ctx = canvas.getContext('2d') as OffscreenCanvasRenderingContext2D
 
@@ -84,6 +82,9 @@ class TileMaterial extends THREE.ShaderMaterial {
           const rect = [0, 0, tileSize, tileSize] as const
           ctx.clearRect(...rect)
           ctx.drawImage(image, ...rect)
+          // ctx.strokeStyle = 'red'
+          // ctx.lineWidth = 10
+          // ctx.strokeRect(...rect)
 
           texture.needsUpdate = true
           resolve(image)

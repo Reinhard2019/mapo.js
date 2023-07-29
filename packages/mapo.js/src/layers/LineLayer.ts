@@ -1,5 +1,5 @@
 import { LineString, Polygon, MultiPolygon, MultiLineString, Position, Feature } from 'geojson'
-import { Features } from 'src/types'
+import { BBox, Features } from 'src/types'
 import { features2featureArr } from 'src/utils/layers'
 import geoEquirectangular from '../utils/geoEquirectangular'
 import { get, mapKeys, mapValues } from 'lodash-es'
@@ -23,9 +23,7 @@ function isLineString(f: Feature): f is Feature<LineString> {
 }
 
 class LineLayer extends CanvasLayer<Source, Style> {
-  textField: string
-  private readonly canvas = new OffscreenCanvas(1, 1)
-  private readonly ctx = this.canvas.getContext('2d') as OffscreenCanvasRenderingContext2D
+  private readonly textField: string
 
   constructor(options: { source: Source; style?: Style; textField: string }) {
     super(options)
@@ -33,22 +31,23 @@ class LineLayer extends CanvasLayer<Source, Style> {
     this.textField = options.textField
   }
 
-  update() {
-    const { canvas, ctx, layerManager, source, style, textField } = this
+  draw(options: { bbox: BBox; pxDeg: number; canvas: OffscreenCanvas }) {
+    const { canvas, bbox, pxDeg } = options
+    const { source, style, textField } = this
 
-    canvas.width = layerManager!.canvas.width
-    canvas.height = layerManager!.canvas.height
-    ctx.clearRect(0, 0, canvas.width, canvas.height)
+    const ctx = canvas.getContext('2d') as OffscreenCanvasRenderingContext2D
+
+    ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height)
 
     const projection = geoEquirectangular({
-      bbox: this.layerManager!.bbox,
-      size: [this.layerManager!.canvas.width, this.layerManager!.canvas.height],
+      bbox,
+      size: [canvas.width, canvas.height],
     })
 
     ctx.beginPath()
 
     Object.assign(
-      this.ctx,
+      ctx,
       chain(
         mapValues(style, (value, key) => {
           if (key === 'lineBlur') {
@@ -100,6 +99,8 @@ class LineLayer extends CanvasLayer<Source, Style> {
     })
 
     ctx.stroke()
+    ctx.fillStyle = 'rgba(0,0,0,0.5)'
+    ctx.fill()
 
     // 文字
     features2featureArr(source).forEach(feature => {
@@ -109,7 +110,6 @@ class LineLayer extends CanvasLayer<Source, Style> {
 
         const textMetrics = ctx.measureText(text)
 
-        const pxDeg = layerManager!.pxDeg
         const tolerance = 10 * pxDeg
 
         const simplifyFeature = simplify(feature, { tolerance })
@@ -169,8 +169,6 @@ class LineLayer extends CanvasLayer<Source, Style> {
         })
       }
     })
-
-    this.imageBitmap = canvas.transferToImageBitmap()
   }
 }
 
