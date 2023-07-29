@@ -8,6 +8,7 @@ import {
   MapEvent,
   MapOptions,
   Point2,
+  Terrain,
 } from './types'
 import EarthOrbitControls from './EarthOrbitControls'
 import { floor, isNil, last, pick, pickBy, remove } from 'lodash-es'
@@ -558,6 +559,10 @@ class Map extends THREE.EventDispatcher<MapEvent> {
     this.earthOrbitControls.onPitchStart()
     this.earthOrbitControls.setPitch(value)
     this.earthOrbitControls.onPitchEnd()
+  }
+
+  setTerrain(terrain: Terrain) {
+    this.tileGroup.setTerrain(terrain)
   }
 
   private clearContainer() {

@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import { LngLat, MapOptions, TileBox, XYZ } from './types'
+import { LngLat, Terrain, TileBox, XYZ } from './types'
 import TileCache from './utils/TileCache'
 import TileGeometry from './TileGeometry'
 import CanvasLayerMaterial from './CanvasLayerMaterial'
@@ -24,14 +24,14 @@ class TileGroup extends THREE.Group {
   private readonly tileMeshCache = new TileCache<TileMesh>()
   private readonly tileCache = new TileCache<ImageBitmap | Promise<ImageBitmap>>()
   private readonly terrainTileWorker = new TerrainTileWorker()
-  private readonly terrain: MapOptions['terrain']
+  private terrain: Terrain | undefined
   private prevTileBox: TileBox
   declare children: TileMesh[]
 
   constructor(options: {
     map: Map
     earthOrbitControls: EarthOrbitControls
-    terrain: MapOptions['terrain']
+    terrain: Terrain | undefined
   }) {
     super()
 
@@ -53,6 +53,11 @@ class TileGroup extends THREE.Group {
         })
     }
 
+    this.update()
+  }
+
+  setTerrain(terrain: Terrain) {
+    this.terrain = terrain
     this.update()
   }
 

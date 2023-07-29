@@ -1,6 +1,12 @@
 import { Feature, FeatureCollection, Geometry } from 'geojson'
 import type { WebGLRendererParameters, Event } from 'three'
 
+export type Terrain =
+  | boolean
+  | {
+      exaggeration: number
+    }
+
 export interface MapOptions extends CameraOptions {
   container: string | HTMLElement
   hash?: boolean
@@ -8,11 +14,7 @@ export interface MapOptions extends CameraOptions {
   /**
    * 是否开启地形
    */
-  terrain?:
-    | boolean
-    | {
-        exaggeration: number
-      }
+  terrain?: Terrain
   /**
    * 服务器端渲染
    */
