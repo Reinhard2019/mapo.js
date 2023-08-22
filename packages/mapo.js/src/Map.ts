@@ -197,7 +197,7 @@ class Map extends THREE.EventDispatcher<MapEvent> {
   private initEarthOrbitControls() {
     const onMove = () => {
       // camera move、rotate、zoom、pitch 时，需要立刻调用 render，以避免 new THREE.Vector3.project(camera) 方法返回错误的结果
-      this.renderer.render(this.scene, this.earthOrbitControls.camera)
+      // this.renderer.render(this.scene, this.earthOrbitControls.camera)
 
       this.updateHash()
 

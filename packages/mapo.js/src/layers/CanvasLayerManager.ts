@@ -1,76 +1,94 @@
 import { isEmpty } from 'lodash-es'
 import { BBox } from '../types'
-// import { fullBBox } from '../utils/bbox'
 import CanvasLayer from './CanvasLayer'
+import * as THREE from 'three'
 
-class CanvasLayerManager {
-  // readonly canvas = new OffscreenCanvas(1, 1)
-  // private readonly ctx = this.canvas.getContext('2d') as OffscreenCanvasRenderingContext2D
+export interface CanvasOption {
+  pxDeg: number
+  bbox: BBox
+  width: number
+  height: number
+}
+
+interface CanvasLayerManagerEvent extends THREE.Event {
+  type: 'layersChange'
+}
+
+class CanvasLayerManager extends THREE.EventDispatcher<CanvasLayerManagerEvent> {
   private readonly layers: CanvasLayer[] = []
-  // bbox: BBox = fullBBox
-  /**
-   * 一个像素对应的经纬度
-   */
-  // private _pxDeg = 0
-  canvasArr: OffscreenCanvas[] = []
-  onUpdate?: () => void
-  _extraLayerOptions: Array<{
-    z: number
-    pxDeg: number
-    bbox: BBox
-  }> = []
+  canvasOptionDict: {
+    [z in string]: CanvasOption
+  } = {}
 
-  // get pxDeg() {
-  //   return this._pxDeg
-  // }
+  sortedLayers: CanvasLayer[] = []
 
-  // set pxDeg(value) {
-  //   this._pxDeg = value
-
-  //   const { bbox, canvas } = this
-  //   canvas.width = Math.ceil((bbox[2] - bbox[0]) / value)
-  //   canvas.height = Math.ceil((bbox[3] - bbox[1]) / value)
-  //   console.log('pxDeg', canvas.width, canvas.height, this._pxDeg)
-  // }
-
-  get extraLayerOptions() {
-    return this._extraLayerOptions
+  resetCanvasOptionDict() {
+    this.canvasOptionDict = {}
   }
 
-  set extraLayerOptions(value) {
-    this._extraLayerOptions = value
+  addCanvasBBox(z: number, options: Pick<CanvasOption, 'pxDeg' | 'bbox'>) {
+    const { pxDeg, bbox } = options
+    const width = Math.ceil((bbox[2] - bbox[0]) / pxDeg)
+    const height = Math.ceil((bbox[3] - bbox[1]) / pxDeg)
 
-    value.forEach((option, i) => {
-      const canvas = this.canvasArr[i] ?? (this.canvasArr[i] = new OffscreenCanvas(1, 1))
-      const { bbox, pxDeg } = option
-      canvas.width = Math.ceil((bbox[2] - bbox[0]) / pxDeg)
-      canvas.height = Math.ceil((bbox[3] - bbox[1]) / pxDeg)
-    })
-
-    this.layers.forEach(layer => {
-      layer.extraLayerOptions = this.extraLayerOptions.map((option, i) => ({
-        ...option,
-        canvasSize: [this.canvasArr[i].width, this.canvasArr[i].height],
-      }))
-    })
+    this.canvasOptionDict[z] = {
+      pxDeg,
+      bbox,
+      width,
+      height,
+    }
   }
+
+  // getCanvasLayerMaterial(z: number) {
+  //   if (!this.canvasLayerMaterials[z]) {
+  //     this.canvasLayerMaterials[z] = new CanvasLayerMaterial({
+  //       canvas: new OffscreenCanvas(1, 1),
+  //       bbox: fullBBox,
+  //     })
+  //   }
+  //   return this.canvasLayerMaterials[z]
+  // }
+
+  // updateCanvasBBox(z: number, bbox: BBox) {
+  //   console.log('updateCanvasBBox', z, bbox)
+  //   const { zoom, tileSize } = this.earthOrbitControls
+  //   const pxDeg = 360 / (Math.pow(2, z + (zoom % 1)) * tileSize)
+  //   const width = Math.ceil((bbox[2] - bbox[0]) / pxDeg)
+  //   const height = Math.ceil((bbox[3] - bbox[1]) / pxDeg)
+  //   const canvasLayerMaterial = this.getCanvasLayerMaterial(z)
+  //   canvasLayerMaterial.canvas.width = width
+  //   canvasLayerMaterial.canvas.height = height
+  //   canvasLayerMaterial.bbox = bbox
+  //   canvasLayerMaterial.pxDeg = pxDeg
+  // }
+
+  // update() {
+  //   Object.entries(this.canvasLayerMaterials).forEach(([z, canvasLayerMaterial]) => {
+  //     const { canvas } = canvasLayerMaterial
+  //     const ctx = canvas.getContext('2d') as OffscreenCanvasRenderingContext2D
+  //     const rect = [0, 0, canvas.width, canvas.height] as const
+  //     ctx.clearRect(...rect)
+  //     this.layers
+  //       .sort((v1, v2) => v1.zIndex - v2.zIndex)
+  //       .forEach(layer => {
+  //         const layerCanvas = layer.canvasDict[z]
+  //         if (layerCanvas) {
+  //           ctx.drawImage(layerCanvas, ...rect)
+  //         }
+  //       })
+  //     canvasLayerMaterial.update()
+  //   })
+  // }
 
   update() {
-    this.canvasArr.forEach((canvas, i) => {
-      const ctx = canvas.getContext('2d') as OffscreenCanvasRenderingContext2D
-      const rect = [0, 0, canvas.width, canvas.height] as const
-      ctx.clearRect(...rect)
-      this.layers
-        .sort((v1, v2) => v1.zIndex - v2.zIndex)
-        .forEach(layer => {
-          if (layer.canvasArr[0]) {
-            const imageBitmap = layer.canvasArr[i].transferToImageBitmap()
-            ctx.drawImage(imageBitmap, ...rect)
-          }
-        })
-    })
+    this.updateLayers()
+  }
 
-    this.onUpdate?.()
+  sortLayers() {
+    this.sortedLayers = this.layers.sort((v1, v2) => v1.zIndex - v2.zIndex)
+    this.dispatchEvent({
+      type: 'layersChange',
+    })
   }
 
   /**
@@ -84,23 +102,21 @@ class CanvasLayerManager {
     this.layers.forEach(layer => {
       layer.update()
     })
-    this.update()
   }
 
   addLayer(layer: CanvasLayer) {
-    layer.extraLayerOptions = this.extraLayerOptions.map((option, i) => ({
-      ...option,
-      canvasSize: [this.canvasArr[i].width, this.canvasArr[i].height],
-    }))
+    layer.setLayerManager(this)
     layer.update()
     this.layers.push(layer)
-    this.update()
+    this.sortLayers()
+    // this.update()
   }
 
   removeLayer(layer: CanvasLayer) {
     const index = this.layers.findIndex(l => l === layer)
     this.layers.splice(index, 1)
-    this.update()
+    this.sortLayers()
+    // this.update()
   }
 }
 

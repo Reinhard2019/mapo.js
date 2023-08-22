@@ -1,6 +1,12 @@
 import * as THREE from 'three'
 import { BBox } from './types'
 
+interface CanvasOption {
+  bbox: BBox
+  width: number
+  height: number
+}
+
 const vertexShader = `
   varying vec2 vUv;
   uniform vec4 bbox;
@@ -45,16 +51,17 @@ const fragmentShader = `
   varying vec2 vUv;
   void main() {
     gl_FragColor = texture2D(canvasTexture, vUv);
-    // gl_FragColor = vec4(255.0, 255.0, 255.0, 1.0);
   }
 `
 
 class CanvasLayerMaterial extends THREE.ShaderMaterial {
-  constructor(options: { canvas: OffscreenCanvas; bbox: BBox }) {
-    // const layerManager = new CanvasLayerManager()
-    // const getTexture = () => new THREE.CanvasTexture(layerManager.canvasArr[0])
+  readonly canvas: OffscreenCanvas
+  bbox: BBox
+
+  constructor(options: CanvasOption) {
+    const canvas = new OffscreenCanvas(options.width, options.height)
     const uniforms = {
-      canvasTexture: { value: new THREE.CanvasTexture(options.canvas) },
+      canvasTexture: { value: new THREE.CanvasTexture(canvas) },
       bbox: { value: options.bbox },
     }
 
@@ -65,14 +72,22 @@ class CanvasLayerMaterial extends THREE.ShaderMaterial {
       transparent: true,
     })
 
-    // this.canvasLayerManager = layerManager
+    this.canvas = canvas
+    this.bbox = options.bbox
   }
 
-  update(options: { canvas: OffscreenCanvas; bbox: BBox }) {
-    this.uniforms.bbox.value = options.bbox
+  updateCanvasOption(options: CanvasOption) {
+    this.bbox = options.bbox
+
+    this.canvas.width = options.width
+    this.canvas.height = options.height
+  }
+
+  update() {
+    this.uniforms.bbox.value = this.bbox
 
     this.uniforms.canvasTexture.value.dispose()
-    this.uniforms.canvasTexture.value = new THREE.CanvasTexture(options.canvas)
+    this.uniforms.canvasTexture.value = new THREE.CanvasTexture(this.canvas)
   }
 }
 

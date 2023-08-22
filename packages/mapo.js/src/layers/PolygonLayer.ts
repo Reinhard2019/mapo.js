@@ -2,7 +2,6 @@ import { MultiPolygon, Polygon, Position } from 'geojson'
 import { Features } from 'src/types'
 import { features2featureArr } from 'src/utils/layers'
 import geoEquirectangular from '../utils/geoEquirectangular'
-import CanvasLayerManager from './CanvasLayerManager'
 import CanvasLayer from './CanvasLayer'
 import { BBox } from '../types'
 
@@ -13,24 +12,28 @@ interface Style {
 }
 
 class PolygonLayer extends CanvasLayer<Source, Style> {
-  private readonly canvas = new OffscreenCanvas(1, 1)
-  private readonly ctx = this.canvas.getContext('2d') as OffscreenCanvasRenderingContext2D
-  layerManager?: CanvasLayerManager
-  imageBitmap?: ImageBitmap
-
   draw(options: { bbox: BBox; pxDeg: number; canvas: OffscreenCanvas }) {
     const { canvas, bbox } = options
     const { source, style } = this
 
-    const ctx = canvas.getContext('2d') as OffscreenCanvasRenderingContext2D
+    // console.time('OffscreenCanvas')
+    // // const _canvas = new OffscreenCanvas(canvas.width, canvas.height)
+    // console.timeEnd('OffscreenCanvas')
 
-    ctx.clearRect(0, 0, canvas.width, canvas.height)
+    // console.time('getContext')
+    const ctx = canvas.getContext('2d') as OffscreenCanvasRenderingContext2D
+    // console.timeEnd('getContext')
+
+    // console.time('clearRect')
+    // // ctx.clearRect(0, 0, canvas.width, canvas.height)
+    // console.timeEnd('clearRect')
 
     const projection = geoEquirectangular({
       bbox,
       size: [canvas.width, canvas.height],
     })
 
+    // console.time('features2featureArr')
     ctx.beginPath()
     if (style) {
       if (style.fillColor) {
@@ -58,8 +61,7 @@ class PolygonLayer extends CanvasLayer<Source, Style> {
     })
 
     ctx.fill()
-
-    this.imageBitmap = canvas.transferToImageBitmap()
+    // console.timeEnd('features2featureArr')
   }
 }
 

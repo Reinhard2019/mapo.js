@@ -99,8 +99,6 @@ class LineLayer extends CanvasLayer<Source, Style> {
     })
 
     ctx.stroke()
-    ctx.fillStyle = 'rgba(0,0,0,0.5)'
-    ctx.fill()
 
     // 文字
     features2featureArr(source).forEach(feature => {

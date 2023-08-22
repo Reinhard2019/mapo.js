@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import { XYZ } from './types'
+import { Terrain, XYZ } from './types'
 import {
   getBottomNearXYZ,
   getLeftNearXYZ,
@@ -11,12 +11,13 @@ import MercatorTile from './utils/MercatorTile'
 import TileGeometryWorker, { OnMessageEventData } from './TileGeometryWorker'
 import TileGroup from './TileGroup'
 import { isNil } from './utils'
+import TerrainTileWorker from './TerrainTileWorker'
 
 class TileGeometry extends THREE.BufferGeometry {
   readonly xyz: XYZ
   private readonly earthRadius: number
   private readonly tileSize: number
-  private readonly terrainXYZ: XYZ
+  private readonly terrainTileWorker: TerrainTileWorker
   private readonly tileGroup: TileGroup
   private updateTerrainPromise: Promise<THREE.Float32BufferAttribute> | undefined
 
@@ -25,7 +26,7 @@ class TileGeometry extends THREE.BufferGeometry {
   constructor(options: {
     tileGroup: TileGroup
     xyz: XYZ
-    terrainXYZ: XYZ
+    terrainTileWorker: TerrainTileWorker
     earthRadius: number
     tileSize: number
   }) {
@@ -34,6 +35,28 @@ class TileGeometry extends THREE.BufferGeometry {
     Object.assign(this, options)
 
     this.update()
+  }
+
+  // TODO 处理 terrain 中途修改
+  setTerrain(terrain: Terrain | undefined) {
+    // TODO 处理关闭
+    if (terrain) {
+      const terrainXYZ = this.getTerrainXYZ()
+      // TODO 处理重复的情况
+      void this.terrainTileWorker.loadTile(terrainXYZ).then(imageData => {
+        this.updateTerrain(imageData, typeof terrain === 'object' ? terrain.exaggeration : 1)
+      })
+    }
+  }
+
+  private getTerrainXYZ(): XYZ {
+    const [x, y, z] = this.xyz
+    //  高程的 z 比正常的 z 缩小 3 倍
+    const scaleZ = 3
+    const terrainZ = Math.max(0, z - scaleZ)
+    const scaleZ2 = Math.pow(2, z - terrainZ)
+    const getTerrainTileIndex = (tileIndex: number) => Math.floor(tileIndex / scaleZ2)
+    return [getTerrainTileIndex(x), getTerrainTileIndex(y), terrainZ]
   }
 
   update() {
@@ -94,7 +117,8 @@ class TileGeometry extends THREE.BufferGeometry {
     if (!isNil(this.updateTerrainPromise)) return
 
     const tileGeometryWorker = new TileGeometryWorker()
-    const { earthRadius, tileSize, xyz, terrainXYZ } = this
+    const { earthRadius, tileSize, xyz } = this
+    const terrainXYZ = this.getTerrainXYZ()
     const [, , terrainZ] = terrainXYZ
     const [x, y, z] = xyz
 

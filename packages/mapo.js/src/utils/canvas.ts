@@ -1,5 +1,5 @@
 import { XYZ } from 'src/types'
-import { formatTileXOrY } from './map'
+import { formatTileIndex } from './map'
 import TileCache from './TileCache'
 
 /**
@@ -17,7 +17,7 @@ export function drawPreviewImage(options: {
   const { ctx, xyz, tileSize, tileCache, dx = 0, dy = 0 } = options
   const [x, y, z] = xyz
   const z2 = Math.pow(2, z)
-  const formattedX = formatTileXOrY(x, z)
+  const formattedX = formatTileIndex(x, z)
   let cloneX = formattedX
   let cloneY = y
   let cloneZ = z

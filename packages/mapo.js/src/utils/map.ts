@@ -89,13 +89,13 @@ export function normalizeLng(lng: number) {
 }
 
 /**
- * tileXOrY 有可能小于 0 或者大于等于 z2，需要对其进行格式化
- * @param tileXOrY
+ * tileIndex 有可能小于 0 或者大于等于 z2，需要对其进行格式化
+ * @param tileIndex
  * @returns
  */
-export function formatTileXOrY(tileXOrY: number, z: number) {
+export function formatTileIndex(tileIndex: number, z: number) {
   const z2 = Math.pow(2, z)
-  return tileXOrY < 0 ? z2 + tileXOrY : tileXOrY % z2
+  return tileIndex < 0 ? z2 + tileIndex : tileIndex % z2
 }
 
 /**
@@ -105,7 +105,7 @@ export function formatTileXOrY(tileXOrY: number, z: number) {
  */
 export function getTopNearXYZ(xyz: XYZ): XYZ {
   const [x, y, z] = xyz
-  return [x, formatTileXOrY(y - 1, z), z]
+  return [x, formatTileIndex(y - 1, z), z]
 }
 
 /**
@@ -115,7 +115,7 @@ export function getTopNearXYZ(xyz: XYZ): XYZ {
  */
 export function getLeftNearXYZ(xyz: XYZ): XYZ {
   const [x, y, z] = xyz
-  return [formatTileXOrY(x - 1, z), y, z]
+  return [formatTileIndex(x - 1, z), y, z]
 }
 
 /**
@@ -125,7 +125,7 @@ export function getLeftNearXYZ(xyz: XYZ): XYZ {
  */
 export function getBottomNearXYZ(xyz: XYZ): XYZ {
   const [x, y, z] = xyz
-  return [x, formatTileXOrY(y + 1, z), z]
+  return [x, formatTileIndex(y + 1, z), z]
 }
 
 /**
@@ -135,5 +135,5 @@ export function getBottomNearXYZ(xyz: XYZ): XYZ {
  */
 export function getRightNearXYZ(xyz: XYZ): XYZ {
   const [x, y, z] = xyz
-  return [formatTileXOrY(x + 1, z), y, z]
+  return [formatTileIndex(x + 1, z), y, z]
 }

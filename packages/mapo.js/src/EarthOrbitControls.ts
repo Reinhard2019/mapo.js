@@ -18,7 +18,7 @@ class EarthOrbitControls extends THREE.EventDispatcher<CameraEvent> {
   private _distance = 0
   private _zoom = 0
 
-  bearing = 0
+  private _bearing = 0
   pitch = 0
 
   minDistance = this.earthRadius + 0.2
@@ -144,6 +144,20 @@ class EarthOrbitControls extends THREE.EventDispatcher<CameraEvent> {
     return pxDeg
   }
 
+  get bearing() {
+    return this._bearing
+  }
+
+  set bearing(value: number) {
+    let newValue = value % 360
+    if (newValue > 180) {
+      newValue = newValue - 360
+    } else if (newValue < -180) {
+      newValue = 360 + newValue
+    }
+    this._bearing = newValue
+  }
+
   get distance() {
     return this._distance
   }
@@ -172,9 +186,10 @@ class EarthOrbitControls extends THREE.EventDispatcher<CameraEvent> {
    * @returns
    */
   getFov(diagonal: number) {
-    // 邻边
-    const adjacent = this.domElement.clientHeight / Math.tan(degToRad(this.fov / 2))
-    return (radToDeg(Math.atan(diagonal / adjacent)) + this.pitch) * 2
+    // 假设 this.domElement 是一个平面，摄像机是平面外的一个点
+    // adjacent 是摄像机到 this.domElement 平面的距离
+    const adjacent = this.domElement.clientHeight / 2 / Math.tan(degToRad(this.fov / 2))
+    return (radToDeg(Math.atan(diagonal / 2 / adjacent)) + this.pitch) * 2
   }
 
   private lookAt() {

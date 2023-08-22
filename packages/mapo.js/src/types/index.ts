@@ -87,3 +87,7 @@ export type Features<G extends Geometry | null = Geometry> =
   | Feature<G>
   | Array<Feature<G>>
   | FeatureCollection<G>
+
+export type SetValue<T, V> = {
+  [P in keyof T]?: V
+}

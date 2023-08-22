@@ -44,32 +44,38 @@ const workerUrl = URL.createObjectURL(blob)
 
 class TerrainTileWorker extends Worker {
   tileCache = new TileCache<Promise<ImageData>>()
+  tileSize: number
 
-  constructor() {
+  constructor(tileSize: number) {
     super(workerUrl)
+
+    this.tileSize = tileSize
   }
 
   postMessage(message: MessageEventData, ...argus) {
     super.postMessage(message, ...argus)
   }
 
-  async loadTile(options: MessageEventData) {
-    const tile = this.tileCache.get(options.xyz)
+  async loadTile(xyz: XYZ) {
+    const tile = this.tileCache.get(xyz)
     if (tile) return await tile
 
     const promise = new Promise<ImageData>(resolve => {
       const onMessage = (e: MessageEvent<OnMessageEventData>) => {
-        const { xyz, imageData } = e.data
-        if (isEqual(xyz, options.xyz)) {
+        const { imageData } = e.data
+        if (isEqual(xyz, e.data.xyz)) {
           resolve(imageData)
           this.removeEventListener('message', onMessage)
         }
       }
       this.addEventListener('message', onMessage)
 
-      this.postMessage(options)
+      this.postMessage({
+        xyz,
+        tileSize: this.tileSize,
+      })
     })
-    this.tileCache.set(options.xyz, promise)
+    this.tileCache.set(xyz, promise)
 
     return await promise
   }
