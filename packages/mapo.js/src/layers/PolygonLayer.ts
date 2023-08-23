@@ -2,8 +2,7 @@ import { MultiPolygon, Polygon, Position } from 'geojson'
 import { Features } from 'src/types'
 import { features2featureArr } from 'src/utils/layers'
 import geoEquirectangular from '../utils/geoEquirectangular'
-import CanvasLayer from './CanvasLayer'
-import { BBox } from '../types'
+import CanvasLayer, { DrawOptions } from './CanvasLayer'
 
 type Source = Features<Polygon | MultiPolygon>
 
@@ -12,28 +11,15 @@ interface Style {
 }
 
 class PolygonLayer extends CanvasLayer<Source, Style> {
-  draw(options: { bbox: BBox; pxDeg: number; canvas: OffscreenCanvas }) {
-    const { canvas, bbox } = options
+  draw(options: DrawOptions) {
+    const { ctx, bbox } = options
     const { source, style } = this
-
-    // console.time('OffscreenCanvas')
-    // // const _canvas = new OffscreenCanvas(canvas.width, canvas.height)
-    // console.timeEnd('OffscreenCanvas')
-
-    // console.time('getContext')
-    const ctx = canvas.getContext('2d') as OffscreenCanvasRenderingContext2D
-    // console.timeEnd('getContext')
-
-    // console.time('clearRect')
-    // // ctx.clearRect(0, 0, canvas.width, canvas.height)
-    // console.timeEnd('clearRect')
 
     const projection = geoEquirectangular({
       bbox,
-      size: [canvas.width, canvas.height],
+      size: [ctx.canvas.width, ctx.canvas.height],
     })
 
-    // console.time('features2featureArr')
     ctx.beginPath()
     if (style) {
       if (style.fillColor) {
@@ -61,7 +47,6 @@ class PolygonLayer extends CanvasLayer<Source, Style> {
     })
 
     ctx.fill()
-    // console.timeEnd('features2featureArr')
   }
 }
 

@@ -56,6 +56,7 @@ const fragmentShader = `
 
 class CanvasLayerMaterial extends THREE.ShaderMaterial {
   readonly canvas: OffscreenCanvas
+  readonly ctx: OffscreenCanvasRenderingContext2D
   bbox: BBox
 
   constructor(options: CanvasOption) {
@@ -73,6 +74,7 @@ class CanvasLayerMaterial extends THREE.ShaderMaterial {
     })
 
     this.canvas = canvas
+    this.ctx = canvas.getContext('2d') as OffscreenCanvasRenderingContext2D
     this.bbox = options.bbox
   }
 

@@ -3,6 +3,12 @@ import Layer from './Layer'
 import CanvasLayerManager from './CanvasLayerManager'
 import CanvasLayerMaterial from 'src/CanvasLayerMaterial'
 
+export interface DrawOptions {
+  bbox: BBox
+  pxDeg: number
+  ctx: OffscreenCanvasRenderingContext2D
+}
+
 abstract class CanvasLayer<Source extends Features = Features, Style extends {} = {}> extends Layer<
   Source,
   Style
@@ -12,7 +18,7 @@ abstract class CanvasLayer<Source extends Features = Features, Style extends {} 
     [z in string]: CanvasLayerMaterial
   } = {}
 
-  abstract draw(options: { bbox: BBox; pxDeg: number; canvas: OffscreenCanvas }): void
+  abstract draw(options: DrawOptions): void
 
   setLayerManager(layerManager: CanvasLayerManager) {
     this.layerManager = layerManager
@@ -23,18 +29,18 @@ abstract class CanvasLayer<Source extends Features = Features, Style extends {} 
     const canvasOptionDict = this.layerManager?.canvasOptionDict ?? {}
 
     Object.entries(canvasOptionDict).forEach(([z, canvasOption]) => {
-      const { bbox, pxDeg } = canvasOption
-      let canvasLayerMaterial = canvasLayerMaterialDict[z]
-      if (canvasLayerMaterial) {
-        canvasLayerMaterial.updateCanvasOption(canvasOption)
-      } else {
-        canvasLayerMaterial = canvasLayerMaterialDict[z] = new CanvasLayerMaterial(canvasOption)
+      if (!canvasLayerMaterialDict[z]) {
+        canvasLayerMaterialDict[z] = new CanvasLayerMaterial(canvasOption)
       }
       window.requestIdleCallback(() => {
+        const canvasLayerMaterial = canvasLayerMaterialDict[z]
+        canvasLayerMaterial.updateCanvasOption(canvasOption)
+        const { canvas, ctx } = canvasLayerMaterial
+        ctx.clearRect(0, 0, canvas.width, canvas.height)
+
         this.draw({
-          bbox,
-          pxDeg,
-          canvas: canvasLayerMaterial.canvas,
+          ...canvasOption,
+          ctx,
         })
         canvasLayerMaterial.update()
       })

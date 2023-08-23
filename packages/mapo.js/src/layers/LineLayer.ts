@@ -1,9 +1,9 @@
 import { LineString, Polygon, MultiPolygon, MultiLineString, Position, Feature } from 'geojson'
-import { BBox, Features } from 'src/types'
+import { Features } from 'src/types'
 import { features2featureArr } from 'src/utils/layers'
 import geoEquirectangular from '../utils/geoEquirectangular'
 import { get, mapKeys, mapValues } from 'lodash-es'
-import CanvasLayer from './CanvasLayer'
+import CanvasLayer, { DrawOptions } from './CanvasLayer'
 import { chain } from 'src/utils'
 import * as THREE from 'three'
 import { simplify } from '@turf/turf'
@@ -31,17 +31,13 @@ class LineLayer extends CanvasLayer<Source, Style> {
     this.textField = options.textField
   }
 
-  draw(options: { bbox: BBox; pxDeg: number; canvas: OffscreenCanvas }) {
-    const { canvas, bbox, pxDeg } = options
+  draw(options: DrawOptions) {
+    const { ctx, bbox, pxDeg } = options
     const { source, style, textField } = this
-
-    const ctx = canvas.getContext('2d') as OffscreenCanvasRenderingContext2D
-
-    ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height)
 
     const projection = geoEquirectangular({
       bbox,
-      size: [canvas.width, canvas.height],
+      size: [ctx.canvas.width, ctx.canvas.height],
     })
 
     ctx.beginPath()
