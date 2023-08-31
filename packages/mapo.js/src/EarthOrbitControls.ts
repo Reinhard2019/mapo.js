@@ -1,4 +1,4 @@
-import { clamp, debounce, isNumber } from 'lodash-es'
+import { clamp, clone, debounce, isNumber } from 'lodash-es'
 import * as THREE from 'three'
 import { CameraEvent, EarthOrbitControlsOptions, LngLat } from './types'
 import { getDisplayCentralAngle, lngLatToVector3, normalizeLng } from './utils/map'
@@ -59,7 +59,7 @@ class EarthOrbitControls extends THREE.EventDispatcher<CameraEvent> {
     super()
 
     if (options.domElement) this.domElement = options.domElement
-    if (options.center) this.center = options.center
+    if (Array.isArray(options.center)) this.center = clone(options.center)
     this.earthRadius = options.earthRadius
     this.zoom = options.zoom ?? 2
     if (isNumber(options.bearing)) this.bearing = options.bearing
@@ -311,7 +311,7 @@ class EarthOrbitControls extends THREE.EventDispatcher<CameraEvent> {
   // }
 
   setCenter(value: LngLat) {
-    this.center = value
+    this.center = clone(value)
 
     this.camera.position.copy(lngLatToVector3(this.center, this.distance))
     this.lookAt()
