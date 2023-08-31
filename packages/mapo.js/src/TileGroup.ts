@@ -58,9 +58,6 @@ class TileGroup extends THREE.Group {
     const getPxDeg = (z: number) =>
       360 / (Math.pow(2, z + (this.earthOrbitControls.zoom % 1)) * tileSize)
 
-    console.time()
-    console.groupCollapsed()
-
     const childrenMap = new TileCache<true>()
     const addTile = (_x: number, _y: number, z: number) => {
       const x = formatTileIndex(_x, z)
@@ -160,8 +157,6 @@ class TileGroup extends THREE.Group {
       }
 
       tiles.forEach(([x, y]) => addTile(x, y, z))
-      console.log('addAroundTiles', tiles, z, around, totalTileBox, z2Gap, displayBBox)
-
       return tiles
     }
     const addLoopAroundTiles = (around: Around, z: number) => {
@@ -250,16 +245,11 @@ class TileGroup extends THREE.Group {
       )
     }
 
-    console.groupEnd()
-    console.timeEnd()
-
     window.requestIdleCallback(() => {
       this.children = this.children.filter(child => childrenMap.has(child.geometry.xyz))
     })
 
-    console.time('update')
     this.canvasLayerManager.update()
-    console.timeEnd('update')
   }
 
   getTileMesh(xyz: XYZ | undefined) {

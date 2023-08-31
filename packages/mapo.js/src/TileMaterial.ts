@@ -83,15 +83,15 @@ class TileMaterial extends THREE.ShaderMaterial {
           ctx.clearRect(...rect)
           ctx.drawImage(image, ...rect)
 
-          ctx.strokeStyle = 'red'
-          ctx.lineWidth = 10
-          ctx.strokeRect(...rect)
+          // ctx.strokeStyle = 'red'
+          // ctx.lineWidth = 10
+          // ctx.strokeRect(...rect)
 
-          ctx.font = '50px sans-serif'
-          ctx.textAlign = 'center'
-          ctx.textBaseline = 'middle'
-          ctx.fillStyle = 'red'
-          ctx.fillText(xyz.toString(), tileSize / 2, tileSize / 2)
+          // ctx.font = '50px sans-serif'
+          // ctx.textAlign = 'center'
+          // ctx.textBaseline = 'middle'
+          // ctx.fillStyle = 'red'
+          // ctx.fillText(xyz.toString(), tileSize / 2, tileSize / 2)
 
           texture.needsUpdate = true
           resolve(image)
