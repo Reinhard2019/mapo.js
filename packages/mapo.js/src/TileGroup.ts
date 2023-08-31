@@ -58,12 +58,11 @@ class TileGroup extends THREE.Group {
     const getPxDeg = (z: number) =>
       360 / (Math.pow(2, z + (this.earthOrbitControls.zoom % 1)) * tileSize)
 
-    const childrenMap = new TileCache<true>()
+    const children: TileMesh[] = []
     const addTile = (_x: number, _y: number, z: number) => {
       const x = formatTileIndex(_x, z)
       const y = formatTileIndex(_y, z)
       const xyz: XYZ = [x, y, z]
-      childrenMap.set(xyz, true)
 
       window.requestIdleCallback(() => {
         let mesh = this.tileMeshCache.get(xyz)
@@ -84,7 +83,7 @@ class TileGroup extends THREE.Group {
         }
         mesh.geometry.setTerrain(this.terrain)
 
-        this.add(mesh)
+        children.push(mesh)
       })
     }
 
@@ -246,7 +245,7 @@ class TileGroup extends THREE.Group {
     }
 
     window.requestIdleCallback(() => {
-      this.children = this.children.filter(child => childrenMap.has(child.geometry.xyz))
+      this.children = children
     })
 
     this.canvasLayerManager.update()
