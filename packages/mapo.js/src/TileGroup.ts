@@ -56,7 +56,7 @@ class TileGroup extends THREE.Group {
     // this.prevTileBox = totalTileBox
 
     const getPxDeg = (z: number) =>
-      360 / (Math.pow(2, z + (this.earthOrbitControls.zoom % 1)) * tileSize)
+      this.earthOrbitControls.getPxDeg(z + (this.earthOrbitControls.zoom % 1))
 
     const children: TileMesh[] = []
     const addTile = (_x: number, _y: number, z: number) => {
