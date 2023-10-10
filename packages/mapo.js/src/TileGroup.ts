@@ -21,7 +21,6 @@ class TileGroup extends THREE.Group {
   private readonly tileCache = new TileCache<ImageBitmap | Promise<ImageBitmap>>()
   private readonly terrainTileWorker
   private terrain: Terrain | undefined
-  // private prevTileBox: TileBox
   declare children: TileMesh[]
 
   constructor(options: {
@@ -49,11 +48,6 @@ class TileGroup extends THREE.Group {
     const { earthRadius, tileSize, displayBBox } = this.map
     const { center } = this.earthOrbitControls
     const totalTileBox = MercatorTile.bboxToTileBox(displayBBox, this.earthOrbitControls.z)
-
-    // if (isEqual(totalTileBox, this.prevTileBox)) {
-    //   return
-    // }
-    // this.prevTileBox = totalTileBox
 
     const getPxDeg = (z: number) =>
       this.earthOrbitControls.getPxDeg(z + (this.earthOrbitControls.zoom % 1))
@@ -116,10 +110,11 @@ class TileGroup extends THREE.Group {
     ) => {
       const vertexLogic = around.vertexLogic ?? '&&'
       const z2Gap = Math.pow(2, earthOrbitControls.z - z)
-      const hasLeftSide = !around.disableLeft && totalTileBox.startX <= around.left * z2Gap
-      const hasRightSide = !around.disableRight && totalTileBox.endX > around.right * z2Gap
-      const hasTopSide = !around.disableTop && totalTileBox.startY <= around.top * z2Gap
-      const hasBottomSide = !around.disableBottom && totalTileBox.endY > around.bottom * z2Gap
+      const hasLeftSide =
+        !around.disableLeft && Math.floor(totalTileBox.startX / z2Gap) <= around.left
+      const hasRightSide = !around.disableRight && totalTileBox.endX / z2Gap > around.right
+      const hasTopSide = !around.disableTop && Math.floor(totalTileBox.startY / z2Gap) <= around.top
+      const hasBottomSide = !around.disableBottom && totalTileBox.endY / z2Gap > around.bottom
 
       const tiles: Array<[number, number]> = []
       if (hasTopSide) {
