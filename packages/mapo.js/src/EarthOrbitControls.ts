@@ -158,10 +158,6 @@ class EarthOrbitControls extends THREE.EventDispatcher<CameraEvent> {
     this._distance = this.zoomToDistance(value)
   }
 
-  get z() {
-    return Math.ceil(this.zoom)
-  }
-
   /**
    * 根据对角线的像素长度获取对应的视角
    * @param diagonal

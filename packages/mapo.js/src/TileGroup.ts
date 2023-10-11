@@ -44,13 +44,13 @@ class TileGroup extends THREE.Group {
   }
 
   update() {
-    const { tileCache, earthOrbitControls } = this
+    const { tileCache } = this
     const { earthRadius, tileSize, displayBBox } = this.map
     const { center } = this.earthOrbitControls
-    const totalTileBox = MercatorTile.bboxToTileBox(displayBBox, this.earthOrbitControls.z)
-
-    const getPxDeg = (z: number) =>
-      this.earthOrbitControls.getPxDeg(z + (this.earthOrbitControls.zoom % 1))
+    const totalTileBox = MercatorTile.bboxToTileBox(
+      displayBBox,
+      Math.ceil(this.earthOrbitControls.zoom),
+    )
 
     const children: TileMesh[] = []
     const addTile = (_x: number, _y: number, z: number) => {
@@ -81,9 +81,13 @@ class TileGroup extends THREE.Group {
       })
     }
 
-    const tile = MercatorTile.pointToTile(center[0], center[1], this.earthOrbitControls.z)
+    const tile = MercatorTile.pointToTile(
+      center[0],
+      center[1],
+      Math.ceil(this.earthOrbitControls.zoom),
+    )
     const [tileX, tileY] = tile
-    addTile(tileX, tileY, this.earthOrbitControls.z)
+    addTile(tileX, tileY, Math.ceil(this.earthOrbitControls.zoom))
 
     interface Around {
       top: number
@@ -109,7 +113,7 @@ class TileGroup extends THREE.Group {
       z: number,
     ) => {
       const vertexLogic = around.vertexLogic ?? '&&'
-      const z2Gap = Math.pow(2, earthOrbitControls.z - z)
+      const z2Gap = Math.pow(2, Math.ceil(this.earthOrbitControls.zoom) - z)
       const hasLeftSide =
         !around.disableLeft && Math.floor(totalTileBox.startX / z2Gap) <= around.left
       const hasRightSide = !around.disableRight && totalTileBox.endX / z2Gap > around.right
@@ -153,26 +157,27 @@ class TileGroup extends THREE.Group {
       tiles.forEach(([x, y]) => addTile(x, y, z))
       return tiles
     }
-    const addLoopAroundTiles = (around: Around, z: number) => {
+    const addLoopAroundTiles = (around: Around, zoom: number) => {
+      const z = Math.ceil(zoom)
       const tiles = addAroundTiles(around, z)
 
       if (isEmpty(tiles)) {
         this.canvasLayerManager.addCanvasBBox(z, {
           bbox: displayBBox,
-          pxDeg: getPxDeg(z),
+          pxDeg: this.earthOrbitControls.getPxDeg(zoom),
         })
         return
       }
 
       const lngLat: LngLat = [
         MercatorTile.xToLng(formatTileIndex(around.left, z), z),
-        MercatorTile.yToLat(formatTileIndex(around.right, z), z),
+        MercatorTile.yToLat(formatTileIndex(around.top, z), z),
       ]
       const distance = this.earthOrbitControls.camera.position.distanceTo(
         lngLatToVector3(lngLat, earthRadius),
       )
-      const zoom = this.earthOrbitControls.distanceToZoom(distance + earthRadius)
-      if (z - zoom < 2 || z === 0) {
+      const _zoom = this.earthOrbitControls.distanceToZoom(distance + earthRadius)
+      if (z - _zoom < 3 || z === 0) {
         addLoopAroundTiles(
           {
             left: around.left - 1,
@@ -180,7 +185,7 @@ class TileGroup extends THREE.Group {
             right: around.right + 1,
             bottom: around.bottom + 1,
           },
-          z,
+          zoom,
         )
         return
       }
@@ -214,7 +219,7 @@ class TileGroup extends THREE.Group {
           },
           z,
         ),
-        pxDeg: getPxDeg(z),
+        pxDeg: this.earthOrbitControls.getPxDeg(zoom),
       })
 
       addLoopAroundTiles(
@@ -224,10 +229,10 @@ class TileGroup extends THREE.Group {
           right: (right + 1) / 2,
           bottom: (bottom + 1) / 2,
         },
-        z - 1,
+        zoom - 1,
       )
     }
-    if (this.earthOrbitControls.z > 0) {
+    if (this.earthOrbitControls.zoom > 0) {
       addLoopAroundTiles(
         {
           left: tileX - 1,
@@ -235,7 +240,7 @@ class TileGroup extends THREE.Group {
           right: tileX + 1,
           bottom: tileY + 1,
         },
-        this.earthOrbitControls.z,
+        this.earthOrbitControls.zoom,
       )
     }
 
