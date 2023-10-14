@@ -1,11 +1,9 @@
 import { expect, test } from 'vitest'
-import {
-  decimalFraction, inRange
-} from './number'
+import { fract, inRange } from './number'
 
 test('decimalFraction()', () => {
-  expect(decimalFraction(-1.5)).toBe(-0.5)
-  expect(decimalFraction(1.5)).toBe(0.5)
+  expect(fract(-1.5)).toBe(-0.5)
+  expect(fract(1.5)).toBe(0.5)
 })
 
 test('inRange()', () => {

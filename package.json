@@ -55,8 +55,7 @@
     "lodash-es": "^4.17.21",
     "mapo.js": "workspace:*",
     "monaco-editor": "^0.36.1",
-    "naive-ui": "^2.34.3",
-    "three": "^0.150.0"
+    "naive-ui": "^2.34.3"
   },
   "optionalDependencies": {
     "canvas": "^2.11.0",

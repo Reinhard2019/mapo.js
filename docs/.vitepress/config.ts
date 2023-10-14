@@ -42,6 +42,7 @@ export default defineConfig({
             { text: '点', link: '/examples/point-layer' },
             { text: '线', link: '/examples/line-layer' },
             { text: '面', link: '/examples/polygon-layer' },
+            { text: '文字路径', link: '/examples/text-path-layer' },
           ],
         },
         {

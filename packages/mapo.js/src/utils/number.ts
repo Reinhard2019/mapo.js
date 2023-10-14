@@ -3,7 +3,7 @@
  * @param num
  * @returns
  */
-export function decimalFraction(num: number) {
+export function fract(num: number) {
   return num - Math.trunc(num)
 }
 

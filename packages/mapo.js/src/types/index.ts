@@ -1,5 +1,5 @@
 import { Feature, FeatureCollection, Geometry } from 'geojson'
-import type { WebGLRendererParameters, Event } from 'three'
+import type { WebGLRendererParameters } from 'three'
 
 export type Terrain =
   | boolean
@@ -35,12 +35,13 @@ export type CameraEventType =
   | 'pitch'
   | 'pitchend'
 
-export interface CameraEvent extends Event {
-  type: CameraEventType
-}
+export type CameraEvent = Record<CameraEventType, {}>
 
-export interface MapEvent extends Event {
-  type: 'render' | 'click' | CameraEventType
+export interface MapEvent extends CameraEvent {
+  render: {}
+  click: {
+    lngLat: LngLat | null
+  }
 }
 
 export interface CameraOptions {

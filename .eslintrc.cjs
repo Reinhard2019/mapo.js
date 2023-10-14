@@ -24,5 +24,6 @@ module.exports = {
     '@typescript-eslint/no-dynamic-delete': 'off',
     '@typescript-eslint/no-extraneous-class': 'off',
     '@typescript-eslint/consistent-type-assertions': 'off',
+    '@typescript-eslint/restrict-plus-operands': 'off',
   },
 }

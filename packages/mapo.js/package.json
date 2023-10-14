@@ -15,16 +15,16 @@
     "@types/animejs": "^3.1.7",
     "@types/geojson": "^7946.0.10",
     "@types/lodash-es": "^4.17.6",
-    "@types/three": "^0.149.0"
+    "@types/three": "^0.157.0"
   },
   "dependencies": {
     "@turf/turf": "^6.5.0",
     "animejs": "^3.2.1",
     "lodash-es": "^4.17.21",
-    "three": "^0.150.0"
+    "three": "^0.157.0"
   },
   "peerDependencies": {
-    "three": "^0.150.0"
+    "three": "^0.157.0"
   },
   "files": [
     "/esm",

@@ -10,8 +10,8 @@ export interface CanvasOption {
   height: number
 }
 
-interface CanvasLayerManagerEvent extends THREE.Event {
-  type: 'layersChange'
+interface CanvasLayerManagerEvent {
+  layersChange: {}
 }
 
 class CanvasLayerManager extends THREE.EventDispatcher<CanvasLayerManagerEvent> {
