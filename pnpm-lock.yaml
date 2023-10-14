@@ -29,6 +29,9 @@ importers:
       naive-ui:
         specifier: ^2.34.3
         version: 2.34.3(vue@3.2.45)
+      three:
+        specifier: ^0.157.0
+        version: 0.157.0
     optionalDependencies:
       canvas:
         specifier: ^2.11.0
