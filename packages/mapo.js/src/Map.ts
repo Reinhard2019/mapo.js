@@ -332,10 +332,13 @@ class Map extends THREE.EventDispatcher<MapEvent> {
       deg = 360 - deg
     }
 
-    const xAxis = new THREE.Vector3(-1, 0, 0).applyEuler(new THREE.Euler(0, degToRad(center[0])))
-    const vector3 = lngLatToVector3(center, this.earthRadius)
-      .applyAxisAngle(xAxis, degToRad(centralAngle / 2))
+    const xAxis = new THREE.Vector3(-1, 0, 0)
+      .applyAxisAngle(new THREE.Vector3(0, 1, 0), degToRad(center[0]))
       .applyAxisAngle(lngLatToVector3(center, 1), degToRad(deg - bearing))
+    const vector3 = lngLatToVector3(center, this.earthRadius).applyAxisAngle(
+      xAxis,
+      degToRad(centralAngle / 2),
+    )
     return vector3ToLngLat(vector3)
   }
 

@@ -146,7 +146,6 @@ class EarthOrbitControls extends THREE.EventDispatcher<CameraEvent> {
   private set distance(value: number) {
     this._distance = value
     this._zoom = this.distanceToZoom(value)
-    this.updateCameraPosition()
   }
 
   get zoom() {
