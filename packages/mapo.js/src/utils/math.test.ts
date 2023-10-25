@@ -113,27 +113,53 @@ test('getClosestCrossSegmentIndex()', () => {
 })
 
 test('getAngle()', () => {
-  const angle = getAngle(new THREE.Vector2(0, 0), new THREE.Vector2(1, 0))
+  const angle = getAngle(new THREE.Vector2(0, 0), new THREE.Vector2(0, 1))
   expect(radToDeg(angle)).toBeCloseTo(0, 0)
 
-  const angle2 = getAngle(new THREE.Vector2(0, 0), new THREE.Vector2(1, 2))
+  const angle2 = getAngle(new THREE.Vector2(0, 0), new THREE.Vector2(2, 1))
   expect(radToDeg(angle2)).toBeCloseTo(63, 0)
 
-  const angle3 = getAngle(new THREE.Vector2(0, 0), new THREE.Vector2(0, 1))
+  const angle3 = getAngle(new THREE.Vector2(0, 0), new THREE.Vector2(1, 0))
   expect(radToDeg(angle3)).toBeCloseTo(90, 0)
 
-  const angle4 = getAngle(new THREE.Vector2(0, 0), new THREE.Vector2(-1, 2))
+  const angle4 = getAngle(new THREE.Vector2(0, 0), new THREE.Vector2(2, -1))
   expect(radToDeg(angle4)).toBeCloseTo(180 - 63, 0)
 
-  const angle5 = getAngle(new THREE.Vector2(0, 0), new THREE.Vector2(-1, 0))
+  const angle5 = getAngle(new THREE.Vector2(0, 0), new THREE.Vector2(0, -1))
   expect(radToDeg(angle5)).toBeCloseTo(180, 0)
 
-  const angle6 = getAngle(new THREE.Vector2(0, 0), new THREE.Vector2(-1, -2))
+  const angle6 = getAngle(new THREE.Vector2(0, 0), new THREE.Vector2(-2, -1))
   expect(radToDeg(angle6)).toBeCloseTo(180 + 63, 0)
 
-  const angle7 = getAngle(new THREE.Vector2(0, 0), new THREE.Vector2(0, -5))
+  const angle7 = getAngle(new THREE.Vector2(0, 0), new THREE.Vector2(-1, 0))
   expect(radToDeg(angle7)).toBeCloseTo(270, 0)
 
-  const angle8 = getAngle(new THREE.Vector2(0, 0), new THREE.Vector2(1, -2))
+  const angle8 = getAngle(new THREE.Vector2(0, 0), new THREE.Vector2(-2, 1))
+  expect(radToDeg(angle8)).toBeCloseTo(360 - 63, 0)
+})
+
+test('getAngle() reverse', () => {
+  const angle = getAngle(new THREE.Vector2(0, 0), new THREE.Vector2(0, 1), true)
+  expect(radToDeg(angle)).toBeCloseTo(0, 0)
+
+  const angle2 = getAngle(new THREE.Vector2(0, 0), new THREE.Vector2(-2, 1), true)
+  expect(radToDeg(angle2)).toBeCloseTo(63, 0)
+
+  const angle3 = getAngle(new THREE.Vector2(0, 0), new THREE.Vector2(-1, 0), true)
+  expect(radToDeg(angle3)).toBeCloseTo(90, 0)
+
+  const angle4 = getAngle(new THREE.Vector2(0, 0), new THREE.Vector2(-2, -1), true)
+  expect(radToDeg(angle4)).toBeCloseTo(180 - 63, 0)
+
+  const angle5 = getAngle(new THREE.Vector2(0, 0), new THREE.Vector2(0, -1), true)
+  expect(radToDeg(angle5)).toBeCloseTo(180, 0)
+
+  const angle6 = getAngle(new THREE.Vector2(0, 0), new THREE.Vector2(2, -1), true)
+  expect(radToDeg(angle6)).toBeCloseTo(180 + 63, 0)
+
+  const angle7 = getAngle(new THREE.Vector2(0, 0), new THREE.Vector2(1, 0), true)
+  expect(radToDeg(angle7)).toBeCloseTo(270, 0)
+
+  const angle8 = getAngle(new THREE.Vector2(0, 0), new THREE.Vector2(2, 1), true)
   expect(radToDeg(angle8)).toBeCloseTo(360 - 63, 0)
 })

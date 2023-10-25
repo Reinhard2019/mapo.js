@@ -4,19 +4,22 @@ import { Features } from 'src/types'
 import CanvasLayer, { DrawOptions } from './CanvasLayer'
 import geoEquirectangular from 'src/utils/geoEquirectangular'
 import { features2featureArr } from 'src/utils/layers'
-import { get, isEmpty, sum } from 'lodash-es'
+import { get, inRange, isEmpty, sum } from 'lodash-es'
 import * as THREE from 'three'
-import { cleanLine, getClosestSegmentInfo, getAngle, getPointBySegmentInfo } from 'src/utils/math'
+import {
+  cleanLine,
+  getClosestSegmentInfo,
+  getAngle,
+  getPointBySegmentInfo,
+  radToDeg,
+  degToRad,
+} from 'src/utils/math'
 import { fract } from 'src/utils/number'
+import { last } from 'src/utils/array'
 
 type Source = Features<LineString | MultiLineString>
 
 interface Style {
-  /**
-   * 文字是否可以重叠
-   * 默认为 false
-   */
-  overlap?: boolean
   /**
    * 字体大小
    * 单位是 px
@@ -97,7 +100,11 @@ class TextPathLayer extends CanvasLayer<Source, Style> {
 
   draw(options: DrawOptions) {
     const { ctx, bbox, pxDeg } = options
-    const { source, style, textField } = this
+    const { source, style, textField, layerManager } = this
+
+    // 将 bearing 的区间转化 0-360
+    let bearing = layerManager.map.getBearing()
+    bearing = bearing >= 0 ? bearing : 360 + bearing
 
     const {
       wordSpacing = 0,
@@ -137,6 +144,15 @@ class TextPathLayer extends CanvasLayer<Source, Style> {
           positions.map(p => new THREE.Vector2(...p)),
           pxDeg,
         ).map(p => new THREE.Vector2(...projection(p.toArray())))
+
+        const lineDegStart = radToDeg(getAngle(line[0], last(line)))
+        const lineDegEnd = lineDegStart + 180
+        if (
+          inRange(bearing, lineDegStart, lineDegEnd) ||
+          (lineDegEnd > 360 && inRange(bearing, 0, lineDegEnd - 360))
+        ) {
+          line.reverse()
+        }
 
         const totalDistance = sum(line.map((p, i) => (i === 0 ? 0 : p.distanceTo(line[i - 1]))))
         const textWidth = ctx.measureText(text).width
@@ -245,7 +261,7 @@ class TextPathLayer extends CanvasLayer<Source, Style> {
             )
             const letterCenter = getPointBySegmentInfo(slicedLine, letterCenterInfo)
 
-            const angle = getAngle(letterStart, letterEnd)
+            const angle = getAngle(letterStart, letterEnd, true) + degToRad(90)
 
             ctx.save()
             ctx.textAlign = 'center'

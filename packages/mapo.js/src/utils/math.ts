@@ -179,33 +179,37 @@ export function getPointBySegmentInfo(
 }
 
 /**
- * 以线段起始点为原点，+x 轴为 0 度，沿逆时针方向求线段角度
+ * 以线段起始点为原点，+y 轴为 0 度，沿顺时针方向求线段角度
  * @param segmentStart
  * @param segmentEnd
+ * @param reverse 是否逆时针
  * @returns
  */
-export function getAngle(segmentStart: THREE.Vector2, segmentEnd: THREE.Vector2) {
-  const angle = Math.atan((segmentEnd.y - segmentStart.y) / (segmentEnd.x - segmentStart.x))
+export function getAngle(
+  segmentStart: THREE.Vector2,
+  segmentEnd: THREE.Vector2,
+  reverse?: boolean,
+) {
+  // 逆时针
+  if (reverse) {
+    const angle = Math.atan((segmentEnd.x - segmentStart.x) / (segmentEnd.y - segmentStart.y))
+    if (segmentEnd.y - segmentStart.y >= 0) {
+      if (segmentEnd.x - segmentStart.x <= 0) {
+        return -angle
+      } else {
+        return degToRad(360) - angle
+      }
+    } else {
+      return degToRad(180) - angle
+    }
+  }
 
   // 顺时针
-  // if (segmentEnd.x - segmentStart.x >= 0) {
-  //   return degToRad(90) - angle
-  // } else {
-  //   return degToRad(270) - angle
-  // }
-
-  if (segmentEnd.y - segmentStart.y >= 0) {
-    if (segmentEnd.x - segmentStart.x >= 0) {
-      return angle
-    } else {
-      return degToRad(180) + angle
-    }
+  const angle = Math.atan((segmentEnd.y - segmentStart.y) / (segmentEnd.x - segmentStart.x))
+  if (segmentEnd.x - segmentStart.x >= 0) {
+    return degToRad(90) - angle
   } else {
-    if (segmentEnd.x - segmentStart.x >= 0) {
-      return degToRad(360) + angle
-    } else {
-      return degToRad(180) + angle
-    }
+    return degToRad(270) - angle
   }
 }
 

@@ -13,16 +13,12 @@ abstract class CanvasLayer<Source extends Features = Features, Style extends {} 
   Source,
   Style
 > {
-  private layerManager?: CanvasLayerManager
+  layerManager: CanvasLayerManager
   canvasLayerMaterialDict: {
     [z in string]: CanvasLayerMaterial
   } = {}
 
   abstract draw(options: DrawOptions): void
-
-  setLayerManager(layerManager: CanvasLayerManager) {
-    this.layerManager = layerManager
-  }
 
   update() {
     const { canvasLayerMaterialDict } = this

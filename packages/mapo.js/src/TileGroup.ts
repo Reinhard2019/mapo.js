@@ -16,7 +16,7 @@ import CanvasLayerManager from './layers/CanvasLayerManager'
 class TileGroup extends THREE.Group {
   private readonly map: Map
   private readonly earthOrbitControls: EarthOrbitControls
-  readonly canvasLayerManager: CanvasLayerManager = new CanvasLayerManager()
+  readonly canvasLayerManager: CanvasLayerManager
   private readonly tileMeshCache = new TileCache<TileMesh>()
   private readonly tileCache = new TileCache<ImageBitmap | Promise<ImageBitmap>>()
   private readonly terrainTileWorker
@@ -32,6 +32,7 @@ class TileGroup extends THREE.Group {
 
     this.earthOrbitControls = options.earthOrbitControls
     this.map = options.map
+    this.canvasLayerManager = new CanvasLayerManager(options.map)
     this.terrain = options.terrain
     this.terrainTileWorker = new TerrainTileWorker(this.map.tileSize)
 

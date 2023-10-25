@@ -84,7 +84,7 @@ class TileMaterial extends THREE.ShaderMaterial {
           ctx.drawImage(image, ...rect)
 
           // ctx.strokeStyle = 'red'
-          // ctx.lineWidth = 10
+          // ctx.lineWidth = 1
           // ctx.strokeRect(...rect)
 
           // ctx.font = '50px sans-serif'
