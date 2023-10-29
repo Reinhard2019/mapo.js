@@ -7,13 +7,38 @@ import CanvasLayer, { DrawOptions } from './CanvasLayer'
 type Source = Features<Polygon | MultiPolygon>
 
 interface Style {
+  /**
+   * 是否填充
+   * 默认为 true
+   */
+  fill?: boolean
   fillColor?: string
+  borderColor?: string
+  borderWidth?: number
 }
 
 class PolygonLayer extends CanvasLayer<Source, Style> {
   draw(options: DrawOptions) {
     const { ctx, bbox } = options
     const { source, style } = this
+    const mergedStyle = Object.assign<Style, Style>(
+      {
+        fill: true,
+      },
+      style ?? {},
+    )
+
+    if (!mergedStyle.fill && !mergedStyle.borderWidth) return
+
+    if (mergedStyle.fillColor) {
+      ctx.fillStyle = mergedStyle.fillColor
+    }
+    if (mergedStyle.borderWidth) {
+      ctx.lineWidth = mergedStyle.borderWidth
+    }
+    if (mergedStyle.borderColor) {
+      ctx.strokeStyle = mergedStyle.borderColor
+    }
 
     const projection = geoEquirectangular({
       bbox,
@@ -21,11 +46,6 @@ class PolygonLayer extends CanvasLayer<Source, Style> {
     })
 
     ctx.beginPath()
-    if (style) {
-      if (style.fillColor) {
-        ctx.fillStyle = style.fillColor
-      }
-    }
 
     features2featureArr(source).forEach(feature => {
       let coordinates: Position[][] = []
@@ -46,7 +66,12 @@ class PolygonLayer extends CanvasLayer<Source, Style> {
       })
     })
 
-    ctx.fill()
+    if (mergedStyle.fill) {
+      ctx.fill()
+    }
+    if (mergedStyle.borderWidth) {
+      ctx.stroke()
+    }
   }
 }
 
