@@ -48,7 +48,7 @@
 import * as mapo from 'mapo.js'
 import FPSControl from '@mapo.js/fps-control'
 import * as THREE from 'three'
-import type { editor } from 'monaco-editor'
+import type { editor as mEditor } from 'monaco-editor'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useData } from 'vitepress'
 import * as naiveUi from 'naive-ui'
@@ -113,7 +113,7 @@ const { isDark } = useData()
 const expand = ref(false)
 // const codeType = ref<'javascript' | 'typescript'>('javascript')
 const theme = computed(() => isDark.value ? darkTheme : lightTheme)
-let codeEditor: editor.IStandaloneCodeEditor
+let codeEditor: mEditor.IStandaloneCodeEditor
 
 const { percentage, start, finish } = useLoadingBar()
 start()
@@ -170,7 +170,7 @@ onMounted(() => {
         value: props.code,
         language: "javascript",
         automaticLayout: true,
-      } as editor.IStandaloneEditorConstructionOptions)
+      } as mEditor.IStandaloneEditorConstructionOptions)
 
       watch(isDark, () => {
         monaco.editor.setTheme(isDark.value ? 'vs-dark' : 'vs')
