@@ -224,7 +224,7 @@ class Map extends THREE.EventDispatcher<MapEvent> {
     | Pick<EarthOrbitControlsOptions, 'zoom' | 'center' | 'bearing' | 'pitch'>
     | undefined {
     if (this.hash && location.hash.startsWith('#')) {
-      const [zoom, lng, lat, bearing, pitch] = location.hash.slice(1).split('/')
+      const [zoom, lat, lng, bearing, pitch] = location.hash.slice(1).split('/')
       return {
         zoom: parseFloat(zoom),
         center: [parseFloat(lng), parseFloat(lat)],
@@ -239,8 +239,8 @@ class Map extends THREE.EventDispatcher<MapEvent> {
       const { zoom, center, bearing, pitch } = this.earthOrbitControls
       const arr = [
         floor(zoom, 2),
-        floor(center[0], 3),
         floor(center[1], 3),
+        floor(center[0], 3),
         floor(bearing, 2),
         floor(pitch, 2),
       ]
