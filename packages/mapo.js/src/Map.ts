@@ -11,15 +11,10 @@ import {
   Terrain,
 } from './types'
 import EarthOrbitControls from './EarthOrbitControls'
-import { floor, isNil, last, pick, pickBy, remove } from 'lodash-es'
+import { floor, isNil, last, min, pick, pickBy, remove } from 'lodash-es'
 import { unwrapHTMLElement } from './utils/dom'
-import {
-  getDisplayCentralAngle,
-  getTangentFov,
-  lngLatToVector3,
-  vector3ToLngLat,
-} from './utils/map'
-import { degToRad, hypotenuse, radToDeg, rectangleIntersect } from './utils/math'
+import { lngLatToVector3, mousePosition2Raycaster, vector3ToLngLat } from './utils/map'
+import { getQuadraticEquationRes, radToDeg, rectangleIntersect } from './utils/math'
 import { bbox, lineIntersect, lineString, polygon } from '@turf/turf'
 import { inRange } from './utils/number'
 import Control from './Control'
@@ -295,50 +290,47 @@ class Map extends THREE.EventDispatcher<MapEvent> {
     return [x, y]
   }
 
+  private unprojectBoundary(point: THREE.Vector2) {
+    const raycaster = mousePosition2Raycaster(point, this.container, this.earthOrbitControls.camera)
+
+    const { earthRadius } = this
+    const { distance } = this.earthOrbitControls
+    const { position } = this.earthOrbitControls.camera
+    const { direction } = raycaster.ray
+    const origin = new THREE.Vector3(0, 0, 0)
+
+    const fov = Math.PI - direction.angleTo(position)
+    const tangentFov = Math.asin(earthRadius / distance)
+    if (fov > tangentFov) {
+      const centralAngle = Math.PI / 2 - tangentFov
+      const plane = new THREE.Plane().setFromCoplanarPoints(position, origin, direction)
+      return vector3ToLngLat(position.clone().applyAxisAngle(plane.normal, -centralAngle))
+    }
+
+    const a = 1
+    const b = -2 * Math.cos(fov) * distance
+    const c = Math.pow(distance, 2) - Math.pow(earthRadius, 2)
+    const rayDistance = min(getQuadraticEquationRes(a, b, c))!
+
+    const target = new THREE.Vector3()
+    raycaster.ray.at(rayDistance, target)
+    return vector3ToLngLat(target)
+  }
+
   /**
    * 将像素位置转化为 LngLat
    *
    * 为什么不使用 THREE.Raycaster: https://github.com/mrdoob/three.js/issues/11449
    * @param point
-   * @param options.allowFovLimitExceeded 是否允许该点对应的视角超出球体相切角度，如果为 true，即便超出相切角度，也会将其转化为相切角度然后返回经纬度
    * @returns
    */
-  unproject(point: Point2, options?: { allowFovLimitExceeded?: boolean }): LngLat | null {
-    if (!this.inContainerRange(point)) {
-      return null
-    }
+  unproject(point: THREE.Vector2): LngLat | null {
+    const raycaster = mousePosition2Raycaster(point, this.container, this.earthOrbitControls.camera)
 
-    const { distance, center, bearing } = this.earthOrbitControls
+    // 计算物体和射线的焦点
+    const intersects = raycaster.intersectObjects(this.tileGroup.children)
+    const vector3 = intersects[0].point
 
-    // 将像素位置转化为以 container 中心点为原点的 xy 轴坐标
-    const x = point[0] - this.container.clientWidth / 2
-    const y = -(point[1] - this.container.clientHeight / 2)
-
-    const diagonal = hypotenuse(x, y) * 2
-    const fov = this.earthOrbitControls.getFov(diagonal)
-    const tangentFov = getTangentFov(distance, this.earthRadius)
-    if (!options?.allowFovLimitExceeded && fov > tangentFov) {
-      return null
-    }
-    const centralAngle = getDisplayCentralAngle(distance, this.earthRadius, fov)
-
-    const aspect = x / y
-    let deg = Number.isNaN(aspect) ? 0 : radToDeg(Math.atan(Math.abs(x / y)))
-    if (x <= 0 && y < 0) {
-      deg = 180 - deg
-    } else if (x > 0 && y <= 0) {
-      deg = 180 + deg
-    } else if (x > 0 && y > 0) {
-      deg = 360 - deg
-    }
-
-    const xAxis = new THREE.Vector3(-1, 0, 0)
-      .applyAxisAngle(new THREE.Vector3(0, 1, 0), degToRad(center[0]))
-      .applyAxisAngle(lngLatToVector3(center, 1), degToRad(deg - bearing))
-    const vector3 = lngLatToVector3(center, this.earthRadius).applyAxisAngle(
-      xAxis,
-      degToRad(centralAngle / 2),
-    )
     return vector3ToLngLat(vector3)
   }
 
@@ -378,7 +370,7 @@ class Map extends THREE.EventDispatcher<MapEvent> {
       .map(v =>
         rectangleIntersect(this.container.clientWidth, this.container.clientHeight, 360 - v),
       )
-      .map((point: Point2) => this.unproject(point, { allowFovLimitExceeded: true })!)
+      .map((point: Point2) => this.unprojectBoundary(new THREE.Vector2(...point)))
 
     const sortLngLatArr = () => {
       const spliceIndex = lngLatArr
@@ -577,7 +569,7 @@ class Map extends THREE.EventDispatcher<MapEvent> {
   private onClick(e) {
     this.dispatchEvent({
       type: 'click',
-      lngLat: this.unproject([e.offsetX, e.offsetY]),
+      lngLat: this.unproject(new THREE.Vector2(e.offsetX, e.offsetY)),
     })
   }
 
