@@ -416,16 +416,11 @@ class Map extends THREE.EventDispatcher<MapEvent> {
       return polygon([[...lngLatArr, lngLatArr[0]]]).geometry
     }
 
-    const halfLength = lngLatArr.length / 2
-    lngLatArr[0][0] = lngLatArr[halfLength][0] = this.earthOrbitControls.center[0]
-    lngLatArr.slice(1, halfLength).forEach(v => {
-      if (v[0] > this.earthOrbitControls.center[0]) {
-        v[0] -= 360
-      }
-    })
-    lngLatArr.slice(halfLength + 1).forEach(v => {
-      if (v[0] < this.earthOrbitControls.center[0]) {
-        v[0] += 360
+    const centerLng = this.earthOrbitControls.center[0]
+    // 处理可视区域经度横跨180°的情况
+    lngLatArr.forEach(lngLat => {
+      if (!inRange(lngLat[0] - centerLng, -180, 180, '[]')) {
+        lngLat[0] = centerLng > lngLat[0] ? lngLat[0] + 360 : lngLat[0] - 360
       }
     })
 
