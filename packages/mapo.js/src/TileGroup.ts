@@ -178,7 +178,7 @@ class TileGroup extends THREE.Group {
         lngLatToVector3(lngLat, earthRadius),
       )
       const _zoom = this.earthOrbitControls.distanceToZoom(distance + earthRadius)
-      if (z - _zoom < 3 || z === 0) {
+      if (z - _zoom < 2 || z === 0) {
         addLoopAroundTiles(
           {
             left: around.left - 1,
