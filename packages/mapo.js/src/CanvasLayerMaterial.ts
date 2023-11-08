@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 import { BBox } from './types'
+import { fullBBox } from './utils/bbox'
 
 interface CanvasOption {
   bbox: BBox
@@ -59,7 +60,13 @@ class CanvasLayerMaterial extends THREE.ShaderMaterial {
   readonly ctx: OffscreenCanvasRenderingContext2D
   bbox: BBox
 
-  constructor(options: CanvasOption) {
+  constructor(
+    options: CanvasOption = {
+      width: 1,
+      height: 1,
+      bbox: fullBBox,
+    },
+  ) {
     const canvas = new OffscreenCanvas(options.width, options.height)
     const uniforms = {
       canvasTexture: { value: new THREE.CanvasTexture(canvas) },

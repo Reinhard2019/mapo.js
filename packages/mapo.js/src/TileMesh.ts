@@ -30,7 +30,7 @@ class TileMesh extends THREE.Mesh {
     const [, , z] = this.geometry.xyz
     this.material = [
       this.tileMaterial,
-      ...this.canvasLayerManager.sortedLayers.map(layer => layer.canvasLayerMaterialDict[z]),
+      ...this.canvasLayerManager.sortedLayers.map(layer => layer.getCanvasLayerMaterial(z)),
     ]
     this.resetGroups()
   }

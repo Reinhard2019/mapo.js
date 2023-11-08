@@ -14,22 +14,25 @@ abstract class CanvasLayer<Source extends Features = Features, Style extends {} 
   Style
 > {
   layerManager: CanvasLayerManager
-  canvasLayerMaterialDict: {
+  private canvasLayerMaterialDict: {
     [z in string]: CanvasLayerMaterial
   } = {}
 
   abstract draw(options: DrawOptions): void
 
+  getCanvasLayerMaterial(z: number | string) {
+    return (
+      this.canvasLayerMaterialDict[z] ??
+      (this.canvasLayerMaterialDict[z] = new CanvasLayerMaterial())
+    )
+  }
+
   update() {
-    const { canvasLayerMaterialDict } = this
     const canvasOptionDict = this.layerManager?.canvasOptionDict ?? {}
 
     Object.entries(canvasOptionDict).forEach(([z, canvasOption]) => {
-      if (!canvasLayerMaterialDict[z]) {
-        canvasLayerMaterialDict[z] = new CanvasLayerMaterial(canvasOption)
-      }
       window.requestIdleCallback(() => {
-        const canvasLayerMaterial = canvasLayerMaterialDict[z]
+        const canvasLayerMaterial = this.getCanvasLayerMaterial(z)
         canvasLayerMaterial.updateCanvasOption(canvasOption)
         const { canvas, ctx } = canvasLayerMaterial
         ctx.clearRect(0, 0, canvas.width, canvas.height)
