@@ -46,7 +46,8 @@ class Map extends THREE.EventDispatcher<MapEvent> {
   private readonly controlArr: Control[] = []
   private readonly layers: Layer[] = []
 
-  private _displayPolygon: Polygon
+  private displayPolygonUpdate = true
+  private displayPolygon: Polygon
   displayBBox: BBox
 
   constructor(options: MapOptions) {
@@ -97,30 +98,30 @@ class Map extends THREE.EventDispatcher<MapEvent> {
 
     this.updateHash()
 
+    this.tileGroup = new TileGroup({
+      map: this,
+      earthOrbitControls: this.earthOrbitControls,
+      terrain: options.terrain,
+    })
+    this.scene.add(this.tileGroup)
+    this.disposeFuncList.push(() => this.tileGroup.dispose())
+
     // 页面重绘动画
     const tick = () => {
       // 更新渲染器
       this.renderer.render(this.scene, this.earthOrbitControls.camera)
+
+      this.computeDisplayPolygon()
+      this.tileGroup.render()
+
       // 页面重绘时调用自身
-      const id = window.requestAnimationFrame(tick)
-      this.disposeFuncList.push(() => window.cancelAnimationFrame(id))
+      window.requestAnimationFrame(tick)
 
       this.dispatchEvent({ type: 'render' })
     }
     tick()
 
     if (!options.ssr) {
-      // getDisplayPolygon 中有调用 project，project 方法必须在 render 后面
-      this.displayPolygon = this.getDisplayPolygon()
-
-      this.tileGroup = new TileGroup({
-        map: this,
-        earthOrbitControls: this.earthOrbitControls,
-        terrain: options.terrain,
-      })
-      this.scene.add(this.tileGroup)
-      this.disposeFuncList.push(() => this.tileGroup.dispose())
-
       this.scene.add(this.pointLayerManager)
 
       const ro = new ResizeObserver(() => {
@@ -180,15 +181,6 @@ class Map extends THREE.EventDispatcher<MapEvent> {
     this.scene.add(background)
   }
 
-  get displayPolygon() {
-    return this._displayPolygon
-  }
-
-  set displayPolygon(value: Polygon) {
-    this._displayPolygon = value
-    this.displayBBox = bbox(value) as BBox
-  }
-
   private initEarthOrbitControls() {
     const onMove = () => {
       // camera move、rotate、zoom、pitch 时，需要立刻调用 render，以避免 new THREE.Vector3.project(camera) 方法返回错误的结果
@@ -196,9 +188,9 @@ class Map extends THREE.EventDispatcher<MapEvent> {
 
       this.updateHash()
 
-      this.displayPolygon = this.getDisplayPolygon()
+      this.displayPolygonUpdate = true
 
-      this.tileGroup.update()
+      this.tileGroup.needsUpdate = true
 
       this.pointLayerManager.update()
     }
@@ -332,6 +324,14 @@ class Map extends THREE.EventDispatcher<MapEvent> {
     const vector3 = intersects[0].point
 
     return vector3ToLngLat(vector3)
+  }
+
+  private computeDisplayPolygon() {
+    if (!this.displayPolygonUpdate) return
+    this.displayPolygonUpdate = false
+
+    this.displayPolygon = this.getDisplayPolygon()
+    this.displayBBox = bbox(this.displayPolygon) as BBox
   }
 
   private getDisplayPolygon() {

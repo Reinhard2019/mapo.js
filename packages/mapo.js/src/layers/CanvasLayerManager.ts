@@ -1,4 +1,3 @@
-import { isEmpty } from 'lodash-es'
 import { BBox } from '../types'
 import CanvasLayer from './CanvasLayer'
 import * as THREE from 'three'
@@ -48,26 +47,21 @@ class CanvasLayerManager extends THREE.EventDispatcher<CanvasLayerManagerEvent> 
   }
 
   update() {
-    this.updateLayers()
+    this.layers.forEach(layer => {
+      layer.update()
+    })
+  }
+
+  updateCanvasLayerMaterial() {
+    this.layers.forEach(layer => {
+      layer.updateCanvasLayerMaterial()
+    })
   }
 
   sortLayers() {
     this.sortedLayers = this.layers.sort((v1, v2) => v1.zIndex - v2.zIndex)
     this.dispatchEvent({
       type: 'layersChange',
-    })
-  }
-
-  /**
-   * 触发所有子 layer 的重渲染
-   */
-  updateLayers() {
-    if (isEmpty(this.layers)) {
-      return
-    }
-
-    this.layers.forEach(layer => {
-      layer.update()
     })
   }
 

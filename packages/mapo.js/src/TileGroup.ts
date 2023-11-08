@@ -23,6 +23,8 @@ class TileGroup extends THREE.Group {
   private terrain: Terrain | undefined
   declare children: TileMesh[]
 
+  needsUpdate = true
+
   constructor(options: {
     map: Map
     earthOrbitControls: EarthOrbitControls
@@ -35,16 +37,18 @@ class TileGroup extends THREE.Group {
     this.canvasLayerManager = new CanvasLayerManager(options.map)
     this.terrain = options.terrain
     this.terrainTileWorker = new TerrainTileWorker(this.map.tileSize)
-
-    this.update()
   }
 
   setTerrain(terrain: Terrain) {
     this.terrain = terrain
-    this.update()
+
+    this.needsUpdate = true
   }
 
-  update() {
+  render() {
+    if (!this.needsUpdate) return
+    this.needsUpdate = false
+
     const { tileCache } = this
     const { earthRadius, tileSize, displayBBox } = this.map
     const { center } = this.earthOrbitControls
@@ -59,27 +63,25 @@ class TileGroup extends THREE.Group {
       const y = formatTileIndex(_y, z)
       const xyz: XYZ = [x, y, z]
 
-      window.requestIdleCallback(() => {
-        let mesh = this.tileMeshCache.get(xyz)
-        if (!mesh) {
-          const tileGeometry = new TileGeometry({
-            tileGroup: this,
-            xyz,
-            terrainTileWorker: this.terrainTileWorker,
-            earthRadius,
-            tileSize,
-          })
-          mesh = new TileMesh(
-            tileGeometry,
-            new TileMaterial({ xyz, tileCache, tileSize }),
-            this.canvasLayerManager,
-          )
-          this.tileMeshCache.set(xyz, mesh)
-        }
-        mesh.geometry.setTerrain(this.terrain)
+      let mesh = this.tileMeshCache.get(xyz)
+      if (!mesh) {
+        const tileGeometry = new TileGeometry({
+          tileGroup: this,
+          xyz,
+          terrainTileWorker: this.terrainTileWorker,
+          earthRadius,
+          tileSize,
+        })
+        mesh = new TileMesh(
+          tileGeometry,
+          new TileMaterial({ xyz, tileCache, tileSize }),
+          this.canvasLayerManager,
+        )
+        this.tileMeshCache.set(xyz, mesh)
+      }
+      mesh.geometry.setTerrain(this.terrain)
 
-        children.push(mesh)
-      })
+      children.push(mesh)
     }
 
     const tile = MercatorTile.pointToTile(
@@ -178,7 +180,7 @@ class TileGroup extends THREE.Group {
         lngLatToVector3(lngLat, earthRadius),
       )
       const _zoom = this.earthOrbitControls.distanceToZoom(distance + earthRadius)
-      if (z - _zoom < 2 || z === 0) {
+      if (zoom - _zoom < 2) {
         addLoopAroundTiles(
           {
             left: around.left - 1,
@@ -233,23 +235,22 @@ class TileGroup extends THREE.Group {
         zoom - 1,
       )
     }
-    if (this.earthOrbitControls.zoom > 0) {
-      addLoopAroundTiles(
-        {
-          left: tileX - 1,
-          top: tileY - 1,
-          right: tileX + 1,
-          bottom: tileY + 1,
-        },
-        this.earthOrbitControls.zoom,
-      )
-    }
-
-    window.requestIdleCallback(() => {
-      this.children = children
-    })
+    addLoopAroundTiles(
+      {
+        left: tileX - 1,
+        top: tileY - 1,
+        right: tileX + 1,
+        bottom: tileY + 1,
+      },
+      this.earthOrbitControls.zoom,
+    )
 
     this.canvasLayerManager.update()
+
+    window.requestIdleCallback(() => {
+      this.canvasLayerManager.updateCanvasLayerMaterial()
+      this.children = children
+    })
   }
 
   getTileMesh(xyz: XYZ | undefined) {

@@ -21,6 +21,9 @@ class TileGeometry extends THREE.BufferGeometry {
   private readonly tileGroup: TileGroup
   private updateTerrainPromise: Promise<THREE.Float32BufferAttribute> | undefined
 
+  // 0 代表关闭 Terrain
+  private exaggeration = 0
+
   private widthPositionCount = 0
 
   constructor(options: {
@@ -37,15 +40,24 @@ class TileGeometry extends THREE.BufferGeometry {
     this.update()
   }
 
-  // TODO 处理 terrain 中途修改
   setTerrain(terrain: Terrain | undefined) {
-    // TODO 处理关闭
-    if (terrain) {
+    let exaggeration = 0
+    if (typeof terrain === 'object') {
+      exaggeration = terrain.exaggeration ?? 0
+    } else {
+      exaggeration = terrain ? 1 : 0
+    }
+
+    if (exaggeration === this.exaggeration) return
+    this.exaggeration = exaggeration
+
+    if (exaggeration) {
       const terrainXYZ = this.getTerrainXYZ()
-      // TODO 处理重复的情况
       void this.terrainTileWorker.loadTile(terrainXYZ).then(imageData => {
-        this.updateTerrain(imageData, typeof terrain === 'object' ? terrain.exaggeration : 1)
+        this.updateTerrain(imageData, exaggeration)
       })
+    } else {
+      this.update()
     }
   }
 
@@ -111,6 +123,7 @@ class TileGeometry extends THREE.BufferGeometry {
     this.setIndex(new THREE.Uint32BufferAttribute(new Uint32Array(indexes), 1))
 
     this.widthPositionCount = widthPositionCount
+    this.exaggeration = 0
   }
 
   updateTerrain(terrainImageData: ImageData, exaggeration: number) {

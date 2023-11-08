@@ -38,8 +38,13 @@ abstract class CanvasLayer<Source extends Features = Features, Style extends {} 
           ...canvasOption,
           ctx,
         })
-        canvasLayerMaterial.update()
       })
+    })
+  }
+
+  updateCanvasLayerMaterial() {
+    Object.keys(this.layerManager?.canvasOptionDict).forEach(z => {
+      this.canvasLayerMaterialDict[z]?.update()
     })
   }
 }

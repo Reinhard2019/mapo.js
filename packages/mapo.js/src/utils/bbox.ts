@@ -41,6 +41,10 @@ export function bboxOverlap(a: BBox, b: BBox) {
   return lineOverlap([a[0], a[2]], [b[0], b[2]]) && lineOverlap([a[1], a[3]], [b[1], b[3]])
 }
 
+export function pointInBBox(point: [number, number], bbox: BBox) {
+  return inRange(point[0], bbox[0], bbox[2], '[]') && inRange(point[1], bbox[1], bbox[3], '[]')
+}
+
 export function scale(bbox: BBox, scaleValue: number): BBox {
   const [w, s, e, n] = bbox
   const lngGap = e - w
