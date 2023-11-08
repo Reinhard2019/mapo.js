@@ -1,5 +1,6 @@
 /**
  * https://github.com/mapbox/martini
+ * https://stackblitz.com/edit/typescript-cceefj?file=index.ts
  */
 
 export class Tile {
