@@ -22,7 +22,7 @@ class TileGroup extends THREE.Group {
   private readonly terrainTileWorker
   private terrain: Terrain | undefined
   declare children: TileMesh[]
-
+  private renderTime: number
   needsUpdate = true
 
   constructor(options: {
@@ -48,6 +48,8 @@ class TileGroup extends THREE.Group {
   render() {
     if (!this.needsUpdate) return
     this.needsUpdate = false
+    const renderTime = new Date().valueOf()
+    this.renderTime = renderTime
 
     const { tileCache } = this
     const { earthRadius, tileSize, displayBBox } = this.map
@@ -250,6 +252,15 @@ class TileGroup extends THREE.Group {
     window.requestIdleCallback(() => {
       this.canvasLayerManager.updateCanvasLayerMaterial()
       this.children = children
+
+      // 延迟加载 tile，避免可视区域快速变化时加载过多的 tile
+      setTimeout(() => {
+        if (renderTime === this.renderTime) {
+          children.forEach(child => {
+            child.tileMaterial.load()
+          })
+        }
+      }, 100)
     })
   }
 

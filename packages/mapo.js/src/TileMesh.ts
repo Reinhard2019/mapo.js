@@ -6,7 +6,7 @@ import CanvasLayerManager from './layers/CanvasLayerManager'
 
 class TileMesh extends THREE.Mesh {
   declare geometry: TileGeometry
-  private readonly tileMaterial
+  readonly tileMaterial
   private readonly canvasLayerManager: CanvasLayerManager
 
   constructor(

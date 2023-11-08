@@ -51,6 +51,9 @@ void main() {
 `
 
 class TileMaterial extends THREE.ShaderMaterial {
+  // 用于延迟加载
+  load: () => void
+
   constructor(options: {
     xyz: XYZ
     tileSize: number
@@ -73,37 +76,6 @@ class TileMaterial extends THREE.ShaderMaterial {
 
     const texture = new THREE.CanvasTexture(canvas)
 
-    const promise = new Promise<ImageBitmap>(resolve => {
-      new THREE.ImageBitmapLoader().load(
-        getSatelliteUrl(...xyz),
-        image => {
-          tileCache.set(xyz, image)
-
-          const rect = [0, 0, tileSize, tileSize] as const
-          ctx.clearRect(...rect)
-          ctx.drawImage(image, ...rect)
-
-          // ctx.strokeStyle = 'red'
-          // ctx.lineWidth = 1
-          // ctx.strokeRect(...rect)
-
-          // ctx.font = '50px sans-serif'
-          // ctx.textAlign = 'center'
-          // ctx.textBaseline = 'middle'
-          // ctx.fillStyle = 'red'
-          // ctx.fillText(xyz.toString(), tileSize / 2, tileSize / 2)
-
-          texture.needsUpdate = true
-          resolve(image)
-        },
-        undefined,
-        () => {
-          tileCache.delete(xyz)
-        },
-      )
-    })
-    tileCache.set(xyz, promise)
-
     super({
       uniforms: {
         xyz: {
@@ -116,6 +88,39 @@ class TileMaterial extends THREE.ShaderMaterial {
       vertexShader,
       fragmentShader,
     })
+
+    this.load = () => {
+      const promise = new Promise<ImageBitmap>(resolve => {
+        new THREE.ImageBitmapLoader().load(
+          getSatelliteUrl(...xyz),
+          image => {
+            tileCache.set(xyz, image)
+
+            const rect = [0, 0, tileSize, tileSize] as const
+            ctx.clearRect(...rect)
+            ctx.drawImage(image, ...rect)
+
+            // ctx.strokeStyle = 'red'
+            // ctx.lineWidth = 1
+            // ctx.strokeRect(...rect)
+
+            // ctx.font = '50px sans-serif'
+            // ctx.textAlign = 'center'
+            // ctx.textBaseline = 'middle'
+            // ctx.fillStyle = 'red'
+            // ctx.fillText(xyz.toString(), tileSize / 2, tileSize / 2)
+
+            texture.needsUpdate = true
+            resolve(image)
+          },
+          undefined,
+          () => {
+            tileCache.delete(xyz)
+          },
+        )
+      })
+      tileCache.set(xyz, promise)
+    }
   }
 }
 
