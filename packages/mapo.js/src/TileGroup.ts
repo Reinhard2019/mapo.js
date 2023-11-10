@@ -4,7 +4,7 @@ import TileCache from './utils/TileCache'
 import TileGeometry from './TileGeometry'
 import EarthOrbitControls from './EarthOrbitControls'
 import Map from './Map'
-import { formatTileIndex, lngLatToVector3 } from './utils/map'
+import { formatTileIndex, getSatelliteUrl, lngLatToVector3 } from './utils/map'
 import TerrainTileWorker from './TerrainTileWorker'
 import MercatorTile from './utils/MercatorTile'
 import { isEmpty } from 'lodash-es'
@@ -37,6 +37,18 @@ class TileGroup extends THREE.Group {
     this.canvasLayerManager = new CanvasLayerManager(options.map)
     this.terrain = options.terrain
     this.terrainTileWorker = new TerrainTileWorker(this.map.tileSize)
+
+    const xyz: XYZ = [0, 0, 0]
+    new THREE.ImageBitmapLoader().load(
+      getSatelliteUrl(...xyz),
+      image => {
+        this.tileCache.set(xyz, image)
+      },
+      undefined,
+      () => {
+        this.tileCache.delete(xyz)
+      },
+    )
   }
 
   setTerrain(terrain: Terrain) {
