@@ -52,12 +52,6 @@ class CanvasLayerManager extends THREE.EventDispatcher<CanvasLayerManagerEvent> 
     })
   }
 
-  updateCanvasLayerMaterial() {
-    this.layers.forEach(layer => {
-      layer.updateCanvasLayerMaterial()
-    })
-  }
-
   sortLayers() {
     this.sortedLayers = this.layers.sort((v1, v2) => v1.zIndex - v2.zIndex)
     this.dispatchEvent({

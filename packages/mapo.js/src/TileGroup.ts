@@ -262,7 +262,6 @@ class TileGroup extends THREE.Group {
     this.canvasLayerManager.update()
 
     window.requestIdleCallback(() => {
-      this.canvasLayerManager.updateCanvasLayerMaterial()
       this.children = children
 
       // 延迟加载 tile，避免可视区域快速变化时加载过多的 tile

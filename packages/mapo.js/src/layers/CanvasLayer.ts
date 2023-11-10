@@ -41,13 +41,9 @@ abstract class CanvasLayer<Source extends Features = Features, Style extends {} 
           ...canvasOption,
           ctx,
         })
-      })
-    })
-  }
 
-  updateCanvasLayerMaterial() {
-    Object.keys(this.layerManager?.canvasOptionDict).forEach(z => {
-      this.canvasLayerMaterialDict[z]?.update()
+        this.canvasLayerMaterialDict[z]?.update()
+      })
     })
   }
 }
