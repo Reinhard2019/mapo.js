@@ -39,17 +39,41 @@ const fragmentShader = `
 varying vec2 vUv;
 uniform sampler2D canvasTexture;
 uniform vec3 xyz;
+uniform float gap;
+uniform float startY;
 
 ${lngToX}
 
 ${latToY}
 
 void main() {
-  vec2 uv = vec2(lngToX(vUv.x, xyz.z) - xyz.x, 1.0 - (latToY(vUv.y, xyz.z) - xyz.y));
+  // vec2 uv = vec2(lngToX(vUv.x, xyz.z) - xyz.x, 1.0 - (latToY(vUv.y, xyz.z) - xyz.y));
+  float lat = startY + (vUv.y * gap);
+  vec2 uv = vec2(vUv.x, 1.0 - (latToY(lat, xyz.z) - xyz.y));
+  // vec2 uv = vec2(lngToX(vUv.x, xyz.z) - xyz.x, 1.0 - (latToY(lat, xyz.z) - xyz.y));
+  // vec2 uv = vec2(vUv.x, 1.0 - vUv.y);
   gl_FragColor = texture2D(canvasTexture, uv);
 }
 `
 
+const openDebugUI = false
+function addDebugUI(ctx: OffscreenCanvasRenderingContext2D, xyz: XYZ, tileSize: number) {
+  if (!openDebugUI) return
+
+  const rect = [0, 0, tileSize, tileSize] as const
+
+  ctx.strokeStyle = 'red'
+  ctx.lineWidth = 1
+  ctx.strokeRect(...rect)
+
+  ctx.font = '50px sans-serif'
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.fillStyle = 'red'
+  ctx.fillText(xyz.toString(), tileSize / 2, tileSize / 2)
+}
+
+// class TileMaterial extends THREE.MeshBasicMaterial {
 class TileMaterial extends THREE.ShaderMaterial {
   // 用于延迟加载
   load: () => void
@@ -74,7 +98,12 @@ class TileMaterial extends THREE.ShaderMaterial {
       tileCache,
     })
 
+    addDebugUI(ctx, xyz, tileSize)
+
     const texture = new THREE.CanvasTexture(canvas)
+
+    const startY = MercatorTile.yToLat(xyz[1], xyz[2])
+    const endY = MercatorTile.yToLat(xyz[1] + 1, xyz[2])
 
     super({
       uniforms: {
@@ -83,6 +112,12 @@ class TileMaterial extends THREE.ShaderMaterial {
         },
         canvasTexture: {
           value: texture,
+        },
+        gap: {
+          value: endY - startY,
+        },
+        startY: {
+          value: startY,
         },
       },
       vertexShader,
@@ -100,15 +135,7 @@ class TileMaterial extends THREE.ShaderMaterial {
             ctx.clearRect(...rect)
             ctx.drawImage(image, ...rect)
 
-            // ctx.strokeStyle = 'red'
-            // ctx.lineWidth = 1
-            // ctx.strokeRect(...rect)
-
-            // ctx.font = '50px sans-serif'
-            // ctx.textAlign = 'center'
-            // ctx.textBaseline = 'middle'
-            // ctx.fillStyle = 'red'
-            // ctx.fillText(xyz.toString(), tileSize / 2, tileSize / 2)
+            addDebugUI(ctx, xyz, tileSize)
 
             texture.needsUpdate = true
             resolve(image)

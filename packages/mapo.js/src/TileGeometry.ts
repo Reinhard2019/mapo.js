@@ -83,30 +83,34 @@ class TileGeometry extends THREE.BufferGeometry {
 
     const positions: number[] = []
     const uvs: number[] = []
-    const addLine = (lat: number) => {
+    const lngLats: number[] = []
+    const addLine = (lat: number, yi: number) => {
+      const uvY = yi / heightSegments
       for (let xi = 0; xi < widthPositionCount; xi++) {
         const lng = MercatorTile.xToLng(x + xi / widthSegments, z)
         const position = lngLatToVector3([lng, lat], earthRadius)
         positions.push(...position.toArray())
-        uvs.push(lng, lat)
+        uvs.push(xi / widthSegments, uvY)
+        lngLats.push(lng, lat)
       }
     }
 
     let extraHeightSegments = 0
     if (y === 0) {
-      addLine(90)
+      addLine(90, 0)
       extraHeightSegments++
     }
     for (let yi = 0; yi < heightPositionCount; yi++) {
       const lat = MercatorTile.yToLat(y + yi / heightSegments, z)
-      addLine(lat)
+      addLine(lat, yi)
     }
     if (y === Math.pow(2, z) - 1) {
-      addLine(-90)
+      addLine(-90, heightPositionCount)
       extraHeightSegments++
     }
     this.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(positions), 3))
     this.setAttribute('uv', new THREE.Float32BufferAttribute(new Float32Array(uvs), 2))
+    this.setAttribute('lngLat', new THREE.Float32BufferAttribute(new Float32Array(lngLats), 2))
 
     const indexes: number[] = []
     for (let yi = 0; yi < heightSegments + extraHeightSegments; yi++) {
@@ -140,6 +144,10 @@ class TileGeometry extends THREE.BufferGeometry {
         const positions = new THREE.Float32BufferAttribute(new Float32Array(e.data.positions), 3)
         this.setAttribute('position', positions)
         this.setAttribute('uv', new THREE.Float32BufferAttribute(new Float32Array(e.data.uvs), 2))
+        this.setAttribute(
+          'lngLat',
+          new THREE.Float32BufferAttribute(new Float32Array(e.data.lngLats), 2),
+        )
         this.setIndex(new THREE.Uint32BufferAttribute(new Uint32Array(e.data.indexes), 1))
         this.widthPositionCount = e.data.widthPositionCount
 

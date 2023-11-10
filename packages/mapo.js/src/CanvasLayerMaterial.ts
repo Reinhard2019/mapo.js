@@ -11,6 +11,7 @@ interface CanvasOption {
 const vertexShader = `
   varying vec2 vUv;
   uniform vec4 bbox;
+  attribute vec2 lngLat;
 
   vec2 lngLat2uv(vec2 lngLat) {
     float gW = bbox[0];
@@ -43,7 +44,7 @@ const vertexShader = `
   }
 
   void main() {
-    vUv = lngLat2uv(uv);
+    vUv = lngLat2uv(lngLat);
     gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
   }
 `

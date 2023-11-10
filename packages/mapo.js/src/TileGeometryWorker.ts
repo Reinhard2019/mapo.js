@@ -16,6 +16,7 @@ interface MessageEventData {
 export interface OnMessageEventData {
   positions: number[]
   uvs: number[]
+  lngLats: number[]
   indexes: number[]
   widthPositionCount: number
 }
@@ -48,7 +49,9 @@ function onmessage(event: MessageEvent<MessageEventData>) {
 
   const positions: number[] = []
   const uvs: number[] = []
-  const addLine = (lat: number, yi?: number) => {
+  const lngLats: number[] = []
+  const addLine = (lat: number, yi: number) => {
+    const uvY = (yi - startY) / segments
     for (let xi = startX; xi < startX + positionCount; xi++) {
       let elevation = 0
       if (typeof yi === 'number') {
@@ -62,13 +65,14 @@ function onmessage(event: MessageEvent<MessageEventData>) {
       const lng = MercatorTile.xToLng(terrainX + xi / tileSize, terrainZ)
       const position = lngLatToVector3([lng, lat], earthRadius + elevation)
       positions.push(...position)
-      uvs.push(lng, lat)
+      uvs.push((xi - startX) / segments, uvY)
+      lngLats.push(lng, lat)
     }
   }
 
   let extraHeightSegments = 0
   if (y === 0) {
-    addLine(90)
+    addLine(90, startY)
     extraHeightSegments++
   }
   for (let yi = startY; yi < startY + positionCount; yi++) {
@@ -76,7 +80,7 @@ function onmessage(event: MessageEvent<MessageEventData>) {
     addLine(lat, yi)
   }
   if (y === Math.pow(2, z) - 1) {
-    addLine(-90)
+    addLine(-90, startY + positionCount)
     extraHeightSegments++
   }
 
@@ -96,6 +100,7 @@ function onmessage(event: MessageEvent<MessageEventData>) {
   postMessage({
     positions,
     uvs,
+    lngLats,
     indexes,
     widthPositionCount: positionCount,
   } as OnMessageEventData)
