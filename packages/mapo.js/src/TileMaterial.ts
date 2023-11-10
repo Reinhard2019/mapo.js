@@ -1,5 +1,4 @@
 import * as THREE from 'three'
-import MercatorTile from './utils/MercatorTile'
 import { XYZ } from './types'
 import { drawPreviewImage } from './utils/canvas'
 import { getSatelliteUrl } from './utils/map'
@@ -13,46 +12,11 @@ void main() {
   gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
 }
 `
-const lngToX = `
-float lngToX(float lng, float z) {
-  return ((lng + 180.0) / 360.0) * pow(2.0, z);
-}
-`
-// 将 lat(纬度) 转化为墨卡托投影中的 y
-const latToY = `
-float latToY(float lat, float z) {
-  float z2 = pow(2.0, z);
-
-  if (lat >= ${MercatorTile.maxLat}) {
-    return 0.0;
-  }
-  if (lat <= ${-MercatorTile.maxLat}) {
-    return z2;
-  }
-
-  float sinValue = sin(radians(lat));
-  float y = z2 * (0.5 - (0.25 * log((1.0 + sinValue) / (1.0 - sinValue))) / ${Math.PI});
-  return y;
-}
-`
 const fragmentShader = `
 varying vec2 vUv;
 uniform sampler2D canvasTexture;
-uniform vec3 xyz;
-uniform float gap;
-uniform float startY;
-
-${lngToX}
-
-${latToY}
-
 void main() {
-  // vec2 uv = vec2(lngToX(vUv.x, xyz.z) - xyz.x, 1.0 - (latToY(vUv.y, xyz.z) - xyz.y));
-  float lat = startY + (vUv.y * gap);
-  vec2 uv = vec2(vUv.x, 1.0 - (latToY(lat, xyz.z) - xyz.y));
-  // vec2 uv = vec2(lngToX(vUv.x, xyz.z) - xyz.x, 1.0 - (latToY(lat, xyz.z) - xyz.y));
-  // vec2 uv = vec2(vUv.x, 1.0 - vUv.y);
-  gl_FragColor = texture2D(canvasTexture, uv);
+  gl_FragColor = texture2D(canvasTexture, vUv);
 }
 `
 
@@ -73,7 +37,6 @@ function addDebugUI(ctx: OffscreenCanvasRenderingContext2D, xyz: XYZ, tileSize: 
   ctx.fillText(xyz.toString(), tileSize / 2, tileSize / 2)
 }
 
-// class TileMaterial extends THREE.MeshBasicMaterial {
 class TileMaterial extends THREE.ShaderMaterial {
   // 用于延迟加载
   load: () => void
@@ -102,9 +65,6 @@ class TileMaterial extends THREE.ShaderMaterial {
 
     const texture = new THREE.CanvasTexture(canvas)
 
-    const startY = MercatorTile.yToLat(xyz[1], xyz[2])
-    const endY = MercatorTile.yToLat(xyz[1] + 1, xyz[2])
-
     super({
       uniforms: {
         xyz: {
@@ -112,12 +72,6 @@ class TileMaterial extends THREE.ShaderMaterial {
         },
         canvasTexture: {
           value: texture,
-        },
-        gap: {
-          value: endY - startY,
-        },
-        startY: {
-          value: startY,
         },
       },
       vertexShader,

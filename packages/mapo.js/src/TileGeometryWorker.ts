@@ -51,7 +51,7 @@ function onmessage(event: MessageEvent<MessageEventData>) {
   const uvs: number[] = []
   const lngLats: number[] = []
   const addLine = (lat: number, yi: number) => {
-    const uvY = (yi - startY) / segments
+    const uvY = 1 - (yi - startY) / segments
     for (let xi = startX; xi < startX + positionCount; xi++) {
       let elevation = 0
       if (typeof yi === 'number') {

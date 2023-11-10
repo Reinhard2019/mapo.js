@@ -85,7 +85,7 @@ class TileGeometry extends THREE.BufferGeometry {
     const uvs: number[] = []
     const lngLats: number[] = []
     const addLine = (lat: number, yi: number) => {
-      const uvY = yi / heightSegments
+      const uvY = 1 - yi / heightSegments
       for (let xi = 0; xi < widthPositionCount; xi++) {
         const lng = MercatorTile.xToLng(x + xi / widthSegments, z)
         const position = lngLatToVector3([lng, lat], earthRadius)
