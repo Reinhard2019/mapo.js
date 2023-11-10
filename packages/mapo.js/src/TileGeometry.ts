@@ -219,7 +219,7 @@ class TileGeometry extends THREE.BufferGeometry {
 
       if (side === 'bottom') {
         const startXI = positions.count - this.widthPositionCount
-        for (let i = 0; i < this.widthPositionCount - 1; i++) {
+        for (let i = 0; i < this.widthPositionCount; i++) {
           const xi = startXI + i
           const nearXI = i
           positions.setXYZ(
@@ -231,7 +231,7 @@ class TileGeometry extends THREE.BufferGeometry {
         }
       } else if (side === 'right') {
         const heightPositionCount = positions.count / this.widthPositionCount
-        for (let i = 0; i < heightPositionCount - 1; i++) {
+        for (let i = 0; i < heightPositionCount; i++) {
           const yi = (i + 1) * this.widthPositionCount - 1
           const nearYI = i * this.widthPositionCount
           positions.setXYZ(
