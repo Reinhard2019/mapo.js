@@ -47,6 +47,7 @@
 <script lang="ts" setup>
 import * as mapo from 'mapo.js'
 import FPSControl from '@mapo.js/fps-control'
+import animejs from 'animejs'
 import * as THREE from 'three'
 import type { editor as mEditor } from 'monaco-editor'
 import { computed, onMounted, ref, watch } from 'vue'
@@ -92,6 +93,7 @@ const evalAsync = (code?: string) => {
         Map
       },
       three: THREE,
+      animejs: animejs,
       '@mapo.js/fps-control': FPSControl,
     }
     return libMap[name]

@@ -46,6 +46,10 @@ export default defineConfig({
           ],
         },
         {
+          text: '动画',
+          items: [{ text: '缩放', link: '/examples/zoom-map' }],
+        },
+        {
           text: 'three',
           items: [{ text: '辅助坐标轴', link: '/examples/axes-helper' }],
         },
