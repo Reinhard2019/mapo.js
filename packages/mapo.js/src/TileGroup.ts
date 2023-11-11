@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import { LngLat, Terrain, XYZ } from './types'
+import { LngLat, Terrain, TileBox, XYZ } from './types'
 import TileCache from './utils/TileCache'
 import TileGeometry from './TileGeometry'
 import EarthOrbitControls from './EarthOrbitControls'
@@ -7,7 +7,7 @@ import Map from './Map'
 import { formatTileIndex, getSatelliteUrl, lngLatToVector3 } from './utils/map'
 import TerrainTileWorker from './TerrainTileWorker'
 import MercatorTile from './utils/MercatorTile'
-import { isEmpty } from 'lodash-es'
+import { isEmpty, isEqual } from 'lodash-es'
 import TileMesh from './TileMesh'
 import { toArray } from './utils/array'
 import TileMaterial from './TileMaterial'
@@ -24,6 +24,7 @@ class TileGroup extends THREE.Group {
   declare children: TileMesh[]
   private renderTime: number
   needsUpdate = true
+  prevTileBox?: TileBox
 
   constructor(options: {
     map: Map
@@ -60,8 +61,6 @@ class TileGroup extends THREE.Group {
   render() {
     if (!this.needsUpdate) return
     this.needsUpdate = false
-    const renderTime = new Date().valueOf()
-    this.renderTime = renderTime
 
     const { tileCache } = this
     const { earthRadius, tileSize, displayBBox } = this.map
@@ -70,6 +69,12 @@ class TileGroup extends THREE.Group {
       displayBBox,
       Math.ceil(this.earthOrbitControls.zoom),
     )
+
+    if (isEqual(this.prevTileBox, totalTileBox)) return
+    this.prevTileBox = totalTileBox
+
+    const renderTime = new Date().valueOf()
+    this.renderTime = renderTime
 
     const children: TileMesh[] = []
     const addTile = (_x: number, _y: number, z: number) => {
