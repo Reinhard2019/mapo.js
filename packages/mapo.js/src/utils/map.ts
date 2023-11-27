@@ -61,11 +61,11 @@ export function sphericalToLngLat(spherical: THREE.Spherical): LngLat {
   return [radToDeg(spherical.theta), 90 - radToDeg(spherical.phi)]
 }
 
-export function getSatelliteUrl(x: number, y: number, z: number) {
+export function getSatelliteUrl([x, y, z]: XYZ) {
   return `https://api.mapbox.com/v4/mapbox.satellite/${z}/${x}/${y}@2x.webp?sku=1015N1AhJztkE&access_token=pk.eyJ1IjoiZGluZ2xlaTIwMjEiLCJhIjoiY2wxbHh1aW54MDl6NDNrcGcwODNtaXNtbSJ9.6G649bdbNApupw2unoY0Yg`
 }
 
-export function getTerrainUrl(x: number, y: number, z: number) {
+export function getTerrainUrl([x, y, z]: XYZ) {
   return `https://api.mapbox.com/raster/v1/mapbox.mapbox-terrain-dem-v1/${z}/${x}/${y}.webp?sku=101Tt60mCQMaF&access_token=pk.eyJ1IjoiZGluZ2xlaTIwMjEiLCJhIjoiY2wxbHh1aW54MDl6NDNrcGcwODNtaXNtbSJ9.6G649bdbNApupw2unoY0Yg`
 }
 
@@ -110,13 +110,16 @@ export function normalizeLng(lng: number) {
 }
 
 /**
- * tileIndex 有可能小于 0 或者大于等于 z2，需要对其进行格式化
- * @param tileIndex
+ * x,y 有可能小于 0 或者大于等于 z2，需要对其进行格式化
+ * @param xyz
  * @returns
  */
-export function formatTileIndex(tileIndex: number, z: number) {
+export function formatXYZ(xyz: XYZ) {
+  const [_x, _y, z] = xyz
   const z2 = Math.pow(2, z)
-  return tileIndex < 0 ? z2 + tileIndex : tileIndex % z2
+  const x = _x < 0 ? z2 + _x : _x % z2
+  const y = _y < 0 ? z2 + _y : _y % z2
+  return [x, y, z] as XYZ
 }
 
 /**
@@ -126,7 +129,7 @@ export function formatTileIndex(tileIndex: number, z: number) {
  */
 export function getTopNearXYZ(xyz: XYZ): XYZ {
   const [x, y, z] = xyz
-  return [x, formatTileIndex(y - 1, z), z]
+  return formatXYZ([x, y - 1, z])
 }
 
 /**
@@ -136,7 +139,7 @@ export function getTopNearXYZ(xyz: XYZ): XYZ {
  */
 export function getLeftNearXYZ(xyz: XYZ): XYZ {
   const [x, y, z] = xyz
-  return [formatTileIndex(x - 1, z), y, z]
+  return formatXYZ([x - 1, y, z])
 }
 
 /**
@@ -146,7 +149,7 @@ export function getLeftNearXYZ(xyz: XYZ): XYZ {
  */
 export function getBottomNearXYZ(xyz: XYZ): XYZ {
   const [x, y, z] = xyz
-  return [x, formatTileIndex(y + 1, z), z]
+  return formatXYZ([x, y + 1, z])
 }
 
 /**
@@ -156,5 +159,5 @@ export function getBottomNearXYZ(xyz: XYZ): XYZ {
  */
 export function getRightNearXYZ(xyz: XYZ): XYZ {
   const [x, y, z] = xyz
-  return [formatTileIndex(x + 1, z), y, z]
+  return formatXYZ([x + 1, y, z])
 }

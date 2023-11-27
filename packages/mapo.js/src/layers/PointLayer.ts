@@ -3,7 +3,7 @@ import { BBox, Features, LngLat, Point2 } from '../types'
 import { features2featureArr } from 'src/utils/layers'
 import * as THREE from 'three'
 import { get, mapKeys, mapValues } from 'lodash-es'
-import { bboxContains, bboxOverlap } from 'src/utils/bbox'
+import { bboxContain, bboxOverlap } from 'src/utils/bbox'
 import { lngLatToVector3 } from 'src/utils/map'
 import { degToRad } from 'src/utils/math'
 import PointLayerManager from './PointLayerManager'
@@ -133,7 +133,7 @@ class PointLayer extends Layer<Source, Style> {
       const top = y - fontSize / 2
       const bottom = y + fontSize / 2
       const textBBox: BBox = [left, top, right, bottom]
-      if (!bboxContains([0, 0, canvas.width, canvas.height], textBBox)) {
+      if (!bboxContain([0, 0, canvas.width, canvas.height], textBBox)) {
         return
       }
 

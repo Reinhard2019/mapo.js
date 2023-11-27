@@ -25,6 +25,7 @@ import PointLayer from './layers/PointLayer'
 import PointLayerManager from './layers/PointLayerManager'
 import Layer from './layers/Layer'
 import CanvasLayer from './layers/CanvasLayer'
+import TaskQueue from './utils/TaskQueue'
 
 class Map extends THREE.EventDispatcher<MapEvent> {
   tileSize = 512
@@ -38,7 +39,9 @@ class Map extends THREE.EventDispatcher<MapEvent> {
   readonly earthOrbitControls: EarthOrbitControls
   readonly container: HTMLElement
 
-  private readonly tileGroup: TileGroup
+  readonly taskQueue = new TaskQueue()
+
+  readonly tileGroup: TileGroup
 
   private readonly pointLayerManager = new PointLayerManager(this)
 
@@ -100,26 +103,27 @@ class Map extends THREE.EventDispatcher<MapEvent> {
 
     this.tileGroup = new TileGroup({
       map: this,
-      earthOrbitControls: this.earthOrbitControls,
       terrain: options.terrain,
     })
     this.scene.add(this.tileGroup)
     this.disposeFuncList.push(() => this.tileGroup.dispose())
 
     // 页面重绘动画
-    const tick = () => {
+    const tick = (time: DOMHighResTimeStamp) => {
       // 更新渲染器
       this.renderer.render(this.scene, this.earthOrbitControls.camera)
 
       this.computeDisplayPolygon()
-      this.tileGroup.render()
+      this.tileGroup.update()
+
+      this.taskQueue.run(time)
+
+      this.dispatchEvent({ type: 'render' })
 
       // 页面重绘时调用自身
       window.requestAnimationFrame(tick)
-
-      this.dispatchEvent({ type: 'render' })
     }
-    tick()
+    window.requestAnimationFrame(tick)
 
     if (!options.ssr) {
       this.scene.add(this.pointLayerManager)
@@ -321,9 +325,9 @@ class Map extends THREE.EventDispatcher<MapEvent> {
 
     // 计算物体和射线的焦点
     const intersects = raycaster.intersectObjects(this.tileGroup.children)
-    const vector3 = intersects[0].point
+    const vector3 = intersects[0]?.point
 
-    return vector3ToLngLat(vector3)
+    return vector3 ? vector3ToLngLat(vector3) : null
   }
 
   private computeDisplayPolygon() {
@@ -430,9 +434,9 @@ class Map extends THREE.EventDispatcher<MapEvent> {
   /**
    * 重渲染 CanvasLayerManager
    */
-  updateCanvasLayerManager() {
-    this.tileGroup.canvasLayerManager.update()
-  }
+  // updateCanvasLayerManager() {
+  //   this.tileGroup.canvasLayerManager.update()
+  // }
 
   addLayer(layer: Layer) {
     if (this.layers.find(v => v === layer)) return

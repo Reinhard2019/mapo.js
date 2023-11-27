@@ -1,300 +1,352 @@
 import * as THREE from 'three'
-import { LngLat, Terrain, TileBox, XYZ } from './types'
+import { LngLat, Terrain, TileBoxWithZ, XYZ } from './types'
 import TileCache from './utils/TileCache'
-import TileGeometry from './TileGeometry'
-import EarthOrbitControls from './EarthOrbitControls'
-import Map from './Map'
-import { formatTileIndex, getSatelliteUrl, lngLatToVector3 } from './utils/map'
-import TerrainTileWorker from './TerrainTileWorker'
+import _Map from './Map'
+import { formatXYZ, lngLatToVector3 } from './utils/map'
 import MercatorTile from './utils/MercatorTile'
-import { isEmpty, isEqual } from 'lodash-es'
+import { isEqual, isNumber, uniq } from 'lodash-es'
 import TileMesh from './TileMesh'
-import { toArray } from './utils/array'
-import TileMaterial from './TileMaterial'
 import CanvasLayerManager from './layers/CanvasLayerManager'
+import {
+  getNextZoomXYZList,
+  getOverlapTileBox,
+  getPrevZoomXYZ,
+  tileBox2xyzList,
+  tileBoxContain,
+  tileBoxOverlap,
+  updateTileBoxZ,
+  xyzToTileBox,
+} from './utils/tile'
 
-class TileGroup extends THREE.Group {
-  private readonly map: Map
-  private readonly earthOrbitControls: EarthOrbitControls
-  readonly canvasLayerManager: CanvasLayerManager
-  private readonly tileMeshCache = new TileCache<TileMesh>()
-  private readonly tileCache = new TileCache<ImageBitmap | Promise<ImageBitmap>>()
-  private readonly terrainTileWorker
-  private terrain: Terrain | undefined
-  declare children: TileMesh[]
-  private renderTime: number
-  needsUpdate = true
-  prevTileBox?: TileBox
+class TileLoader {
+  private readonly tileGroup: TileGroup
+  tileBox: TileBoxWithZ
+  private prevTileLoader?: TileLoader | undefined
+  private children: TileMesh[] = []
+  private readonly updateTimestamp: number = Date.now()
+  private promise: Promise<unknown>
+  private destroyed = false
 
-  constructor(options: {
-    map: Map
-    earthOrbitControls: EarthOrbitControls
-    terrain: Terrain | undefined
-  }) {
-    super()
+  constructor(
+    tileGroup: TileGroup,
+    tileBox: TileBoxWithZ,
+    prevTileLoader?: TileLoader | undefined,
+  ) {
+    this.tileGroup = tileGroup
+    this.tileBox = tileBox
+    this.prevTileLoader = prevTileLoader
 
-    this.earthOrbitControls = options.earthOrbitControls
-    this.map = options.map
-    this.canvasLayerManager = new CanvasLayerManager(options.map)
-    this.terrain = options.terrain
-    this.terrainTileWorker = new TerrainTileWorker(this.map.tileSize)
-
-    const xyz: XYZ = [0, 0, 0]
-    new THREE.ImageBitmapLoader().load(
-      getSatelliteUrl(...xyz),
-      image => {
-        this.tileCache.set(xyz, image)
-      },
-      undefined,
-      () => {
-        this.tileCache.delete(xyz)
-      },
-    )
-  }
-
-  setTerrain(terrain: Terrain) {
-    this.terrain = terrain
-
-    this.needsUpdate = true
-  }
-
-  render() {
-    if (!this.needsUpdate) return
-    this.needsUpdate = false
-
-    const { tileCache } = this
-    const { earthRadius, tileSize, displayBBox } = this.map
-    const { center } = this.earthOrbitControls
-    const totalTileBox = MercatorTile.bboxToTileBox(
-      displayBBox,
-      Math.ceil(this.earthOrbitControls.zoom),
-    )
-
-    if (isEqual(this.prevTileBox, totalTileBox)) return
-    this.prevTileBox = totalTileBox
-
-    const renderTime = new Date().valueOf()
-    this.renderTime = renderTime
-
-    const children: TileMesh[] = []
-    const addTile = (_x: number, _y: number, z: number) => {
-      const x = formatTileIndex(_x, z)
-      const y = formatTileIndex(_y, z)
-      const xyz: XYZ = [x, y, z]
-
-      let mesh = this.tileMeshCache.get(xyz)
-      if (!mesh) {
-        const tileGeometry = new TileGeometry({
-          tileGroup: this,
-          xyz,
-          terrainTileWorker: this.terrainTileWorker,
-          earthRadius,
-          tileSize,
-        })
-        mesh = new TileMesh(
-          tileGeometry,
-          new TileMaterial({ xyz, tileCache, tileSize }),
-          this.canvasLayerManager,
-        )
-        this.tileMeshCache.set(xyz, mesh)
-      }
-      mesh.geometry.setTerrain(this.terrain)
-
-      children.push(mesh)
-    }
-
-    const tile = MercatorTile.pointToTile(
-      center[0],
-      center[1],
-      Math.ceil(this.earthOrbitControls.zoom),
-    )
-    const [tileX, tileY] = tile
-    addTile(tileX, tileY, Math.ceil(this.earthOrbitControls.zoom))
-
-    interface Around {
-      top: number
-      bottom: number
-      left: number
-      right: number
-    }
-
-    this.canvasLayerManager.resetCanvasOptionDict()
-
-    const addAroundTiles = (
-      around: Around & {
-        disableTop?: boolean
-        disableBottom?: boolean
-        disableLeft?: boolean
-        disableRight?: boolean
-        /**
-         * 顶点是否添加的计算逻辑
-         * 默认为 &&
-         */
-        vertexLogic?: '||' | '&&'
-      },
-      z: number,
-    ) => {
-      const vertexLogic = around.vertexLogic ?? '&&'
-      const z2Gap = Math.pow(2, Math.ceil(this.earthOrbitControls.zoom) - z)
-      const hasLeftSide =
-        !around.disableLeft && Math.floor(totalTileBox.startX / z2Gap) <= around.left
-      const hasRightSide = !around.disableRight && totalTileBox.endX / z2Gap > around.right
-      const hasTopSide = !around.disableTop && Math.floor(totalTileBox.startY / z2Gap) <= around.top
-      const hasBottomSide = !around.disableBottom && totalTileBox.endY / z2Gap > around.bottom
-
-      const tiles: Array<[number, number]> = []
-      if (hasTopSide) {
-        for (let x = around.left + 1; x < around.right; x++) {
-          tiles.push([x, around.top])
-        }
-      }
-      if (hasBottomSide) {
-        for (let x = around.left + 1; x < around.right; x++) {
-          tiles.push([x, around.bottom])
-        }
-      }
-      if (hasLeftSide) {
-        for (let y = around.top + 1; y < around.bottom; y++) {
-          tiles.push([around.left, y])
-        }
-      }
-      if (hasRightSide) {
-        for (let y = around.top + 1; y < around.bottom; y++) {
-          tiles.push([around.right, y])
-        }
-      }
-      if (vertexLogic === '&&' ? hasLeftSide && hasTopSide : hasLeftSide || hasTopSide) {
-        tiles.push([around.left, around.top])
-      }
-      if (vertexLogic === '&&' ? hasLeftSide && hasBottomSide : hasLeftSide || hasBottomSide) {
-        tiles.push([around.left, around.bottom])
-      }
-      if (vertexLogic === '&&' ? hasRightSide && hasTopSide : hasRightSide || hasTopSide) {
-        tiles.push([around.right, around.top])
-      }
-      if (vertexLogic === '&&' ? hasRightSide && hasBottomSide : hasRightSide || hasBottomSide) {
-        tiles.push([around.right, around.bottom])
-      }
-
-      tiles.forEach(([x, y]) => addTile(x, y, z))
-      return tiles
-    }
-    const addLoopAroundTiles = (around: Around, zoom: number) => {
-      const z = Math.ceil(zoom)
-      const tiles = addAroundTiles(around, z)
-
-      if (isEmpty(tiles)) {
-        this.canvasLayerManager.addCanvasBBox(z, {
-          bbox: displayBBox,
-          pxDeg: this.earthOrbitControls.getPxDeg(zoom),
-        })
-        return
-      }
-
-      const lngLat: LngLat = [
-        MercatorTile.xToLng(formatTileIndex(around.left, z), z),
-        MercatorTile.yToLat(formatTileIndex(around.top, z), z),
-      ]
-      const distance = this.earthOrbitControls.camera.position.distanceTo(
-        lngLatToVector3(lngLat, earthRadius),
-      )
-      const _zoom = this.earthOrbitControls.distanceToZoom(distance + earthRadius)
-      if (zoom - _zoom < 2) {
-        addLoopAroundTiles(
-          {
-            left: around.left - 1,
-            top: around.top - 1,
-            right: around.right + 1,
-            bottom: around.bottom + 1,
-          },
-          zoom,
-        )
-        return
-      }
-
-      const left = around.left % 2 === 0 ? around.left : around.left - 1
-      const top = around.top % 2 === 0 ? around.top : around.top - 1
-      const right = around.right % 2 === 1 ? around.right : around.right + 1
-      const bottom = around.bottom % 2 === 1 ? around.bottom : around.bottom + 1
-      addAroundTiles(
-        {
-          left,
-          top,
-          right,
-          bottom,
-          disableLeft: left === around.left,
-          disableRight: right === around.right,
-          disableTop: top === around.top,
-          disableBottom: bottom === around.bottom,
-          vertexLogic: '||',
-        },
-        z,
-      )
-
-      this.canvasLayerManager.addCanvasBBox(z, {
-        bbox: MercatorTile.tileBoxToBBox(
-          {
-            startX: left,
-            startY: top,
-            endX: right + 1,
-            endY: bottom + 1,
-          },
-          z,
-        ),
-        pxDeg: this.earthOrbitControls.getPxDeg(zoom),
-      })
-
-      addLoopAroundTiles(
-        {
-          left: left / 2 - 1,
-          top: top / 2 - 1,
-          right: (right + 1) / 2,
-          bottom: (bottom + 1) / 2,
-        },
-        zoom - 1,
+    const promises: Array<Promise<unknown>> = []
+    if (this.prevTileLoader) {
+      promises.push(
+        this.prevTileLoader.promise.then(async () => {
+          // 合并两个 TileLoader 前先 replaceChildren
+          return await this.prevTileLoader?.replaceChildren()
+        }),
       )
     }
-    addLoopAroundTiles(
-      {
-        left: tileX - 1,
-        top: tileY - 1,
-        right: tileX + 1,
-        bottom: tileY + 1,
-      },
-      this.earthOrbitControls.zoom,
-    )
-
-    this.canvasLayerManager.update()
-
-    window.requestIdleCallback(() => {
-      this.children = children
-
-      // 延迟加载 tile，避免可视区域快速变化时加载过多的 tile
-      setTimeout(() => {
-        if (renderTime === this.renderTime) {
-          children.forEach(child => {
-            child.tileMaterial.load()
-          })
+    const previewZ = this.getPreviewZ()
+    uniq(
+      tileBox2xyzList(updateTileBoxZ(tileBox, previewZ))
+        .filter(xyz => !this.prevTileLoaderContain(xyz))
+        .map(xyz => this.getTileMesh(this.getPlaceholderXYZ(xyz))),
+    ).forEach(tileMesh => {
+      const promise = (async () => {
+        await tileMesh.promise
+        if (this.addChild(tileMesh)) {
+          await this.splitTileMesh(tileMesh, previewZ)
         }
-      }, 100)
+      })()
+      promises.push(promise)
     })
+    this.promise = Promise.allSettled(promises)
+
+    this.prevTileLoader?.clipTileBox(this)
+    if (this.prevTileLoader) {
+      // 合并两个 TileLoader
+      this.promise.finally(() => {
+        if (!this.prevTileLoader || this.destroyed) return
+
+        this.children = uniq(this.children.concat(this.prevTileLoader.children))
+        this.prevTileLoader.dispose()
+        this.prevTileLoader = undefined
+        this.resetGroupChildren()
+      })
+    }
   }
 
-  getTileMesh(xyz: XYZ | undefined) {
-    if (!xyz) return
+  /**
+   * TileMesh 是否加载完毕
+   * @param _xyz
+   * @returns
+   */
+  isLoadedXYZ(_xyz: XYZ) {
+    const xyz = formatXYZ(_xyz)
 
-    return this.tileMeshCache.get(xyz)
+    const { tileMeshCache } = this.tileGroup
+    const tileMesh = tileMeshCache.get(xyz)
+    return !!tileMesh?.tileMaterialLoaded
   }
 
-  getTileGeometry(xyz: XYZ | undefined) {
-    return this.getTileMesh(xyz)?.geometry
+  getPlaceholderXYZ(_xyz: XYZ) {
+    let xyz: XYZ = _xyz
+    while (!this.isLoadedXYZ(xyz)) {
+      const newXYZ = getPrevZoomXYZ(xyz)
+      if (!newXYZ) break
+      xyz = newXYZ
+    }
+    return xyz
+  }
+
+  /**
+   * 获取初始化时的预览 z
+   * @returns
+   */
+  getPreviewZ() {
+    const { tileBox } = this
+    const maxGap = Math.max(tileBox.endX - tileBox.startX, tileBox.endY - tileBox.startY)
+    return tileBox.z - Math.ceil(Math.log2(maxGap))
+  }
+
+  getTileZoom([x, y, z]: XYZ) {
+    const { map } = this.tileGroup
+    const { earthRadius } = map
+    const lngLat: LngLat = [MercatorTile.xToLng(x + 0.5, z), MercatorTile.yToLat(y + 0.5, z)]
+    const distance = map.earthOrbitControls.camera.position.distanceTo(
+      lngLatToVector3(lngLat, earthRadius),
+    )
+    return map.earthOrbitControls.distanceToZoom(distance + earthRadius)
+  }
+
+  getTileMesh(_xyz: XYZ) {
+    const xyz = formatXYZ(_xyz)
+
+    const { tileMeshCache } = this.tileGroup
+    let tileMesh = tileMeshCache.get(xyz)
+    if (!tileMesh) {
+      tileMesh = new TileMesh(xyz, this.tileGroup)
+      tileMeshCache.set(xyz, tileMesh)
+    }
+    return tileMesh
+  }
+
+  /**
+   * 重置 TileGroup 的 children
+   */
+  resetGroupChildren() {
+    const children: TileMesh[] = []
+    let tileLoader = this.tileGroup.tileLoader
+    while (tileLoader) {
+      children.push(...tileLoader.children)
+      tileLoader = tileLoader.prevTileLoader
+    }
+    this.tileGroup.children = children
+  }
+
+  addChild(tileMesh: TileMesh) {
+    if (this.destroyed || !this.isBelongTileBox(tileMesh.xyz)) return false
+
+    this.children.push(tileMesh)
+
+    this.tileGroup.children.push(tileMesh)
+
+    tileMesh.show()
+
+    return true
+  }
+
+  removeChild(tileMesh: TileMesh) {
+    if (this.destroyed) return
+
+    const index = this.children.findIndex(c => c === tileMesh)
+    if (index === -1) return
+    this.children.splice(index, 1)
+
+    const parentIndex = this.tileGroup.children.findIndex(c => c === tileMesh)
+    if (parentIndex !== -1) this.tileGroup.children.splice(parentIndex, 1)
+  }
+
+  prevTileLoaderContain(xyz: XYZ) {
+    if (!this.prevTileLoader?.tileBox) return false
+
+    const prevOverlapTileBox = getOverlapTileBox(this.prevTileLoader?.tileBox, xyzToTileBox(xyz))
+    if (!prevOverlapTileBox) return false
+
+    const overlapTileBox = getOverlapTileBox(this.tileBox, xyzToTileBox(xyz))
+    return !!overlapTileBox && tileBoxContain(prevOverlapTileBox, overlapTileBox)
+  }
+
+  isBelongTileBox(xyz: XYZ) {
+    return !this.prevTileLoaderContain(xyz) && tileBoxOverlap(this.tileBox, xyzToTileBox(xyz))
+  }
+
+  /**
+   * 重新设置 tileBox
+   * @param tileBox
+   */
+  resetTileBox(tileBox: TileBoxWithZ) {
+    this.tileBox = tileBox
+    this.clipTileBox()
+    this.promise = this.promise.then(async () => await this.replaceChildren())
+  }
+
+  /**
+   * 裁剪 tileBox
+   * @param nextTileLoader
+   * @returns
+   */
+  clipTileBox(nextTileLoader?: TileLoader) {
+    if (nextTileLoader) {
+      const newTileBox = getOverlapTileBox(this.tileBox, nextTileLoader.tileBox)
+      if (!newTileBox) {
+        this.dispose()
+        nextTileLoader.prevTileLoader = undefined
+        this.resetGroupChildren()
+        return
+      }
+      this.tileBox = newTileBox
+    }
+
+    this.children.forEach(child => {
+      if (!tileBoxOverlap(this.tileBox, xyzToTileBox(child.xyz))) {
+        this.removeChild(child)
+      }
+    })
+
+    this.prevTileLoader?.clipTileBox(this)
+  }
+
+  /**
+   * 重置 children，合并 tileMesh 或者拆分 tileMesh
+   */
+  async replaceChildren() {
+    const previewZ = this.getPreviewZ()
+    const promises = this.children.map(async child => {
+      if (child.xyz[2] < this.getTileZoom(child.xyz)) {
+        await this.splitTileMesh(child, previewZ)
+        return
+      }
+
+      const z = this.tileGroup.tileLoader!.tileBox.z
+      const tileZ = child.xyz[2]
+      let prevZoomXYZ = getPrevZoomXYZ(child.xyz, z < tileZ ? tileZ - z : 1)
+      if (prevZoomXYZ && prevZoomXYZ[2] >= this.getTileZoom(prevZoomXYZ)) {
+        while (true) {
+          const newPrevZoomXYZ = getPrevZoomXYZ(prevZoomXYZ, 1)
+          if (newPrevZoomXYZ && newPrevZoomXYZ[2] >= this.getTileZoom(newPrevZoomXYZ)) {
+            prevZoomXYZ = newPrevZoomXYZ
+          } else {
+            break
+          }
+        }
+        await this.mergeTileMesh(child, prevZoomXYZ)
+      }
+    })
+
+    await Promise.allSettled(promises)
+  }
+
+  async mergeTileMesh(tileMesh: TileMesh, prevZoomXYZ: XYZ) {
+    const prevTileMesh = this.getTileMesh(prevZoomXYZ)
+    await prevTileMesh.promise
+    this.addChild(prevTileMesh)
+    this.removeChild(tileMesh)
+  }
+
+  /**
+   * 拆分 tileMesh
+   * @param tileMesh
+   * @param previewZ 存在时，将直接拆分至 previewZ 级别
+   * @returns
+   */
+  async splitTileMesh(tileMesh: TileMesh, previewZ?: number) {
+    if (tileMesh.xyz[2] >= this.getTileZoom(tileMesh.xyz)) return
+
+    let splitXYZList: XYZ[] = []
+    if (isNumber(previewZ) && previewZ > tileMesh.xyz[2]) {
+      const overlapTileBox = getOverlapTileBox(this.tileBox, xyzToTileBox(tileMesh.xyz))
+      if (overlapTileBox) {
+        splitXYZList = tileBox2xyzList(updateTileBoxZ(overlapTileBox, previewZ))
+      }
+    } else {
+      splitXYZList = getNextZoomXYZList(tileMesh.xyz)
+    }
+
+    let nextChildren = splitXYZList
+      .filter(nextXYZ => this.isBelongTileBox(nextXYZ))
+      .map(v => this.getTileMesh(v))
+    await Promise.all(nextChildren.map(async v => await v.promise)).then(() => {
+      nextChildren = nextChildren.filter(child => this.addChild(child))
+
+      this.removeChild(tileMesh)
+    })
+
+    await Promise.allSettled(nextChildren.map(async v => await this.splitTileMesh(v)))
   }
 
   dispose() {
-    this.terrainTileWorker.terminate()
+    this.destroyed = true
+    this.prevTileLoader?.dispose()
+  }
+}
+
+class TileGroup extends THREE.Group {
+  declare children: TileMesh[]
+
+  readonly map: _Map
+  readonly canvasLayerManager: CanvasLayerManager
+  readonly tileMeshCache = new TileCache<TileMesh>()
+  readonly terrainTileCache = new TileCache<Promise<ImageData>>()
+  terrain: Terrain | undefined
+  needsUpdate = true
+  tileLoader?: TileLoader
+
+  constructor(options: { map: _Map; terrain: Terrain | undefined }) {
+    super()
+
+    this.map = options.map
+    this.canvasLayerManager = new CanvasLayerManager(options.map)
+    this.terrain = options.terrain
+  }
+
+  setTerrain(terrain: Terrain | undefined) {
+    this.terrain = terrain
+
+    this.children.forEach(child => {
+      child.geometry.resetTerrain()
+    })
+  }
+
+  update() {
+    if (!this.needsUpdate) return
+    this.needsUpdate = false
+
+    // if (this.children.length) return
+
+    const { displayBBox } = this.map
+    const { zoom } = this.map.earthOrbitControls
+    const z = Math.ceil(zoom)
+
+    const tileBox: TileBoxWithZ = {
+      ...MercatorTile.bboxToTileBox(displayBBox, z),
+      z,
+    }
+    if (!isEqual(this.tileLoader?.tileBox, tileBox)) {
+      this.canvasLayerManager.updateTileBox(tileBox)
+
+      if (this.tileLoader?.tileBox && tileBoxContain(this.tileLoader?.tileBox, tileBox)) {
+        this.tileLoader.resetTileBox(tileBox)
+      } else {
+        this.tileLoader = new TileLoader(this, tileBox, this.tileLoader)
+      }
+    }
+
+    this.canvasLayerManager.update()
+  }
+
+  dispose() {
     this.tileMeshCache.toArray().forEach(mesh => {
-      mesh.geometry.dispose()
-      toArray(mesh.material).forEach(m => m.dispose())
+      mesh.dispose()
     })
   }
 }

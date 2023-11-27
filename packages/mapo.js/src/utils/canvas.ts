@@ -1,5 +1,5 @@
 import { XYZ } from 'src/types'
-import { formatTileIndex } from './map'
+import { formatXYZ } from './map'
 import TileCache from './TileCache'
 
 /**
@@ -15,10 +15,9 @@ export function drawPreviewImage(options: {
   dy?: number
 }) {
   const { ctx, xyz, tileSize, tileCache, dx = 0, dy = 0 } = options
-  const [x, y, z] = xyz
+  const [x, y, z] = formatXYZ(xyz)
   const z2 = Math.pow(2, z)
-  const formattedX = formatTileIndex(x, z)
-  let cloneX = formattedX
+  let cloneX = x
   let cloneY = y
   let cloneZ = z
   while (cloneZ > 0) {
@@ -32,7 +31,7 @@ export function drawPreviewImage(options: {
       const ratio = z2 / cloneZ2
       const sw = tileSize / ratio
       const sh = sw
-      const sx = (formattedX % ratio) * sw
+      const sx = (x % ratio) * sw
       const sy = (y % ratio) * sw
       const rect = [dx, dy, tileSize, tileSize] as const
       ctx.clearRect(...rect)

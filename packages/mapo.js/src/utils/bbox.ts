@@ -6,29 +6,35 @@ export const fullBBox: BBox = [-180, -90, 180, 90]
 
 /**
  * 前者的边界是否完全包括了后者
+ * @param parent [start, end]
+ * @param child [start, end]
+ * @returns
+ */
+export function lineContain(parent: [number, number], child: [number, number]) {
+  return parent[0] <= child[0] && parent[1] >= child[1]
+}
+
+/**
+ * 前者的边界是否完全包括了后者
  * @param parent
  * @param child
  * @returns
  */
-export function bboxContains(parent: BBox, child: BBox) {
+export function bboxContain(parent: BBox, child: BBox) {
   return (
-    parent[0] <= child[0] && parent[1] <= child[1] && parent[2] >= child[2] && parent[3] >= child[3]
+    lineContain([parent[0], parent[2]], [child[0], child[2]]) &&
+    lineContain([parent[1], parent[3]], [child[1], child[3]])
   )
 }
 
 /**
  * 两个 line 是否存在重叠部分
- * @param a
- * @param b
+ * @param a [start, end]
+ * @param b [start, end]
  * @returns
  */
 export function lineOverlap(a: [number, number], b: [number, number]) {
-  return (
-    inRange(b[0], a[0], a[1], '[)') ||
-    inRange(b[1], a[0], a[1], '(]') ||
-    inRange(a[0], b[0], b[1], '[)') ||
-    inRange(a[1], b[0], b[1], '(]')
-  )
+  return !(b[0] >= a[1] || b[1] <= a[0])
 }
 
 /**
@@ -42,7 +48,7 @@ export function bboxOverlap(a: BBox, b: BBox) {
 }
 
 export function pointInBBox(point: [number, number], bbox: BBox) {
-  return inRange(point[0], bbox[0], bbox[2], '[]') && inRange(point[1], bbox[1], bbox[3], '[]')
+  return inRange(point[0], bbox[0], bbox[2]) && inRange(point[1], bbox[1], bbox[3])
 }
 
 export function scale(bbox: BBox, scaleValue: number): BBox {

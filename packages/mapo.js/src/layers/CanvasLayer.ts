@@ -3,7 +3,7 @@ import Layer from './Layer'
 import CanvasLayerManager from './CanvasLayerManager'
 import CanvasLayerMaterial from 'src/CanvasLayerMaterial'
 
-export interface DrawOptions {
+export interface DrawOption {
   bbox: BBox
   pxDeg: number
   ctx: OffscreenCanvasRenderingContext2D
@@ -14,35 +14,56 @@ abstract class CanvasLayer<Source extends Features = Features, Style extends {} 
   Style
 > {
   layerManager: CanvasLayerManager
-  private canvasLayerMaterialDict: {
-    [z in string]: CanvasLayerMaterial
-  } = {}
+  canvasLayerMaterials: CanvasLayerMaterial[] = []
 
-  abstract draw(options: DrawOptions): void
+  abstract draw(options: DrawOption): void
 
-  getCanvasLayerMaterial(z: number | string) {
-    return (
-      this.canvasLayerMaterialDict[z] ??
-      (this.canvasLayerMaterialDict[z] = new CanvasLayerMaterial())
-    )
+  updateCanvasLayerMaterials(bboxes: BBox[]) {
+    this.canvasLayerMaterials.forEach(canvasLayerMaterial => canvasLayerMaterial.dispose())
+    this.canvasLayerMaterials = bboxes.map(() => new CanvasLayerMaterial())
+  }
+
+  projection(drawOptions: DrawOption, position: [number, number]) {
+    const [w, s, e, n] = drawOptions.bbox
+    const { width, height } = drawOptions.ctx.canvas
+
+    const [lng, lat] = position
+    const x = ((lng - w) / (e - w)) * width
+    const y = ((n - lat) / (n - s)) * height
+    return [x, y] as const
   }
 
   update() {
-    const canvasOptionDict = this.layerManager?.canvasOptionDict ?? {}
+    const { layerManager } = this
+    if (!layerManager) return
 
-    Object.entries(canvasOptionDict).forEach(([z, canvasOption]) => {
-      window.requestIdleCallback(() => {
-        const canvasLayerMaterial = this.getCanvasLayerMaterial(z)
+    const { canvasOptions } = layerManager
+    const { taskQueue } = layerManager.map
+
+    canvasOptions.forEach((canvasOption, i) => {
+      taskQueue.add(this.constructor.name, () => {
+        console.time(this.constructor.name)
+        const canvasLayerMaterial = this.canvasLayerMaterials[i]
         canvasLayerMaterial.updateCanvasOption(canvasOption)
         const { canvas, ctx } = canvasLayerMaterial
         ctx.clearRect(0, 0, canvas.width, canvas.height)
 
-        this.draw({
+        const drawOption: DrawOption = {
           ...canvasOption,
           ctx,
-        })
+        }
+        this.draw(drawOption)
 
-        this.canvasLayerMaterialDict[z]?.update()
+        const prevCanvasOption = canvasOptions[i - 1]
+        if (prevCanvasOption) {
+          const [w, s, e, n] = prevCanvasOption.bbox
+          const [left, top] = this.projection(drawOption, [w, n])
+          const [right, bottom] = this.projection(drawOption, [e, s])
+          ctx.clearRect(left, top, right, bottom)
+        }
+
+        canvasLayerMaterial.update()
+        console.timeEnd(this.constructor.name)
       })
     })
   }

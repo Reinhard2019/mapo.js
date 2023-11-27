@@ -3,7 +3,7 @@ import { Features } from 'src/types'
 import { features2featureArr } from 'src/utils/layers'
 import geoEquirectangular from '../utils/geoEquirectangular'
 import { mapKeys, mapValues } from 'lodash-es'
-import CanvasLayer, { DrawOptions } from './CanvasLayer'
+import CanvasLayer, { DrawOption } from './CanvasLayer'
 import { chain } from 'src/utils'
 
 type Source = Features<LineString | MultiLineString | Polygon | MultiPolygon>
@@ -17,7 +17,7 @@ interface Style {
 }
 
 class LineLayer extends CanvasLayer<Source, Style> {
-  draw(options: DrawOptions) {
+  draw(options: DrawOption) {
     const { ctx, bbox } = options
     const { source, style } = this
 

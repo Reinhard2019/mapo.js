@@ -77,6 +77,10 @@ export interface TileBox {
   endY: number
 }
 
+export interface TileBoxWithZ extends TileBox {
+  z: number
+}
+
 export type LngLat = [number, number]
 
 export type Point2 = [number, number]

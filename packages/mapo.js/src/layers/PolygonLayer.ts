@@ -2,7 +2,7 @@ import { MultiPolygon, Polygon, Position } from 'geojson'
 import { Features } from 'src/types'
 import { features2featureArr } from 'src/utils/layers'
 import geoEquirectangular from '../utils/geoEquirectangular'
-import CanvasLayer, { DrawOptions } from './CanvasLayer'
+import CanvasLayer, { DrawOption } from './CanvasLayer'
 
 type Source = Features<Polygon | MultiPolygon>
 
@@ -18,7 +18,7 @@ interface Style {
 }
 
 class PolygonLayer extends CanvasLayer<Source, Style> {
-  draw(options: DrawOptions) {
+  draw(options: DrawOption) {
     const { ctx, bbox } = options
     const { source, style } = this
     const mergedStyle = Object.assign<Style, Style>(

@@ -1,8 +1,5 @@
 import * as THREE from 'three'
 import { XYZ } from './types'
-import { drawPreviewImage } from './utils/canvas'
-import { getSatelliteUrl } from './utils/map'
-import TileCache from './utils/TileCache'
 
 const vertexShader = `
 varying vec2 vUv;
@@ -38,28 +35,15 @@ function addDebugUI(ctx: OffscreenCanvasRenderingContext2D, xyz: XYZ, tileSize: 
 }
 
 class TileMaterial extends THREE.ShaderMaterial {
-  // 用于延迟加载
-  load: () => void
+  transparent = true
 
-  constructor(options: {
-    xyz: XYZ
-    tileSize: number
-    tileCache: TileCache<ImageBitmap | Promise<ImageBitmap>>
-  }) {
-    const { xyz, tileSize, tileCache } = options
+  constructor(options: { xyz: XYZ; tileSize: number; image: CanvasImageSource }) {
+    const { xyz, tileSize, image } = options
 
     const canvas = new OffscreenCanvas(tileSize, tileSize)
     const ctx = canvas.getContext('2d') as OffscreenCanvasRenderingContext2D
 
-    ctx.fillStyle = 'black'
-    ctx.fillRect(0, 0, tileSize, tileSize)
-
-    drawPreviewImage({
-      ctx,
-      xyz,
-      tileSize,
-      tileCache,
-    })
+    ctx.drawImage(image, 0, 0, tileSize, tileSize)
 
     addDebugUI(ctx, xyz, tileSize)
 
@@ -77,31 +61,6 @@ class TileMaterial extends THREE.ShaderMaterial {
       vertexShader,
       fragmentShader,
     })
-
-    this.load = () => {
-      const promise = new Promise<ImageBitmap>(resolve => {
-        new THREE.ImageBitmapLoader().load(
-          getSatelliteUrl(...xyz),
-          image => {
-            tileCache.set(xyz, image)
-
-            const rect = [0, 0, tileSize, tileSize] as const
-            ctx.clearRect(...rect)
-            ctx.drawImage(image, ...rect)
-
-            addDebugUI(ctx, xyz, tileSize)
-
-            texture.needsUpdate = true
-            resolve(image)
-          },
-          undefined,
-          () => {
-            tileCache.delete(xyz)
-          },
-        )
-      })
-      tileCache.set(xyz, promise)
-    }
   }
 }
 

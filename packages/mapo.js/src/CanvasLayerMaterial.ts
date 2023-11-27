@@ -52,7 +52,11 @@ const fragmentShader = `
   uniform sampler2D canvasTexture;
   varying vec2 vUv;
   void main() {
-    gl_FragColor = texture2D(canvasTexture, vUv);
+    if (vUv.x < 0.0 || vUv.x > 1.0 || vUv.y < 0.0 || vUv.y > 1.0) {
+      gl_FragColor = vec4(0.0, 0.0, 0.0, 0.0);
+    } else {
+      gl_FragColor = texture2D(canvasTexture, vUv);
+    }
   }
 `
 

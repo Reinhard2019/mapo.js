@@ -1,38 +1,28 @@
 import * as THREE from 'three'
-import { Terrain, XYZ } from './types'
+import { XYZ } from './types'
 import {
   getBottomNearXYZ,
   getLeftNearXYZ,
   getRightNearXYZ,
+  getTerrainUrl,
   getTopNearXYZ,
-  lngLatToVector3,
 } from './utils/map'
-import MercatorTile from './utils/MercatorTile'
-import TileGeometryWorker, { OnMessageEventData } from './TileGeometryWorker'
-import TileGroup from './TileGroup'
+import TileGeometryWorker, { OnMessageEventData, getGeometryAttribute } from './TileGeometryWorker'
 import { isNil } from './utils'
-import TerrainTileWorker from './TerrainTileWorker'
+import TileGroup from './TileGroup'
+import TileMesh from './TileMesh'
 
 class TileGeometry extends THREE.BufferGeometry {
-  readonly xyz: XYZ
-  private readonly earthRadius: number
-  private readonly tileSize: number
-  private readonly terrainTileWorker: TerrainTileWorker
+  private readonly tileMesh: TileMesh
   private readonly tileGroup: TileGroup
   private updateTerrainPromise: Promise<THREE.Float32BufferAttribute> | undefined
 
   // 0 代表关闭 Terrain
-  private exaggeration = 0
+  private terrainExaggeration = 0
 
   private widthPositionCount = 0
 
-  constructor(options: {
-    tileGroup: TileGroup
-    xyz: XYZ
-    terrainTileWorker: TerrainTileWorker
-    earthRadius: number
-    tileSize: number
-  }) {
+  constructor(options: { tileGroup: TileGroup; tileMesh: TileMesh }) {
     super()
 
     Object.assign(this, options)
@@ -40,29 +30,50 @@ class TileGeometry extends THREE.BufferGeometry {
     this.update()
   }
 
-  setTerrain(terrain: Terrain | undefined) {
-    let exaggeration = 0
-    if (typeof terrain === 'object') {
-      exaggeration = terrain.exaggeration ?? 0
-    } else {
-      exaggeration = terrain ? 1 : 0
-    }
+  resetTerrain() {
+    void this.tileMesh.promise?.then(() => {
+      const { terrain, terrainTileCache } = this.tileGroup
+      const { tileSize } = this.tileGroup.map
+      let exaggeration = 0
+      if (typeof terrain === 'object') {
+        exaggeration = terrain.exaggeration ?? 0
+      } else {
+        exaggeration = terrain ? 1 : 0
+      }
 
-    if (exaggeration === this.exaggeration) return
-    this.exaggeration = exaggeration
+      if (exaggeration === this.terrainExaggeration) return
+      this.terrainExaggeration = exaggeration
 
-    if (exaggeration) {
+      if (!exaggeration) {
+        this.update()
+      }
+
       const terrainXYZ = this.getTerrainXYZ()
-      void this.terrainTileWorker.loadTile(terrainXYZ).then(imageData => {
+      let promise = terrainTileCache.get(terrainXYZ)
+      if (!promise) {
+        const url = getTerrainUrl(this.getTerrainXYZ())
+        promise = new THREE.ImageBitmapLoader().loadAsync(url).then(imageBitmap => {
+          const canvas = new OffscreenCanvas(tileSize, tileSize)
+          const ctx = canvas.getContext('2d') as OffscreenCanvasRenderingContext2D
+          // 部份瓦片存在一些多余的裙边
+          const sx = (imageBitmap.width - tileSize) / 2
+          const sy = (imageBitmap.height - tileSize) / 2
+          ctx.drawImage(imageBitmap, sx, sy, tileSize, tileSize, 0, 0, tileSize, tileSize)
+          return ctx.getImageData(0, 0, tileSize, tileSize)
+        })
+        terrainTileCache.set(terrainXYZ, promise)
+        promise.catch(() => {
+          terrainTileCache.delete(terrainXYZ)
+        })
+      }
+      void promise.then(imageData => {
         this.updateTerrain(imageData, exaggeration)
       })
-    } else {
-      this.update()
-    }
+    })
   }
 
   private getTerrainXYZ(): XYZ {
-    const [x, y, z] = this.xyz
+    const [x, y, z] = this.tileMesh.xyz
     //  高程的 z 比正常的 z 缩小 3 倍
     const scaleZ = 3
     const terrainZ = Math.max(0, z - scaleZ)
@@ -71,70 +82,37 @@ class TileGeometry extends THREE.BufferGeometry {
     return [getTerrainTileIndex(x), getTerrainTileIndex(y), terrainZ]
   }
 
-  update() {
-    const { earthRadius, xyz } = this
-    const [x, y, z] = xyz
+  private update() {
+    const { xyz } = this.tileMesh
+    const { earthRadius } = this.tileGroup.map
+    const [, , z] = xyz
 
     const totalHeightSegments = 128
     const heightSegments = totalHeightSegments / Math.min(Math.pow(2, z), totalHeightSegments)
     const widthSegments = heightSegments * 2
-    const widthPositionCount = widthSegments + 1
-    const heightPositionCount = heightSegments + 1
 
-    const positions: number[] = []
-    const uvs: number[] = []
-    const lngLats: number[] = []
-    const addLine = (lat: number, yi: number) => {
-      const uvY = 1 - yi / heightSegments
-      for (let xi = 0; xi < widthPositionCount; xi++) {
-        const lng = MercatorTile.xToLng(x + xi / widthSegments, z)
-        const position = lngLatToVector3([lng, lat], earthRadius)
-        positions.push(...position.toArray())
-        uvs.push(xi / widthSegments, uvY)
-        lngLats.push(lng, lat)
-      }
-    }
+    const { positions, uvs, lngLats, indexes, widthPositionCount } = getGeometryAttribute(
+      widthSegments,
+      heightSegments,
+      xyz,
+      earthRadius,
+    )
 
-    let extraHeightSegments = 0
-    if (y === 0) {
-      addLine(90, 0)
-      extraHeightSegments++
-    }
-    for (let yi = 0; yi < heightPositionCount; yi++) {
-      const lat = MercatorTile.yToLat(y + yi / heightSegments, z)
-      addLine(lat, yi)
-    }
-    if (y === Math.pow(2, z) - 1) {
-      addLine(-90, heightPositionCount)
-      extraHeightSegments++
-    }
     this.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(positions), 3))
     this.setAttribute('uv', new THREE.Float32BufferAttribute(new Float32Array(uvs), 2))
     this.setAttribute('lngLat', new THREE.Float32BufferAttribute(new Float32Array(lngLats), 2))
-
-    const indexes: number[] = []
-    for (let yi = 0; yi < heightSegments + extraHeightSegments; yi++) {
-      for (let xi = 0; xi < widthSegments; xi++) {
-        const positionIndex1 = xi + yi * widthPositionCount
-        const positionIndex2 = positionIndex1 + 1
-        const positionIndex3 = positionIndex1 + widthPositionCount
-        const positionIndex4 = positionIndex2 + widthPositionCount
-        const face1 = [positionIndex1, positionIndex3, positionIndex2]
-        const face2 = [positionIndex2, positionIndex3, positionIndex4]
-        indexes.push(...face1, ...face2)
-      }
-    }
     this.setIndex(new THREE.Uint32BufferAttribute(new Uint32Array(indexes), 1))
 
     this.widthPositionCount = widthPositionCount
-    this.exaggeration = 0
+    this.terrainExaggeration = 0
   }
 
-  updateTerrain(terrainImageData: ImageData, exaggeration: number) {
+  private updateTerrain(terrainImageData: ImageData, terrainExaggeration: number) {
     if (!isNil(this.updateTerrainPromise)) return
 
     const tileGeometryWorker = new TileGeometryWorker()
-    const { earthRadius, tileSize, xyz } = this
+    const { xyz } = this.tileMesh
+    const { earthRadius, tileSize } = this.tileGroup.map
     const terrainXYZ = this.getTerrainXYZ()
     const [, , terrainZ] = terrainXYZ
     const [x, y, z] = xyz
@@ -159,15 +137,15 @@ class TileGeometry extends THREE.BufferGeometry {
         const isLastX = x % scaleZ2 === scaleZ2 - 1
         const isLastY = y % scaleZ2 === scaleZ2 - 1
         if (isFirstY) {
-          const geometry = this.tileGroup.getTileGeometry(getTopNearXYZ(xyz))
+          const geometry = this.getTileGeometry(getTopNearXYZ(xyz))
           void geometry?.updateSideTerrain('bottom')
         }
         if (isFirstX) {
-          const geometry = this.tileGroup.getTileGeometry(getLeftNearXYZ(xyz))
+          const geometry = this.getTileGeometry(getLeftNearXYZ(xyz))
           void geometry?.updateSideTerrain('right')
         }
         if (isFirstX && isFirstY) {
-          const geometry = this.tileGroup.getTileGeometry(getLeftNearXYZ(getTopNearXYZ(xyz)))
+          const geometry = this.getTileGeometry(getLeftNearXYZ(getTopNearXYZ(xyz)))
           void geometry?.updateSideTerrain('rightBottom')
         }
         if (isLastY) void this.updateSideTerrain('bottom')
@@ -184,7 +162,7 @@ class TileGeometry extends THREE.BufferGeometry {
       xyz,
       terrainXYZ,
       terrainImageData,
-      exaggeration,
+      exaggeration: terrainExaggeration,
     })
   }
 
@@ -193,23 +171,24 @@ class TileGeometry extends THREE.BufferGeometry {
    * @param side
    * @returns
    */
-  async updateSideTerrain(side: 'right' | 'bottom' | 'rightBottom') {
+  private async updateSideTerrain(side: 'right' | 'bottom' | 'rightBottom') {
+    const { xyz } = this.tileMesh
     // 更新底边时，如果 y 是最后一个，则无需更新
     if (side === 'bottom' || side === 'rightBottom') {
-      const [, y, z] = this.xyz
+      const [, y, z] = xyz
       const z2 = Math.pow(2, z)
       if (y === z2 - 1) return
     }
 
     let nearXYZ: XYZ
     if (side === 'bottom') {
-      nearXYZ = getBottomNearXYZ(this.xyz)
+      nearXYZ = getBottomNearXYZ(xyz)
     } else if (side === 'right') {
-      nearXYZ = getRightNearXYZ(this.xyz)
+      nearXYZ = getRightNearXYZ(xyz)
     } else {
-      nearXYZ = getRightNearXYZ(getBottomNearXYZ(this.xyz))
+      nearXYZ = getRightNearXYZ(getBottomNearXYZ(xyz))
     }
-    const nearGeometry = this.tileGroup.getTileGeometry(nearXYZ)
+    const nearGeometry = this.getTileGeometry(nearXYZ)
     const promises = [this.updateTerrainPromise, nearGeometry?.updateTerrainPromise]
     if (promises.some(isNil)) return
 
@@ -254,6 +233,11 @@ class TileGeometry extends THREE.BufferGeometry {
 
       positions.needsUpdate = true
     })
+  }
+
+  private getTileGeometry(xyz: XYZ | undefined) {
+    if (!xyz) return
+    return this.tileGroup.tileMeshCache.get(xyz)?.geometry
   }
 }
 

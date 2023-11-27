@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/restrict-plus-operands */
 import { LineString, MultiLineString, Position } from 'geojson'
 import { Features } from 'src/types'
-import CanvasLayer, { DrawOptions } from './CanvasLayer'
+import CanvasLayer, { DrawOption } from './CanvasLayer'
 import geoEquirectangular from 'src/utils/geoEquirectangular'
 import { features2featureArr } from 'src/utils/layers'
 import { get, inRange, isEmpty, sum } from 'lodash-es'
@@ -98,7 +98,7 @@ class TextPathLayer extends CanvasLayer<Source, Style> {
     Object.assign(this, options)
   }
 
-  draw(options: DrawOptions) {
+  draw(options: DrawOption) {
     const { ctx, bbox, pxDeg } = options
     const { source, style, textField, layerManager } = this
 

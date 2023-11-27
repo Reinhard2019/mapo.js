@@ -29,6 +29,15 @@ class MercatorTile {
    * 将边界 box 转化为 tile 索引的 box
    */
   static bboxToTileBox(bbox: BBox, z: number): TileBox {
+    if (z === 0) {
+      return {
+        startX: 0,
+        endX: 1,
+        startY: 0,
+        endY: 1,
+      }
+    }
+
     const [w, s, e, n] = bbox
     const [startX, startY] = MercatorTile.pointToTile(w, n, z)
     const [x2, y2] = MercatorTile.pointToTile(e, s, z)

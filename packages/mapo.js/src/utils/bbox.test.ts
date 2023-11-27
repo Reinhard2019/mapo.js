@@ -1,13 +1,9 @@
 import { expect, test } from 'vitest'
-import { bboxOverlap, lineOverlap } from './bbox'
+import { bboxContain, bboxOverlap } from './bbox'
 
-test('lineOverlap()', () => {
-  expect(lineOverlap([0, 10], [10, 11])).toBe(false)
-  expect(lineOverlap([0, 10], [1, 2])).toBe(true)
-  expect(lineOverlap([0, 10], [1, 10])).toBe(true)
-  expect(lineOverlap([0, 10], [1, 11])).toBe(true)
-  expect(lineOverlap([0, 10], [-1, 11])).toBe(true)
-  expect(lineOverlap([-1, 11], [0, 10])).toBe(true)
+test('bboxContain()', () => {
+  expect(bboxContain([0, 0, 10, 10], [1, 1, 4, 4])).toBeTruthy()
+  expect(bboxContain([0, 0, 10, 10], [1, 1, 11, 11])).toBeFalsy()
 })
 
 test('bboxOverlap()', () => {

@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest'
-import { getDisplayCentralAngle, formatTileIndex } from './map'
+import { getDisplayCentralAngle, formatXYZ } from './map'
 
 test('getCentralAngle()', () => {
   const r = 1
@@ -10,8 +10,8 @@ test('getCentralAngle()', () => {
   expect(getDisplayCentralAngle(4, r, 60)).toBe(151.04497562814015)
 })
 
-test('formatTileXOrY()', () => {
-  expect(formatTileIndex(-1, 2)).toBe(3)
-  expect(formatTileIndex(1, 2)).toBe(1)
-  expect(formatTileIndex(4, 2)).toBe(0)
+test('formatXYZ()', () => {
+  expect(formatXYZ([-1, 0, 2])).toEqual([3, 0, 2])
+  expect(formatXYZ([1, 0, 2])).toEqual([1, 0, 2])
+  expect(formatXYZ([4, 0, 2])).toEqual([0, 0, 2])
 })
