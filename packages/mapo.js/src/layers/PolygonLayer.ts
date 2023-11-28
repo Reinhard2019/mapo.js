@@ -1,6 +1,6 @@
 import { MultiPolygon, Polygon, Position } from 'geojson'
-import { Features } from 'src/types'
-import { features2featureArr } from 'src/utils/layers'
+import { Features } from '../types'
+import { features2featureArr } from '../utils/layers'
 import geoEquirectangular from '../utils/geoEquirectangular'
 import CanvasLayer, { DrawOption } from './CanvasLayer'
 

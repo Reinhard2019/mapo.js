@@ -1,10 +1,10 @@
 import { BBox, TileBoxWithZ } from '../types'
 import CanvasLayer from './CanvasLayer'
 import * as THREE from 'three'
-import Map from 'src/Map'
-import MercatorTile from 'src/utils/MercatorTile'
-import CanvasLayerMaterial from 'src/CanvasLayerMaterial'
-import { getOverlapTileBox } from 'src/utils/tile'
+import Map from '../Map'
+import MercatorTile from '../utils/MercatorTile'
+import CanvasLayerMaterial from '../CanvasLayerMaterial'
+import { getOverlapTileBox } from '../utils/tile'
 import { isEqual } from 'lodash-es'
 
 interface CanvasOption {

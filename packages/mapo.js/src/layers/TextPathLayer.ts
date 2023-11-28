@@ -1,9 +1,9 @@
 /* eslint-disable @typescript-eslint/restrict-plus-operands */
 import { LineString, MultiLineString, Position } from 'geojson'
-import { Features } from 'src/types'
+import { Features } from '../types'
 import CanvasLayer, { DrawOption } from './CanvasLayer'
-import geoEquirectangular from 'src/utils/geoEquirectangular'
-import { features2featureArr } from 'src/utils/layers'
+import geoEquirectangular from '../utils/geoEquirectangular'
+import { features2featureArr } from '../utils/layers'
 import { get, inRange, isEmpty, sum } from 'lodash-es'
 import * as THREE from 'three'
 import {
@@ -13,9 +13,9 @@ import {
   getPointBySegmentInfo,
   radToDeg,
   degToRad,
-} from 'src/utils/math'
-import { fract } from 'src/utils/number'
-import { last } from 'src/utils/array'
+} from '../utils/math'
+import { fract } from '../utils/number'
+import { last } from '../utils/array'
 
 type Source = Features<LineString | MultiLineString>
 

@@ -1,4 +1,4 @@
-import { BBox, TileBox, TileBoxWithZ, XYZ } from 'src/types'
+import { BBox, TileBox, TileBoxWithZ, XYZ } from '../types'
 import { lineContain, lineOverlap, pointInBBox } from './bbox'
 import { isEqual } from 'lodash-es'
 import { formatXYZ } from './map'

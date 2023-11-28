@@ -1,7 +1,7 @@
-import { BBox, Features } from 'src/types'
+import { BBox, Features } from '../types'
 import Layer from './Layer'
 import CanvasLayerManager from './CanvasLayerManager'
-import CanvasLayerMaterial from 'src/CanvasLayerMaterial'
+import CanvasLayerMaterial from '../CanvasLayerMaterial'
 
 export interface DrawOption {
   bbox: BBox

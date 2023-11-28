@@ -1,13 +1,13 @@
 import { Point } from 'geojson'
 import { BBox, Features, LngLat, Point2 } from '../types'
-import { features2featureArr } from 'src/utils/layers'
+import { features2featureArr } from '../utils/layers'
 import * as THREE from 'three'
 import { get, mapKeys, mapValues } from 'lodash-es'
-import { bboxContain, bboxOverlap } from 'src/utils/bbox'
-import { lngLatToVector3 } from 'src/utils/map'
-import { degToRad } from 'src/utils/math'
+import { bboxContain, bboxOverlap } from '../utils/bbox'
+import { lngLatToVector3 } from '../utils/map'
+import { degToRad } from '../utils/math'
 import PointLayerManager from './PointLayerManager'
-import { chain } from 'src/utils'
+import { chain } from '../utils'
 import Layer from './Layer'
 
 type Source = Features<Point>

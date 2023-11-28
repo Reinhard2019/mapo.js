@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 import PointLayer from './PointLayer'
-import Map from 'src/Map'
+import Map from '../Map'
 
 class PointLayerManager extends THREE.Group {
   readonly map: Map

@@ -1,10 +1,10 @@
 import { LineString, Polygon, MultiPolygon, MultiLineString, Position } from 'geojson'
-import { Features } from 'src/types'
-import { features2featureArr } from 'src/utils/layers'
+import { Features } from '../types'
+import { features2featureArr } from '../utils/layers'
 import geoEquirectangular from '../utils/geoEquirectangular'
 import { mapKeys, mapValues } from 'lodash-es'
 import CanvasLayer, { DrawOption } from './CanvasLayer'
-import { chain } from 'src/utils'
+import { chain } from '../utils'
 
 type Source = Features<LineString | MultiLineString | Polygon | MultiPolygon>
 

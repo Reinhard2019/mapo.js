@@ -1,4 +1,4 @@
-import { XYZ } from 'src/types'
+import { XYZ } from '../types'
 import { formatXYZ } from './map'
 import TileCache from './TileCache'
 

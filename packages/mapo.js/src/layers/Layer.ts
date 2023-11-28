@@ -1,4 +1,4 @@
-import { Features } from 'src/types'
+import { Features } from '../types'
 import * as THREE from 'three'
 
 abstract class Layer<
