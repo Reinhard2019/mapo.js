@@ -321,8 +321,6 @@ class TileGroup extends THREE.Group {
     if (!this.needsUpdate) return
     this.needsUpdate = false
 
-    // if (this.children.length) return
-
     const { displayBBox } = this.map
     const { zoom } = this.map.earthOrbitControls
     const z = Math.ceil(zoom)

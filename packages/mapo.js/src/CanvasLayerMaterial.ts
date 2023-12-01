@@ -103,6 +103,11 @@ class CanvasLayerMaterial extends THREE.ShaderMaterial {
     this.uniforms.canvasTexture.value.dispose()
     this.uniforms.canvasTexture.value = new THREE.CanvasTexture(this.canvas)
   }
+
+  dispose() {
+    this.uniforms.canvasTexture.value.dispose()
+    super.dispose()
+  }
 }
 
 export default CanvasLayerMaterial

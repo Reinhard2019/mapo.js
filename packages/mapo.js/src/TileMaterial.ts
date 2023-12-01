@@ -35,8 +35,6 @@ function addDebugUI(ctx: OffscreenCanvasRenderingContext2D, xyz: XYZ, tileSize: 
 }
 
 class TileMaterial extends THREE.ShaderMaterial {
-  transparent = true
-
   constructor(options: { xyz: XYZ; tileSize: number; image: CanvasImageSource }) {
     const { xyz, tileSize, image } = options
 
@@ -61,6 +59,11 @@ class TileMaterial extends THREE.ShaderMaterial {
       vertexShader,
       fragmentShader,
     })
+  }
+
+  dispose() {
+    this.uniforms.canvasTexture.value.dispose()
+    super.dispose()
   }
 }
 
