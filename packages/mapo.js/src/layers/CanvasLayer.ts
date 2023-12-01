@@ -19,8 +19,15 @@ abstract class CanvasLayer<Source extends Features = Features, Style extends {} 
   abstract draw(options: DrawOption): void
 
   updateCanvasLayerMaterials(bboxes: BBox[]) {
-    this.canvasLayerMaterials.forEach(canvasLayerMaterial => canvasLayerMaterial.dispose())
-    this.canvasLayerMaterials = bboxes.map(() => new CanvasLayerMaterial())
+    if (this.canvasLayerMaterials.length > bboxes.length) {
+      this.canvasLayerMaterials
+        .slice(bboxes.length)
+        .forEach(canvasLayerMaterial => canvasLayerMaterial.dispose())
+      this.canvasLayerMaterials = this.canvasLayerMaterials.slice(0, bboxes.length)
+    }
+    this.canvasLayerMaterials = bboxes.map(
+      (_, i) => this.canvasLayerMaterials[i] ?? new CanvasLayerMaterial(),
+    )
   }
 
   projection(drawOptions: DrawOption, position: [number, number]) {
