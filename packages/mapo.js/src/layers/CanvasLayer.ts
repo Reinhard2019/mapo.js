@@ -28,6 +28,10 @@ abstract class CanvasLayer<Source extends Features = Features, Style extends {} 
     this.canvasLayerMaterials = bboxes.map(
       (_, i) => this.canvasLayerMaterials[i] ?? new CanvasLayerMaterial(),
     )
+    this.canvasLayerMaterials.forEach((canvasLayerMaterial, i) => {
+      const prevBBox = i === 0 ? undefined : bboxes[i - 1]
+      canvasLayerMaterial.updatePrevBBox(prevBBox)
+    })
   }
 
   projection(drawOptions: DrawOption, position: [number, number]) {
@@ -51,6 +55,8 @@ abstract class CanvasLayer<Source extends Features = Features, Style extends {} 
       taskQueue.add(this.constructor.name, () => {
         console.time(this.constructor.name)
         const canvasLayerMaterial = this.canvasLayerMaterials[i]
+        if (!canvasLayerMaterial) return
+
         canvasLayerMaterial.updateCanvasOption(canvasOption)
         const { canvas, ctx } = canvasLayerMaterial
         ctx.clearRect(0, 0, canvas.width, canvas.height)
@@ -60,14 +66,6 @@ abstract class CanvasLayer<Source extends Features = Features, Style extends {} 
           ctx,
         }
         this.draw(drawOption)
-
-        const prevCanvasOption = canvasOptions[i - 1]
-        if (prevCanvasOption) {
-          const [w, s, e, n] = prevCanvasOption.bbox
-          const [left, top] = this.projection(drawOption, [w, n])
-          const [right, bottom] = this.projection(drawOption, [e, s])
-          ctx.clearRect(left, top, right, bottom)
-        }
 
         canvasLayerMaterial.update()
         console.timeEnd(this.constructor.name)

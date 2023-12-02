@@ -3,7 +3,6 @@ import CanvasLayer from './CanvasLayer'
 import * as THREE from 'three'
 import Map from '../Map'
 import MercatorTile from '../utils/MercatorTile'
-import CanvasLayerMaterial from '../CanvasLayerMaterial'
 import { getOverlapTileBox } from '../utils/tile'
 import { isEqual } from 'lodash-es'
 
@@ -21,8 +20,8 @@ interface CanvasLayerManagerEvent {
 class CanvasLayerManager extends THREE.EventDispatcher<CanvasLayerManagerEvent> {
   readonly map: Map
   private readonly layers: CanvasLayer[] = []
+  tileBoxes: TileBoxWithZ[] = []
   private bboxes: BBox[] = []
-  canvasLayerMaterials: CanvasLayerMaterial[] = []
   canvasOptions: CanvasOption[] = []
 
   sortedLayers: CanvasLayer[] = []
@@ -57,11 +56,11 @@ class CanvasLayerManager extends THREE.EventDispatcher<CanvasLayerManagerEvent> 
       if (overlapTileBox) tileBoxes.push(overlapTileBox)
     }
 
+    this.tileBoxes = tileBoxes
     this.bboxes = tileBoxes.map(v => MercatorTile.tileBoxToBBox(v, v.z))
     this.sortedLayers.forEach(layer => {
       layer.updateCanvasLayerMaterials(this.bboxes)
     })
-    this.onLayersChange()
   }
 
   update() {
@@ -87,10 +86,7 @@ class CanvasLayerManager extends THREE.EventDispatcher<CanvasLayerManagerEvent> 
   }
 
   private onLayersChange() {
-    this.canvasLayerMaterials = this.sortedLayers.flatMap(layer => layer.canvasLayerMaterials)
-    this.dispatchEvent({
-      type: 'layersChange',
-    })
+    this.map.tileGroup.resetMaterial()
   }
 
   private sortLayers() {

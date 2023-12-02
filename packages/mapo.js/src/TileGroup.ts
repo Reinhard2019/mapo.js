@@ -21,8 +21,8 @@ import {
 class TileLoader {
   private readonly tileGroup: TileGroup
   tileBox: TileBoxWithZ
-  private prevTileLoader?: TileLoader | undefined
-  private children: TileMesh[] = []
+  prevTileLoader?: TileLoader | undefined
+  children: TileMesh[] = []
   private readonly updateTimestamp: number = Date.now()
   private promise: Promise<unknown>
   private destroyed = false
@@ -70,7 +70,7 @@ class TileLoader {
         this.children = uniq(this.children.concat(this.prevTileLoader.children))
         this.prevTileLoader.dispose()
         this.prevTileLoader = undefined
-        this.resetGroupChildren()
+        this.tileGroup.resetChildren()
       })
     }
   }
@@ -128,19 +128,6 @@ class TileLoader {
       tileMeshCache.set(xyz, tileMesh)
     }
     return tileMesh
-  }
-
-  /**
-   * 重置 TileGroup 的 children
-   */
-  resetGroupChildren() {
-    const children: TileMesh[] = []
-    let tileLoader = this.tileGroup.tileLoader
-    while (tileLoader) {
-      children.push(...tileLoader.children)
-      tileLoader = tileLoader.prevTileLoader
-    }
-    this.tileGroup.children = children
   }
 
   addChild(tileMesh: TileMesh) {
@@ -201,13 +188,14 @@ class TileLoader {
       if (!newTileBox) {
         this.dispose()
         nextTileLoader.prevTileLoader = undefined
-        this.resetGroupChildren()
+        this.tileGroup.resetChildren()
         return
       }
       this.tileBox = newTileBox
     }
 
-    this.children.forEach(child => {
+    const copyChildren = [...this.children]
+    copyChildren.forEach(child => {
       if (!tileBoxOverlap(this.tileBox, xyzToTileBox(child.xyz))) {
         this.removeChild(child)
       }
@@ -317,6 +305,25 @@ class TileGroup extends THREE.Group {
     })
   }
 
+  resetMaterial() {
+    this.children.forEach(child => {
+      child.resetMaterial()
+    })
+  }
+
+  /**
+   * 重置 TileGroup 的 children
+   */
+  resetChildren() {
+    const children: TileMesh[] = []
+    let tileLoader = this.tileLoader
+    while (tileLoader) {
+      children.push(...tileLoader.children)
+      tileLoader = tileLoader.prevTileLoader
+    }
+    this.children = children
+  }
+
   update() {
     if (!this.needsUpdate) return
     this.needsUpdate = false
@@ -337,6 +344,8 @@ class TileGroup extends THREE.Group {
       } else {
         this.tileLoader = new TileLoader(this, tileBox, this.tileLoader)
       }
+
+      this.resetMaterial()
     }
 
     this.canvasLayerManager.update()

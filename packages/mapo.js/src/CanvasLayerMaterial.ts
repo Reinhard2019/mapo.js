@@ -10,6 +10,7 @@ interface CanvasOption {
 
 const vertexShader = `
   varying vec2 vUv;
+  varying vec2 vLngLat;
   uniform vec4 bbox;
   attribute vec2 lngLat;
 
@@ -45,16 +46,32 @@ const vertexShader = `
 
   void main() {
     vUv = lngLat2uv(lngLat);
+    vLngLat = lngLat;
     gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
   }
 `
 const fragmentShader = `
   uniform sampler2D canvasTexture;
+  uniform bool hasPrevBBox;
+  uniform vec4 prevBBox;
   varying vec2 vUv;
+  varying vec2 vLngLat;
+
+  bool belongPrevBBox() {
+    if (!hasPrevBBox) {
+      return false;
+    }
+
+    float w = prevBBox[0];
+    float s = prevBBox[1];
+    float e = prevBBox[2];
+    float n = prevBBox[3];
+
+    return (vLngLat.x >= w && vLngLat.x < e && vLngLat.y >= s && vLngLat.y < n);
+  }
+
   void main() {
-    if (vUv.x < 0.0 || vUv.x > 1.0 || vUv.y < 0.0 || vUv.y > 1.0) {
-      gl_FragColor = vec4(0.0, 0.0, 0.0, 0.0);
-    } else {
+    if (!belongPrevBBox() && vUv.x >= 0.0 && vUv.x <= 1.0 && vUv.y >= 0.0 && vUv.y <= 1.0) {
       gl_FragColor = texture2D(canvasTexture, vUv);
     }
   }
@@ -63,7 +80,7 @@ const fragmentShader = `
 class CanvasLayerMaterial extends THREE.ShaderMaterial {
   readonly canvas: OffscreenCanvas
   readonly ctx: OffscreenCanvasRenderingContext2D
-  bbox: BBox
+  private bbox: BBox
 
   constructor(
     options: CanvasOption = {
@@ -76,6 +93,11 @@ class CanvasLayerMaterial extends THREE.ShaderMaterial {
     const uniforms = {
       canvasTexture: { value: new THREE.CanvasTexture(canvas) },
       bbox: { value: options.bbox },
+      /**
+       * 过滤掉 prevBBox 的区域
+       */
+      prevBBox: { value: options.bbox },
+      hasPrevBBox: { value: false },
     }
 
     super({
@@ -88,6 +110,13 @@ class CanvasLayerMaterial extends THREE.ShaderMaterial {
     this.canvas = canvas
     this.ctx = canvas.getContext('2d') as OffscreenCanvasRenderingContext2D
     this.bbox = options.bbox
+  }
+
+  updatePrevBBox(value: BBox | undefined) {
+    if (value) {
+      this.uniforms.prevBBox.value = value
+    }
+    this.uniforms.hasPrevBBox.value = !!value
   }
 
   updateCanvasOption(options: CanvasOption) {
