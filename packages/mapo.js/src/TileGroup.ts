@@ -2,9 +2,9 @@ import * as THREE from 'three'
 import { LngLat, Terrain, TileBoxWithZ, XYZ } from './types'
 import TileCache from './utils/TileCache'
 import _Map from './Map'
-import { formatXYZ, lngLatToVector3 } from './utils/map'
+import { getSatelliteUrl, lngLatToVector3 } from './utils/map'
 import MercatorTile from './utils/MercatorTile'
-import { isEqual, isNumber, uniq } from 'lodash-es'
+import { isEqual, isNumber, uniq, uniqBy } from 'lodash-es'
 import TileMesh from './TileMesh'
 import CanvasLayerManager from './layers/CanvasLayerManager'
 import {
@@ -23,7 +23,6 @@ class TileLoader {
   tileBox: TileBoxWithZ
   prevTileLoader?: TileLoader | undefined
   children: TileMesh[] = []
-  private readonly updateTimestamp: number = Date.now()
   private promise: Promise<unknown>
   private destroyed = false
 
@@ -46,14 +45,16 @@ class TileLoader {
       )
     }
     const previewZ = this.getPreviewZ()
-    uniq(
+    uniqBy(
       tileBox2xyzList(updateTileBoxZ(tileBox, previewZ))
         .filter(xyz => !this.prevTileLoaderContain(xyz))
-        .map(xyz => this.getTileMesh(this.getPlaceholderXYZ(xyz))),
-    ).forEach(tileMesh => {
+        .map(xyz => this.getPlaceholderXYZ(xyz)),
+      isEqual,
+    ).forEach(xyz => {
       const promise = (async () => {
-        await tileMesh.promise
-        if (this.addChild(tileMesh)) {
+        const imageBitmap = await this.getTilePromise(xyz)
+        const tileMesh = await this.addChild(xyz, imageBitmap)
+        if (tileMesh) {
           await this.splitTileMesh(tileMesh, previewZ)
         }
       })()
@@ -80,16 +81,13 @@ class TileLoader {
    * @param _xyz
    * @returns
    */
-  isLoadedXYZ(_xyz: XYZ) {
-    const xyz = formatXYZ(_xyz)
-
+  isLoadedXYZ(xyz: XYZ) {
     const { tileMeshCache } = this.tileGroup
     const tileMesh = tileMeshCache.get(xyz)
     return !!tileMesh?.tileMaterialLoaded
   }
 
-  getPlaceholderXYZ(_xyz: XYZ) {
-    let xyz: XYZ = _xyz
+  getPlaceholderXYZ(xyz: XYZ) {
     while (!this.isLoadedXYZ(xyz)) {
       const newXYZ = getPrevZoomXYZ(xyz)
       if (!newXYZ) break
@@ -118,28 +116,44 @@ class TileLoader {
     return map.earthOrbitControls.distanceToZoom(distance + earthRadius)
   }
 
-  getTileMesh(_xyz: XYZ) {
-    const xyz = formatXYZ(_xyz)
-
-    const { tileMeshCache } = this.tileGroup
-    let tileMesh = tileMeshCache.get(xyz)
-    if (!tileMesh) {
-      tileMesh = new TileMesh(xyz, this.tileGroup)
-      tileMeshCache.set(xyz, tileMesh)
+  async getTilePromise(xyz: XYZ) {
+    const { tileCache } = this.tileGroup
+    const url = getSatelliteUrl(xyz)
+    let promise = tileCache.get(xyz)
+    if (!promise) {
+      promise = new THREE.ImageBitmapLoader().loadAsync(url)
+      tileCache.set(xyz, promise)
+      promise.catch(() => {
+        tileCache.delete(xyz)
+      })
     }
-    return tileMesh
+    return await promise
   }
 
-  addChild(tileMesh: TileMesh) {
-    if (this.destroyed || !this.isBelongTileBox(tileMesh.xyz)) return false
+  async addChild(xyz: XYZ, imageBitmap: ImageBitmap): Promise<TileMesh> {
+    return await new Promise((resolve, reject) => {
+      this.tileGroup.map.taskQueue.add(() => {
+        if (this.destroyed || !this.isBelongTileBox(xyz)) {
+          reject(new Error(''))
+          return
+        }
 
-    this.children.push(tileMesh)
+        const { tileMeshCache } = this.tileGroup
+        let tileMesh = tileMeshCache.get(xyz)
+        if (!tileMesh) {
+          tileMesh = new TileMesh(xyz, this.tileGroup, imageBitmap)
+          tileMeshCache.set(xyz, tileMesh)
+        }
 
-    this.tileGroup.children.push(tileMesh)
+        this.children.push(tileMesh)
 
-    tileMesh.show()
+        this.tileGroup.children.push(tileMesh)
 
-    return true
+        tileMesh.show()
+
+        resolve(tileMesh)
+      })
+    })
   }
 
   removeChild(tileMesh: TileMesh) {
@@ -149,8 +163,7 @@ class TileLoader {
     if (index === -1) return
     this.children.splice(index, 1)
 
-    const parentIndex = this.tileGroup.children.findIndex(c => c === tileMesh)
-    if (parentIndex !== -1) this.tileGroup.children.splice(parentIndex, 1)
+    this.tileGroup.resetChildren()
   }
 
   prevTileLoaderContain(xyz: XYZ) {
@@ -235,10 +248,10 @@ class TileLoader {
   }
 
   async mergeTileMesh(tileMesh: TileMesh, prevZoomXYZ: XYZ) {
-    const prevTileMesh = this.getTileMesh(prevZoomXYZ)
-    await prevTileMesh.promise
-    this.addChild(prevTileMesh)
-    this.removeChild(tileMesh)
+    const imageBitmap = await this.getTilePromise(prevZoomXYZ)
+    await this.addChild(prevZoomXYZ, imageBitmap).then(() => {
+      this.removeChild(tileMesh)
+    })
   }
 
   /**
@@ -259,17 +272,31 @@ class TileLoader {
     } else {
       splitXYZList = getNextZoomXYZList(tileMesh.xyz)
     }
+    splitXYZList = splitXYZList.filter(xyz => this.isBelongTileBox(xyz))
 
-    let nextChildren = splitXYZList
-      .filter(nextXYZ => this.isBelongTileBox(nextXYZ))
-      .map(v => this.getTileMesh(v))
-    await Promise.all(nextChildren.map(async v => await v.promise)).then(() => {
-      nextChildren = nextChildren.filter(child => this.addChild(child))
+    const promiseSettledResultList = await Promise.allSettled(
+      splitXYZList.map(async xyz => await this.getTilePromise(xyz)),
+    )
 
-      this.removeChild(tileMesh)
-    })
+    const addChildPromises: Array<Promise<TileMesh>> = []
+    for (let i = 0; i < promiseSettledResultList.length; i++) {
+      const promiseSettledResult = promiseSettledResultList[i]
+      if (promiseSettledResult.status === 'fulfilled') {
+        const imageBitmap = promiseSettledResult.value
+        const promise = this.addChild(splitXYZList[i], imageBitmap)
+        addChildPromises.push(promise)
+      }
+    }
 
-    await Promise.allSettled(nextChildren.map(async v => await this.splitTileMesh(v)))
+    const addChildPromiseSettledResultList = await Promise.allSettled(addChildPromises)
+
+    this.removeChild(tileMesh)
+
+    await Promise.allSettled(
+      addChildPromiseSettledResultList.flatMap(v =>
+        v.status === 'fulfilled' ? [this.splitTileMesh(v.value)] : [],
+      ),
+    )
   }
 
   dispose() {
@@ -284,6 +311,7 @@ class TileGroup extends THREE.Group {
   readonly map: _Map
   readonly canvasLayerManager: CanvasLayerManager
   readonly tileMeshCache = new TileCache<TileMesh>()
+  readonly tileCache = new TileCache<Promise<ImageBitmap>>()
   readonly terrainTileCache = new TileCache<Promise<ImageData>>()
   terrain: Terrain | undefined
   needsUpdate = true

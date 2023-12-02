@@ -4,60 +4,38 @@ import { last, toArray } from './utils/array'
 import TileMaterial from './TileMaterial'
 import { XYZ } from './types'
 import TileGroup from './TileGroup'
-import { getSatelliteUrl } from './utils/map'
 import { getOverlapTileBox, tileBoxContain, tileBoxOverlap, xyzToTileBox } from './utils/tile'
 
 class TileMesh extends THREE.Mesh {
   declare geometry: TileGeometry
 
   private readonly tileGroup: TileGroup
-  private tileMaterial: TileMaterial
+  private readonly tileMaterial: TileMaterial
   readonly xyz: XYZ
 
   promise: Promise<unknown> | undefined
   tileMaterialLoaded = false
 
-  constructor(xyz: XYZ, tileGroup: TileGroup) {
+  constructor(xyz: XYZ, tileGroup: TileGroup, image: CanvasImageSource) {
     super()
 
     this.xyz = xyz
     this.renderOrder = xyz[2]
     this.tileGroup = tileGroup
+    const { tileSize } = this.tileGroup.map
+    this.tileMaterial = new TileMaterial({ xyz, image, tileSize })
 
     this.geometry = new TileGeometry({
       tileMesh: this,
       tileGroup,
     })
-
-    this.setPromise()
-  }
-
-  private setPromise() {
-    const { tileSize } = this.tileGroup.map
-    const { xyz } = this
-
-    const url = getSatelliteUrl(this.xyz)
-    this.promise = new THREE.ImageBitmapLoader()
-      .loadAsync(url)
-      .then(image => {
-        this.tileMaterial = new TileMaterial({ xyz, image, tileSize })
-        this.tileMaterialLoaded = true
-      })
-      .catch(() => {
-        this.promise = undefined
-      })
   }
 
   /**
    * Mesh 出现在可视范围内调用
    */
   show() {
-    // 处理加载失败的情况
-    if (!this.promise) {
-      this.setPromise()
-    }
-
-    void this.promise?.then(() => this.resetMaterial())
+    this.resetMaterial()
 
     this.geometry.resetTerrain()
   }
