@@ -47,7 +47,6 @@ class Map extends THREE.EventDispatcher<MapEvent> {
 
   private readonly disposeFuncList: Array<() => void> = []
   private readonly controlArr: Control[] = []
-  private readonly layers: Layer[] = []
 
   private displayPolygonUpdate = true
   private displayPolygon: Polygon
@@ -115,6 +114,7 @@ class Map extends THREE.EventDispatcher<MapEvent> {
 
       this.computeDisplayPolygon()
       this.tileGroup.update()
+      this.tileGroup.canvasLayerManager.update()
 
       this.taskQueue.run(time)
 
@@ -431,18 +431,7 @@ class Map extends THREE.EventDispatcher<MapEvent> {
     return polygon([[...lngLatArr, lngLatArr[0]]]).geometry
   }
 
-  /**
-   * 重渲染 CanvasLayerManager
-   */
-  // updateCanvasLayerManager() {
-  //   this.tileGroup.canvasLayerManager.update()
-  // }
-
-  addLayer(layer: Layer) {
-    if (this.layers.find(v => v === layer)) return
-
-    this.layers.push(layer)
-
+  addLayer(layer: Layer | CanvasLayer) {
     if (layer instanceof PointLayer) {
       this.pointLayerManager.addLayer(layer)
     } else {
@@ -450,7 +439,7 @@ class Map extends THREE.EventDispatcher<MapEvent> {
     }
   }
 
-  removeLayer(layer: Layer) {
+  removeLayer(layer: Layer | CanvasLayer) {
     if (layer instanceof PointLayer) {
       this.pointLayerManager.removeLayer(layer)
     } else {

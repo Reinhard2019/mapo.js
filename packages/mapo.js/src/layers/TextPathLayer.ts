@@ -2,7 +2,6 @@
 import { LineString, MultiLineString, Position } from 'geojson'
 import { Features } from '../types'
 import CanvasLayer, { DrawOption } from './CanvasLayer'
-import geoEquirectangular from '../utils/geoEquirectangular'
 import { features2featureArr } from '../utils/layers'
 import { get, inRange, isEmpty, sum } from 'lodash-es'
 import * as THREE from 'three'
@@ -99,7 +98,7 @@ class TextPathLayer extends CanvasLayer<Source, Style> {
   }
 
   draw(options: DrawOption) {
-    const { ctx, bbox, pxDeg } = options
+    const { ctx, pxDeg } = options
     const { source, style, textField, layerManager } = this
 
     // 将 bearing 的区间转化 0-360
@@ -119,10 +118,7 @@ class TextPathLayer extends CanvasLayer<Source, Style> {
 
     setContextStyle(ctx, style)
 
-    const projection = geoEquirectangular({
-      bbox,
-      size: [ctx.canvas.width, ctx.canvas.height],
-    })
+    const projection = this.getProjection(options)
 
     // 文字
     features2featureArr(source).forEach(feature => {

@@ -1,7 +1,6 @@
 import { MultiPolygon, Polygon, Position } from 'geojson'
 import { Features } from '../types'
 import { features2featureArr } from '../utils/layers'
-import geoEquirectangular from '../utils/geoEquirectangular'
 import CanvasLayer, { DrawOption } from './CanvasLayer'
 
 type Source = Features<Polygon | MultiPolygon>
@@ -19,7 +18,7 @@ interface Style {
 
 class PolygonLayer extends CanvasLayer<Source, Style> {
   draw(options: DrawOption) {
-    const { ctx, bbox } = options
+    const { ctx } = options
     const { source, style } = this
     const mergedStyle = Object.assign<Style, Style>(
       {
@@ -40,10 +39,7 @@ class PolygonLayer extends CanvasLayer<Source, Style> {
       ctx.strokeStyle = mergedStyle.borderColor
     }
 
-    const projection = geoEquirectangular({
-      bbox,
-      size: [ctx.canvas.width, ctx.canvas.height],
-    })
+    const projection = this.getProjection(options)
 
     ctx.beginPath()
 

@@ -1,14 +1,12 @@
 interface Queue {
-  id: string
   cb: () => void
 }
 
 class TaskQueue {
   queue: Queue[] = []
 
-  add(id: string, cb: Queue['cb']) {
+  add(cb: Queue['cb']) {
     this.queue.push({
-      id,
       cb,
     })
   }
@@ -21,7 +19,6 @@ class TaskQueue {
 
       const queue = this.queue.shift()
       queue?.cb()
-      // console.log('this.queue', this.queue.length, this.queue.map(v => v.id))
     }
   }
 }

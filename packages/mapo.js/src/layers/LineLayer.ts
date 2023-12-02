@@ -1,7 +1,6 @@
 import { LineString, Polygon, MultiPolygon, MultiLineString, Position } from 'geojson'
 import { Features } from '../types'
 import { features2featureArr } from '../utils/layers'
-import geoEquirectangular from '../utils/geoEquirectangular'
 import { mapKeys, mapValues } from 'lodash-es'
 import CanvasLayer, { DrawOption } from './CanvasLayer'
 import { chain } from '../utils'
@@ -18,13 +17,9 @@ interface Style {
 
 class LineLayer extends CanvasLayer<Source, Style> {
   draw(options: DrawOption) {
-    const { ctx, bbox } = options
+    const { ctx } = options
     const { source, style } = this
-
-    const projection = geoEquirectangular({
-      bbox,
-      size: [ctx.canvas.width, ctx.canvas.height],
-    })
+    const projection = this.getProjection(options)
 
     ctx.beginPath()
 

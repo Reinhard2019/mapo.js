@@ -348,7 +348,7 @@ class TileGroup extends THREE.Group {
       this.resetMaterial()
     }
 
-    this.canvasLayerManager.update()
+    this.canvasLayerManager.needsUpdate = true
   }
 
   dispose() {

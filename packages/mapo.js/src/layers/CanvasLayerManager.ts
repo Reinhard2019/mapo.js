@@ -23,8 +23,9 @@ class CanvasLayerManager extends THREE.EventDispatcher<CanvasLayerManagerEvent> 
   tileBoxes: TileBoxWithZ[] = []
   private bboxes: BBox[] = []
   canvasOptions: CanvasOption[] = []
-
   sortedLayers: CanvasLayer[] = []
+  needsUpdate = true
+  updating = false
 
   constructor(map: Map) {
     super()
@@ -64,6 +65,10 @@ class CanvasLayerManager extends THREE.EventDispatcher<CanvasLayerManagerEvent> 
   }
 
   update() {
+    if (!this.needsUpdate || this.updating) return
+
+    this.updating = true
+
     const { earthOrbitControls } = this.map
     let { zoom } = earthOrbitControls
     this.canvasOptions = this.bboxes.map(bbox => {
@@ -82,6 +87,11 @@ class CanvasLayerManager extends THREE.EventDispatcher<CanvasLayerManagerEvent> 
 
     this.sortedLayers.forEach(layer => {
       layer.update()
+    })
+
+    this.needsUpdate = false
+    this.map.taskQueue.add(() => {
+      this.updating = false
     })
   }
 

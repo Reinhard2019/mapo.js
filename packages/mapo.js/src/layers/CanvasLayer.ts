@@ -1,7 +1,7 @@
 import { BBox, Features } from '../types'
-import Layer from './Layer'
 import CanvasLayerManager from './CanvasLayerManager'
 import CanvasLayerMaterial from '../CanvasLayerMaterial'
+import geoEquirectangular from '../utils/geoEquirectangular'
 
 export interface DrawOption {
   bbox: BBox
@@ -9,14 +9,32 @@ export interface DrawOption {
   ctx: OffscreenCanvasRenderingContext2D
 }
 
-abstract class CanvasLayer<Source extends Features = Features, Style extends {} = {}> extends Layer<
-  Source,
-  Style
-> {
+abstract class CanvasLayer<Source extends Features = Features, Style extends {} = {}> {
+  source: Source
+  style?: Style | undefined
+  zIndex = 0
+
   layerManager: CanvasLayerManager
   canvasLayerMaterials: CanvasLayerMaterial[] = []
+  needsUpdate = true
 
-  abstract draw(options: DrawOption): void
+  constructor(options: { source: Source; style?: Style }) {
+    this.source = options.source
+    this.style = options.style
+  }
+
+  updateStyle(style: Style) {
+    this.style = {
+      ...this.style,
+      ...style,
+    }
+    this.needsUpdate = true
+  }
+
+  setSource(source: Source) {
+    this.source = source
+    this.needsUpdate = true
+  }
 
   updateCanvasLayerMaterials(bboxes: BBox[]) {
     if (this.canvasLayerMaterials.length > bboxes.length) {
@@ -34,25 +52,26 @@ abstract class CanvasLayer<Source extends Features = Features, Style extends {} 
     })
   }
 
-  projection(drawOptions: DrawOption, position: [number, number]) {
-    const [w, s, e, n] = drawOptions.bbox
-    const { width, height } = drawOptions.ctx.canvas
-
-    const [lng, lat] = position
-    const x = ((lng - w) / (e - w)) * width
-    const y = ((n - lat) / (n - s)) * height
-    return [x, y] as const
+  getProjection(drawOptions: DrawOption) {
+    const { bbox, ctx } = drawOptions
+    return geoEquirectangular({
+      bbox,
+      size: [ctx.canvas.width, ctx.canvas.height],
+    })
   }
 
   update() {
     const { layerManager } = this
     if (!layerManager) return
 
+    if (!layerManager.needsUpdate && !this.needsUpdate) return
+    this.needsUpdate = false
+
     const { canvasOptions } = layerManager
     const { taskQueue } = layerManager.map
 
     canvasOptions.forEach((canvasOption, i) => {
-      taskQueue.add(this.constructor.name, () => {
+      taskQueue.add(() => {
         console.time(this.constructor.name)
         const canvasLayerMaterial = this.canvasLayerMaterials[i]
         if (!canvasLayerMaterial) return
@@ -72,6 +91,8 @@ abstract class CanvasLayer<Source extends Features = Features, Style extends {} 
       })
     })
   }
+
+  abstract draw(options: DrawOption): void
 }
 
 export default CanvasLayer
