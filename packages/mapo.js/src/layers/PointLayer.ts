@@ -59,14 +59,12 @@ class TextSprite extends THREE.Sprite {
     text: string
     fontSize: number
     textWidth: number
-    scale: number
+    spriteSize: number
     position: THREE.Vector3
     styles: CanvasTextDrawingStyles & CanvasFillStrokeStyles
   }) {
-    // TextSprite 在镜头移动时会有闪动的效果，加 padding 使其不那么明显
-    const padding = 10
-    // 将宽高各乘以 2 以满足 textAlign 和 textBaseline 的各种情况
-    const canvas = new OffscreenCanvas(options.textWidth + padding, options.fontSize + padding)
+    // TODO 将宽高各乘以 2 以满足 textAlign 和 textBaseline 的各种情况
+    const canvas = new OffscreenCanvas(options.textWidth, options.fontSize)
     const ctx = canvas.getContext('2d') as OffscreenCanvasRenderingContext2D
 
     Object.assign(ctx, options.styles)
@@ -76,12 +74,14 @@ class TextSprite extends THREE.Sprite {
     const spriteMaterial = new THREE.SpriteMaterial({
       map: texture,
       depthTest: false,
+      sizeAttenuation: false,
     })
 
     super(spriteMaterial)
 
     this.position.copy(options.position)
-    this.scale.set(canvas.width * options.scale, canvas.height * options.scale, 1)
+    const { spriteSize } = options
+    this.scale.set(canvas.width / spriteSize, canvas.height / spriteSize, 1)
   }
 }
 
@@ -110,6 +110,9 @@ class PointLayer extends Layer<Source, Style> {
 
     canvas.width = map.container.clientWidth
     canvas.height = map.container.clientHeight
+
+    const { fov } = map.earthOrbitControls
+    const spriteSize = map.container.clientHeight / (2 * Math.tan(degToRad(fov / 2))) // px
 
     const contextStyles = style2ContextStyle(style)
     Object.assign(ctx, contextStyles)
@@ -143,17 +146,11 @@ class PointLayer extends Layer<Source, Style> {
 
       bboxArr.push(textBBox)
 
-      // 3d 空间中的长度
-      const height =
-        2 *
-        Math.tan(degToRad(map.earthOrbitControls.fov / 2)) *
-        (map.earthOrbitControls.distance - map.earthRadius)
-
       const textSprite = new TextSprite({
         text,
         fontSize,
         position: lngLatToVector3(lngLat, map.earthRadius),
-        scale: height / map.container.clientHeight,
+        spriteSize,
         textWidth: textMetrics.width,
         styles: contextStyles,
       })
