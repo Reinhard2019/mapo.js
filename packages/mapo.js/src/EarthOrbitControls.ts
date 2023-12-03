@@ -1,12 +1,14 @@
 import { clamp, clone, debounce, isNumber } from 'lodash-es'
 import * as THREE from 'three'
 import { CameraEvent, EarthOrbitControlsOptions, LngLat } from './types'
-import { lngLatToVector3, normalizeLng } from './utils/map'
+import Map from './Map'
+import { lngLatToVector3, normalizeLng, vector3ToLngLat } from './utils/map'
 import { degToRad, radToDeg } from './utils/math'
 
 class EarthOrbitControls extends THREE.EventDispatcher<CameraEvent> {
   readonly camera: THREE.PerspectiveCamera
-  domElement: HTMLElement = document.body
+  map: Map
+  domElement: HTMLElement
   private readonly earthRadius: number = 6371
   /**
    * 垂直方向的视角
@@ -55,6 +57,7 @@ class EarthOrbitControls extends THREE.EventDispatcher<CameraEvent> {
   constructor(options: EarthOrbitControlsOptions) {
     super()
 
+    this.map = options.map
     if (options.domElement) this.domElement = options.domElement
     if (Array.isArray(options.center)) this.center = clone(options.center)
     this.earthRadius = options.earthRadius
@@ -264,12 +267,63 @@ class EarthOrbitControls extends THREE.EventDispatcher<CameraEvent> {
     e.preventDefault()
     e.stopPropagation()
 
+    // TODO 围绕鼠标点缩放，当前的写法存在误差
+    const mousePoint = new THREE.Vector2(e.offsetX, e.offsetY)
+    const lngLat = this.map.unprojectBoundary(mousePoint)
+
+    const raycaster = this.mousePosition2Raycaster(mousePoint)
+    const { position } = this.camera
+    const { direction } = raycaster.ray
+    const fov = Math.PI - direction.angleTo(position)
+    const plane = new THREE.Plane().setFromCoplanarPoints(
+      position,
+      new THREE.Vector3(0, 0, 0),
+      direction,
+    )
+
+    // 更新 zoom 和 distance
     this.zoom = this.zoom - e.deltaY / 100
+
+    // 正弦定理
+    // 已知三角形两条边 earthRadius、distance，以及一个角 earthRadiusRad(即 fov)
+    const earthRadiusRad = fov
+    const getRayDistanceRad = (distanceRad: number) => {
+      return Math.PI - earthRadiusRad - distanceRad
+    }
+    const distanceRad = Math.asin(this.distance / (this.earthRadius / Math.sin(earthRadiusRad)))
+    let rayDistanceRad = getRayDistanceRad(distanceRad)
+    if (rayDistanceRad > Math.PI / 2) {
+      rayDistanceRad = getRayDistanceRad(Math.PI - distanceRad)
+    }
+    this.center = vector3ToLngLat(
+      lngLatToVector3(lngLat, 1).applyAxisAngle(plane.normal, rayDistanceRad),
+    )
+
     this.updateCameraPosition()
+    this.lookAt()
 
     this.onZoomStart()
     this.dispatchEvent({ type: 'zoom' })
     this.onZoomEnd()
+  }
+
+  /**
+   * 将鼠标位置转化为射线
+   * @param point
+   * @returns
+   */
+  mousePosition2Raycaster(point: THREE.Vector2) {
+    const { camera, domElement } = this
+
+    // 将鼠标位置归一化为设备坐标。x 和 y 方向的取值范围是 (-1 to +1)
+    const x = (point.x / domElement.clientWidth) * 2 - 1
+    const y = -(point.y / domElement.clientHeight) * 2 + 1
+
+    const raycaster = new THREE.Raycaster()
+    // 通过摄像机和鼠标位置更新射线
+    raycaster.setFromCamera(new THREE.Vector2(x, y), camera)
+
+    return raycaster
   }
 
   setCenter(value: LngLat) {

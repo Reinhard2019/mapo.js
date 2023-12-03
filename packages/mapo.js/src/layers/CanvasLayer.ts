@@ -72,7 +72,7 @@ abstract class CanvasLayer<Source extends Features = Features, Style extends {} 
 
     canvasOptions.forEach((canvasOption, i) => {
       taskQueue.add(() => {
-        console.time(this.constructor.name)
+        console.time(this.constructor.name + i)
         const canvasLayerMaterial = this.canvasLayerMaterials[i]
         if (!canvasLayerMaterial) return
 
@@ -87,7 +87,7 @@ abstract class CanvasLayer<Source extends Features = Features, Style extends {} 
         this.draw(drawOption)
 
         canvasLayerMaterial.update()
-        console.timeEnd(this.constructor.name)
+        console.timeEnd(this.constructor.name + i)
       })
     })
   }

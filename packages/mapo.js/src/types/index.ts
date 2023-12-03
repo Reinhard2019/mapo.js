@@ -1,5 +1,6 @@
 import { Feature, FeatureCollection, Geometry } from 'geojson'
 import type { WebGLRendererParameters } from 'three'
+import Map from '../Map'
 
 export type Terrain =
   | boolean
@@ -56,6 +57,7 @@ export interface AnimationOptions {
 }
 
 export interface EarthOrbitControlsOptions extends CameraOptions {
+  map: Map
   domElement?: HTMLElement
   earthRadius: number
 }

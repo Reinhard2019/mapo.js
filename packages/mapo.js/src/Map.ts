@@ -11,10 +11,10 @@ import {
   Terrain,
 } from './types'
 import EarthOrbitControls from './EarthOrbitControls'
-import { floor, isNil, last, min, pick, pickBy, remove } from 'lodash-es'
+import { floor, isNil, last, pick, pickBy, remove } from 'lodash-es'
 import { unwrapHTMLElement } from './utils/dom'
-import { lngLatToVector3, mousePosition2Raycaster, vector3ToLngLat } from './utils/map'
-import { getQuadraticEquationRes, radToDeg, rectangleIntersect } from './utils/math'
+import { lngLatToVector3, vector3ToLngLat } from './utils/map'
+import { radToDeg, rectangleIntersect } from './utils/math'
 import { bbox, lineIntersect, lineString, polygon } from '@turf/turf'
 import { inRange } from './utils/number'
 import Control from './Control'
@@ -60,7 +60,6 @@ class Map extends THREE.EventDispatcher<MapEvent> {
       console.error('can not find container')
       return
     }
-    container.style.position = 'relative'
     this.container = container
 
     const eventListenerList: Array<[keyof HTMLElementEventMap, EventListener]> = [
@@ -88,6 +87,7 @@ class Map extends THREE.EventDispatcher<MapEvent> {
     // 镜头控制器
     const hashOptions = this.parseHash()
     this.earthOrbitControls = new EarthOrbitControls({
+      map: this,
       domElement: container,
       earthRadius: this.earthRadius,
       center: options.center,
@@ -286,8 +286,8 @@ class Map extends THREE.EventDispatcher<MapEvent> {
     return [x, y]
   }
 
-  private unprojectBoundary(point: THREE.Vector2) {
-    const raycaster = mousePosition2Raycaster(point, this.container, this.earthOrbitControls.camera)
+  unprojectBoundary(point: THREE.Vector2) {
+    const raycaster = this.earthOrbitControls.mousePosition2Raycaster(point)
 
     const { earthRadius } = this
     const { distance } = this.earthOrbitControls
@@ -303,10 +303,19 @@ class Map extends THREE.EventDispatcher<MapEvent> {
       return vector3ToLngLat(position.clone().applyAxisAngle(plane.normal, -centralAngle))
     }
 
-    const a = 1
-    const b = -2 * Math.cos(fov) * distance
-    const c = Math.pow(distance, 2) - Math.pow(earthRadius, 2)
-    const rayDistance = min(getQuadraticEquationRes(a, b, c))!
+    // 正弦定理
+    // 已知三角形两条边 earthRadius、distance，以及一个角 earthRadiusRad(即 fov)
+    const earthRadiusRad = fov
+    const getRayDistance = (distanceRad: number) => {
+      const rayDistanceRad = Math.PI - earthRadiusRad - distanceRad
+      const rayDistance = (earthRadius / Math.sin(earthRadiusRad)) * Math.sin(rayDistanceRad)
+      return rayDistance
+    }
+    const distanceRad = Math.asin(distance / (earthRadius / Math.sin(earthRadiusRad)))
+    let rayDistance = getRayDistance(distanceRad)
+    if (rayDistance > distance) {
+      rayDistance = getRayDistance(Math.PI - distanceRad)
+    }
 
     const target = new THREE.Vector3()
     raycaster.ray.at(rayDistance, target)
@@ -321,7 +330,7 @@ class Map extends THREE.EventDispatcher<MapEvent> {
    * @returns
    */
   unproject(point: THREE.Vector2): LngLat | null {
-    const raycaster = mousePosition2Raycaster(point, this.container, this.earthOrbitControls.camera)
+    const raycaster = this.earthOrbitControls.mousePosition2Raycaster(point)
 
     // 计算物体和射线的焦点
     const intersects = raycaster.intersectObjects(this.tileGroup.children)

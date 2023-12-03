@@ -70,27 +70,6 @@ export function getTerrainUrl([x, y, z]: XYZ) {
 }
 
 /**
- * 将鼠标位置转化为射线
- * @param point
- * @returns
- */
-export function mousePosition2Raycaster(
-  point: THREE.Vector2,
-  container: HTMLElement,
-  camera: THREE.PerspectiveCamera,
-): THREE.Raycaster {
-  // 将鼠标位置归一化为设备坐标。x 和 y 方向的取值范围是 (-1 to +1)
-  const x = (point.x / container.clientWidth) * 2 - 1
-  const y = -(point.y / container.clientHeight) * 2 + 1
-
-  const raycaster = new THREE.Raycaster()
-  // 通过摄像机和鼠标位置更新射线
-  raycaster.setFromCamera(new THREE.Vector2(x, y), camera)
-
-  return raycaster
-}
-
-/**
  * 根据像素获取海拔
  * 单位: m
  * https://docs.mapbox.com/data/tilesets/guides/access-elevation-data/
