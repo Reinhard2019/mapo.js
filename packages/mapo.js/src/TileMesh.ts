@@ -13,7 +13,6 @@ class TileMesh extends THREE.Mesh {
   private readonly tileMaterial: TileMaterial
   readonly xyz: XYZ
 
-  promise: Promise<unknown> | undefined
   tileMaterialLoaded = false
 
   constructor(xyz: XYZ, tileGroup: TileGroup, image: CanvasImageSource) {

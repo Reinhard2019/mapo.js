@@ -31,44 +31,42 @@ class TileGeometry extends THREE.BufferGeometry {
   }
 
   resetTerrain() {
-    void this.tileMesh.promise?.then(() => {
-      const { terrain, terrainTileCache } = this.tileGroup
-      const { tileSize } = this.tileGroup.map
-      let exaggeration = 0
-      if (typeof terrain === 'object') {
-        exaggeration = terrain.exaggeration ?? 0
-      } else {
-        exaggeration = terrain ? 1 : 0
-      }
+    const { terrain, terrainTileCache } = this.tileGroup
+    const { tileSize } = this.tileGroup.map
+    let exaggeration = 0
+    if (typeof terrain === 'object') {
+      exaggeration = terrain.exaggeration ?? 0
+    } else {
+      exaggeration = terrain ? 1 : 0
+    }
 
-      if (exaggeration === this.terrainExaggeration) return
-      this.terrainExaggeration = exaggeration
+    if (exaggeration === this.terrainExaggeration) return
+    this.terrainExaggeration = exaggeration
 
-      if (!exaggeration) {
-        this.update()
-      }
+    if (!exaggeration) {
+      this.update()
+    }
 
-      const terrainXYZ = this.getTerrainXYZ()
-      let promise = terrainTileCache.get(terrainXYZ)
-      if (!promise) {
-        const url = getTerrainUrl(this.getTerrainXYZ())
-        promise = new THREE.ImageBitmapLoader().loadAsync(url).then(imageBitmap => {
-          const canvas = new OffscreenCanvas(tileSize, tileSize)
-          const ctx = canvas.getContext('2d') as OffscreenCanvasRenderingContext2D
-          // 部份瓦片存在一些多余的裙边
-          const sx = (imageBitmap.width - tileSize) / 2
-          const sy = (imageBitmap.height - tileSize) / 2
-          ctx.drawImage(imageBitmap, sx, sy, tileSize, tileSize, 0, 0, tileSize, tileSize)
-          return ctx.getImageData(0, 0, tileSize, tileSize)
-        })
-        terrainTileCache.set(terrainXYZ, promise)
-        promise.catch(() => {
-          terrainTileCache.delete(terrainXYZ)
-        })
-      }
-      void promise.then(imageData => {
-        this.updateTerrain(imageData, exaggeration)
+    const terrainXYZ = this.getTerrainXYZ()
+    let promise = terrainTileCache.get(terrainXYZ)
+    if (!promise) {
+      const url = getTerrainUrl(this.getTerrainXYZ())
+      promise = new THREE.ImageBitmapLoader().loadAsync(url).then(imageBitmap => {
+        const canvas = new OffscreenCanvas(tileSize, tileSize)
+        const ctx = canvas.getContext('2d') as OffscreenCanvasRenderingContext2D
+        // 部份瓦片存在一些多余的裙边
+        const sx = (imageBitmap.width - tileSize) / 2
+        const sy = (imageBitmap.height - tileSize) / 2
+        ctx.drawImage(imageBitmap, sx, sy, tileSize, tileSize, 0, 0, tileSize, tileSize)
+        return ctx.getImageData(0, 0, tileSize, tileSize)
       })
+      terrainTileCache.set(terrainXYZ, promise)
+      promise.catch(() => {
+        terrainTileCache.delete(terrainXYZ)
+      })
+    }
+    void promise.then(imageData => {
+      this.updateTerrain(imageData, exaggeration)
     })
   }
 
