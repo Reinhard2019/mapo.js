@@ -1,5 +1,4 @@
 import { LngLat, XYZ } from './types'
-import MercatorTile from './utils/MercatorTile'
 import TileCache from './utils/TileCache'
 import { getTerrainUrl, rgb2elevation } from './utils/map'
 import { degToRad } from './utils/math'
@@ -35,6 +34,21 @@ function lngLatToVector3(lngLat: LngLat, radius: number) {
   return [x, y, z]
 }
 
+/**
+ * 墨卡托投影
+ */
+function xToLng(x: number, z: number) {
+  return (360 / Math.pow(2, z)) * x - 180
+}
+
+/**
+ * 墨卡托投影
+ */
+function yToLat(y: number, z: number) {
+  const n = Math.PI - (2 * Math.PI * y) / Math.pow(2, z)
+  return (180 / Math.PI) * Math.atan(0.5 * (Math.exp(n) - Math.exp(-n)))
+}
+
 export function getGeometryAttribute(
   _widthSegments: number,
   _heightSegments: number,
@@ -56,7 +70,7 @@ export function getGeometryAttribute(
 
     // 添加裙边
     if (z !== 0) {
-      const lng = MercatorTile.xToLng(x, z)
+      const lng = xToLng(x, z)
       positions.push(0, 0, 0)
       uvs.push(0, uvY)
       lngLats.push(lng, lat)
@@ -65,7 +79,7 @@ export function getGeometryAttribute(
 
     for (let xi = 0; xi < _widthPositionCount; xi++) {
       const uvX = xi / _widthSegments
-      const lng = MercatorTile.xToLng(x + uvX, z)
+      const lng = xToLng(x + uvX, z)
       const terrain = getTerrain ? getTerrain(xi, yi) : 0
       const position = isOrigin ? [0, 0, 0] : lngLatToVector3([lng, lat], earthRadius + terrain)
       positions.push(...position)
@@ -75,7 +89,7 @@ export function getGeometryAttribute(
 
     // 添加裙边
     if (z !== 0) {
-      const lng = MercatorTile.xToLng(x + 1, z)
+      const lng = xToLng(x + 1, z)
       positions.push(0, 0, 0)
       uvs.push(1, uvY)
       lngLats.push(lng, lat)
@@ -86,7 +100,7 @@ export function getGeometryAttribute(
   let extraHeightSegments = 0
   // 添加裙边
   if (z !== 0) {
-    const lat = y === 0 ? 90 : MercatorTile.yToLat(y, z)
+    const lat = y === 0 ? 90 : yToLat(y, z)
     addLine(lat, 0, 0, true)
     extraHeightSegments++
   }
@@ -96,7 +110,7 @@ export function getGeometryAttribute(
   }
   for (let yi = 0; yi < _heightPositionCount; yi++) {
     const uvY = yi / _heightSegments
-    const lat = MercatorTile.yToLat(y + uvY, z)
+    const lat = yToLat(y + uvY, z)
     addLine(lat, uvY, yi)
   }
   if (y === Math.pow(2, z) - 1) {
@@ -178,13 +192,14 @@ function onmessage(event: MessageEvent<MessageEventData>) {
 const scripts = [
   getTerrainUrl,
   rgb2elevation,
-  ...MercatorTile.workerScripts,
   lngLatToVector3,
   degToRad,
   getGeometryAttribute,
+  yToLat,
+  xToLng,
 ]
 const blob = new Blob([
-  ...scripts.map(v => `${v.toString() as string}\n\n`).join(''),
+  ...scripts.map(v => `${v.toString()}\n\n`).join(''),
   `onmessage = ${onmessage.toString()}`,
 ])
 
