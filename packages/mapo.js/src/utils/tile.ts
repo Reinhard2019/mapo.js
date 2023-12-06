@@ -233,7 +233,7 @@ export function isBelongXYZ(xyz1: XYZ, xyz2: XYZ) {
  * @returns
  */
 export function getPrevZoomXYZ(xyz: XYZ, n = 1) {
-  if (xyz[2] === 0) return
+  if (xyz[2] <= 0) return
   if (n < 1) return xyz
   const zSquare = Math.pow(2, n)
   return [Math.floor(xyz[0] / zSquare), Math.floor(xyz[1] / zSquare), xyz[2] - n] as XYZ

@@ -103,7 +103,8 @@ class TileLoader {
   getPreviewZ() {
     const { tileBox } = this
     const maxGap = Math.max(tileBox.endX - tileBox.startX, tileBox.endY - tileBox.startY)
-    return tileBox.z - Math.ceil(Math.log2(maxGap))
+    const previewZ = tileBox.z - Math.ceil(Math.log2(maxGap))
+    return Math.max(previewZ, 0)
   }
 
   getTileZoom([x, y, z]: XYZ) {
