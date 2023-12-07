@@ -7,7 +7,7 @@ import { clamp, round } from './number'
 
 // https://wiki.openstreetmap.org/wiki/Slippy_map_tilenames
 const MercatorTile = {
-  maxLat: round((Math.atan(Math.sinh(Math.PI)) * 180) / Math.PI, 12),
+  maxLat: (Math.atan(Math.sinh(Math.PI)) * 180) / Math.PI,
 
   pointToTile(lng: number, lat: number, z: number): [number, number] {
     return [Math.floor(MercatorTile.lngToX(lng, z)), Math.floor(MercatorTile.latToY(lat, z))]
@@ -35,12 +35,14 @@ const MercatorTile = {
       }
     }
 
+    const isLatEqual = (a: number, b: number) => round(a, 12) === round(b, 12)
+
     const [w, s, e, n] = bbox
     const [startX, startY] = MercatorTile.pointToTile(w, n, z)
-    const [x2, y2] = MercatorTile.pointToTile(e, s, z)
-    const endX = e === MercatorTile.xToLng(x2, z) ? x2 : x2 + 1
+    let [endX, endY] = MercatorTile.pointToTile(e, s, z)
+    endX = e === MercatorTile.xToLng(endX, z) ? endX : endX + 1
     const clampedS = clamp(s, -MercatorTile.maxLat, MercatorTile.maxLat)
-    const endY = clampedS === MercatorTile.yToLat(y2, z) ? y2 : y2 + 1
+    endY = isLatEqual(clampedS, MercatorTile.yToLat(endY, z)) ? endY : endY + 1
     return {
       startX,
       startY,
@@ -75,7 +77,7 @@ const MercatorTile = {
 
   yToLat(y: number, z: number) {
     const n = Math.PI - (2 * Math.PI * y) / Math.pow(2, z)
-    return round((180 / Math.PI) * Math.atan(0.5 * (Math.exp(n) - Math.exp(-n))), 12)
+    return (180 / Math.PI) * Math.atan(0.5 * (Math.exp(n) - Math.exp(-n)))
   },
 } as const
 

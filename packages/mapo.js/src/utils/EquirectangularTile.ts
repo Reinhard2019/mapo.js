@@ -35,9 +35,9 @@ const EquirectangularTile = {
 
     const [w, s, e, n] = bbox
     const [startX, startY] = EquirectangularTile.pointToTile(w, n, z)
-    const [x2, y2] = EquirectangularTile.pointToTile(e, s, z)
-    const endX = e === EquirectangularTile.xToLng(x2, z) ? x2 : x2 + 1
-    const endY = s === EquirectangularTile.yToLat(y2, z) ? y2 : y2 + 1
+    let [endX, endY] = EquirectangularTile.pointToTile(e, s, z)
+    endX = e === EquirectangularTile.xToLng(endX, z) ? endX : endX + 1
+    endY = s === EquirectangularTile.yToLat(endY, z) ? endY : endY + 1
     return {
       startX,
       startY,
