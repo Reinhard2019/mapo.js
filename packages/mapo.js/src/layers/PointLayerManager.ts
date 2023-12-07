@@ -14,7 +14,7 @@ class PointLayerManager extends THREE.Group {
 
   addLayer(layer: PointLayer) {
     layer.setPointLayerManager(this)
-    layer.update()
+    layer.needsUpdate = true
     this.pointLayers.push(layer)
     this.add(layer.group)
   }

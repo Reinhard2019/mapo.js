@@ -115,6 +115,7 @@ class Map extends THREE.EventDispatcher<MapEvent> {
       this.computeDisplayPolygon()
       this.tileGroup.update()
       this.tileGroup.canvasLayerManager.update()
+      this.pointLayerManager.update()
 
       this.taskQueue.run(time)
 

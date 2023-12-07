@@ -83,6 +83,11 @@ class TextSprite extends THREE.Sprite {
     const { spriteSize } = options
     this.scale.set(canvas.width / spriteSize, canvas.height / spriteSize, 1)
   }
+
+  dispose() {
+    this.material?.dispose()
+    this.material?.map?.dispose()
+  }
 }
 
 class PointLayer extends Layer<Source, Style> {
@@ -91,6 +96,7 @@ class PointLayer extends Layer<Source, Style> {
   ctx = this.canvas.getContext('2d') as OffscreenCanvasRenderingContext2D
   private pointLayerManager: PointLayerManager
   readonly group = new THREE.Group()
+  needsUpdate = false
 
   constructor(options: { source: Source; style?: Style; textField: string }) {
     super(options)
@@ -103,9 +109,15 @@ class PointLayer extends Layer<Source, Style> {
   }
 
   update() {
+    if (!this.needsUpdate) return
+    this.needsUpdate = false
+
     const { canvas, ctx, source, style, textField } = this
     const { map } = this.pointLayerManager
 
+    this.group.children.forEach((child: TextSprite) => {
+      child.dispose()
+    })
     this.group.children = []
 
     canvas.width = map.container.clientWidth
