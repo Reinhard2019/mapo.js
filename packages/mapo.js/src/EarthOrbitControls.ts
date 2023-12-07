@@ -19,6 +19,7 @@ class EarthOrbitControls extends THREE.EventDispatcher<CameraEvent> {
   center: LngLat = [0, 0]
   private _distance = 0
   private _zoom = 0
+  minZoom = 1
 
   private _bearing = 0
   pitch = 0
@@ -263,9 +264,29 @@ class EarthOrbitControls extends THREE.EventDispatcher<CameraEvent> {
     e.preventDefault()
   }
 
+  /**
+   * 获取对应的圆心角
+   * @param distance 摄像机到圆心的距离
+   * @param fov 摄像机的角度
+   * @returns
+   */
+  getCentralAngle(distance: number, fov: number) {
+    const tangentFov = Math.asin(this.earthRadius / distance)
+    if (fov >= tangentFov) return Math.PI / 2 - tangentFov
+
+    // 正弦定理
+    // 已知三角形两条边 earthRadius、distance，以及一个角 fov(即 earthRadius 边对应的角度)
+    // 如果该点位于可视范围内，distanceRad 一定大于 90
+    const distanceRad = Math.PI - Math.asin(distance / (this.earthRadius / Math.sin(fov)))
+    return Math.PI - fov - distanceRad
+  }
+
   private onMousewheel(e: WheelEvent) {
     e.preventDefault()
     e.stopPropagation()
+
+    const newZoom = this.zoom - e.deltaY / 100
+    if (newZoom < this.minZoom) return
 
     // TODO 围绕鼠标点缩放，当前的写法存在误差
     const mousePoint = new THREE.Vector2(e.offsetX, e.offsetY)
@@ -282,21 +303,11 @@ class EarthOrbitControls extends THREE.EventDispatcher<CameraEvent> {
     )
 
     // 更新 zoom 和 distance
-    this.zoom = this.zoom - e.deltaY / 100
+    this.zoom = newZoom
 
-    // 正弦定理
-    // 已知三角形两条边 earthRadius、distance，以及一个角 earthRadiusRad(即 fov)
-    const earthRadiusRad = fov
-    const getRayDistanceRad = (distanceRad: number) => {
-      return Math.PI - earthRadiusRad - distanceRad
-    }
-    const distanceRad = Math.asin(this.distance / (this.earthRadius / Math.sin(earthRadiusRad)))
-    let rayDistanceRad = getRayDistanceRad(distanceRad)
-    if (rayDistanceRad > Math.PI / 2) {
-      rayDistanceRad = getRayDistanceRad(Math.PI - distanceRad)
-    }
+    const centralAngle = this.getCentralAngle(this.distance, fov)
     this.center = vector3ToLngLat(
-      lngLatToVector3(lngLat, 1).applyAxisAngle(plane.normal, rayDistanceRad),
+      lngLatToVector3(lngLat, 1).applyAxisAngle(plane.normal, centralAngle),
     )
 
     this.updateCameraPosition()

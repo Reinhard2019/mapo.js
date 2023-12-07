@@ -297,25 +297,15 @@ class Map extends THREE.EventDispatcher<MapEvent> {
 
     const fov = Math.PI - direction.angleTo(position)
     const tangentFov = Math.asin(earthRadius / distance)
-    if (fov > tangentFov) {
+    if (fov >= tangentFov) {
       const centralAngle = Math.PI / 2 - tangentFov
       const plane = new THREE.Plane().setFromCoplanarPoints(position, origin, direction)
       return vector3ToLngLat(position.clone().applyAxisAngle(plane.normal, -centralAngle))
     }
 
+    const centralAngle = this.earthOrbitControls.getCentralAngle(distance, fov)
     // 正弦定理
-    // 已知三角形两条边 earthRadius、distance，以及一个角 earthRadiusRad(即 fov)
-    const earthRadiusRad = fov
-    const getRayDistance = (distanceRad: number) => {
-      const rayDistanceRad = Math.PI - earthRadiusRad - distanceRad
-      const rayDistance = (earthRadius / Math.sin(earthRadiusRad)) * Math.sin(rayDistanceRad)
-      return rayDistance
-    }
-    const distanceRad = Math.asin(distance / (earthRadius / Math.sin(earthRadiusRad)))
-    let rayDistance = getRayDistance(distanceRad)
-    if (rayDistance > distance) {
-      rayDistance = getRayDistance(Math.PI - distanceRad)
-    }
+    const rayDistance = (earthRadius / Math.sin(fov)) * Math.sin(centralAngle)
 
     const target = new THREE.Vector3()
     raycaster.ray.at(rayDistance, target)
