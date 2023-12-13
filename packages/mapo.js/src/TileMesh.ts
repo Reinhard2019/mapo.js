@@ -13,20 +13,17 @@ class TileMesh extends THREE.Mesh {
   private readonly tileMaterial: TileMaterial
   readonly xyz: XYZ
 
-  tileMaterialLoaded = false
-
-  constructor(xyz: XYZ, tileGroup: TileGroup, image: CanvasImageSource) {
+  constructor(xyz: XYZ, tileGroup: TileGroup) {
     super()
 
     this.xyz = xyz
     this.renderOrder = xyz[2]
     this.tileGroup = tileGroup
-    const { tileSize } = this.tileGroup.map
-    this.tileMaterial = new TileMaterial({ xyz, image, tileSize })
+    this.tileMaterial = new TileMaterial({ xyz })
 
     this.geometry = new TileGeometry({
-      tileMesh: this,
       tileGroup,
+      xyz: this.xyz,
     })
   }
 
@@ -34,13 +31,19 @@ class TileMesh extends THREE.Mesh {
    * Mesh 出现在可视范围内调用
    */
   show() {
+    void this.load()
+
     this.resetMaterial()
 
     this.geometry.resetTerrain()
   }
 
+  async load() {
+    return await this.tileMaterial.load()
+  }
+
   resetMaterial() {
-    const { canvasLayerManager } = this.tileGroup
+    const { canvasLayerManager } = this.tileGroup.map
     const { tileBoxes } = canvasLayerManager
 
     let start = 0
@@ -80,7 +83,7 @@ class TileMesh extends THREE.Mesh {
 
   dispose() {
     this.geometry.dispose()
-    this.material && toArray(this.material).forEach(m => m.dispose())
+    this.tileMaterial.dispose()
   }
 }
 

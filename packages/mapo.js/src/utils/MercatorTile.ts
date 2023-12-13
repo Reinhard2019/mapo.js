@@ -1,7 +1,7 @@
 /**
  * 墨卡托投影
  */
-import { BBox, TileBox, XYZ } from '../types'
+import { BBox, LngLat, TileBox, XYZ } from '../types'
 import { degToRad } from './math'
 import { clamp, round } from './number'
 
@@ -11,6 +11,16 @@ const MercatorTile = {
 
   pointToTile(lng: number, lat: number, z: number): [number, number] {
     return [Math.floor(MercatorTile.lngToX(lng, z)), Math.floor(MercatorTile.latToY(lat, z))]
+  },
+
+  /**
+   * xyz 转化为经纬度
+   * @param xyz
+   * @returns
+   */
+  tileToPoint(xyz: XYZ): LngLat {
+    const [x, y, z] = xyz
+    return [MercatorTile.xToLng(x, z), MercatorTile.yToLat(y, z)]
   },
 
   tileToBBox(xyz: XYZ): BBox {

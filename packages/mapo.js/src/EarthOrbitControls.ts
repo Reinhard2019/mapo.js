@@ -7,15 +7,13 @@ import { degToRad, radToDeg } from './utils/math'
 
 class EarthOrbitControls extends THREE.EventDispatcher<CameraEvent> {
   readonly camera: THREE.PerspectiveCamera
-  map: Map
-  domElement: HTMLElement
-  private readonly earthRadius: number = 6371
+  private readonly map: Map
+  private readonly domElement: HTMLElement
   /**
    * 垂直方向的视角
    */
   readonly fov = 60
 
-  tileSize = 512
   center: LngLat = [0, 0]
   private _distance = 0
   private _zoom = 0
@@ -61,13 +59,14 @@ class EarthOrbitControls extends THREE.EventDispatcher<CameraEvent> {
     this.map = options.map
     if (options.domElement) this.domElement = options.domElement
     if (Array.isArray(options.center)) this.center = clone(options.center)
-    this.earthRadius = options.earthRadius
     this.zoom = options.zoom ?? 2
     if (isNumber(options.bearing)) this.bearing = options.bearing
     if (isNumber(options.pitch)) this.pitch = options.pitch
 
+    const { earthRadius } = this.map
+
     const pixelRatio = this.domElement.clientWidth / this.domElement.clientHeight
-    const camera = new THREE.PerspectiveCamera(this.fov, pixelRatio, 0.1, this.earthRadius * 10000)
+    const camera = new THREE.PerspectiveCamera(this.fov, pixelRatio, 0.1, earthRadius * 10000)
     this.camera = camera
     this.updateCameraPosition()
     this.lookAt()
@@ -83,8 +82,14 @@ class EarthOrbitControls extends THREE.EventDispatcher<CameraEvent> {
     })
   }
 
+  /**
+   * zoom 转化为 distance
+   * @param zoom
+   * @returns
+   */
   zoomToDistance(zoom: number) {
-    const { earthRadius, fov, domElement } = this
+    const { fov, domElement } = this
+    const { earthRadius } = this.map
     const pxDeg = this.getPxDeg(zoom)
     const pxTangentLength = Math.tan(degToRad(pxDeg)) * earthRadius
     const tangentLength = pxTangentLength * domElement.clientHeight
@@ -92,14 +97,29 @@ class EarthOrbitControls extends THREE.EventDispatcher<CameraEvent> {
     return distanceFromTheCameraToTheEarth + earthRadius
   }
 
+  /**
+   * distance 转化为 zoom
+   * @param distance
+   * @returns
+   */
   distanceToZoom(distance: number) {
-    const { tileSize, earthRadius, fov } = this
+    const { fov } = this
+    const { tileSize, earthRadius } = this.map
     const distanceFromTheCameraToTheEarth = distance - earthRadius
     const tangentLength = distanceFromTheCameraToTheEarth * Math.tan(degToRad(fov / 2)) * 2
     const pxTangentLength = tangentLength / this.domElement.clientHeight
     const pxDeg = radToDeg(Math.atan(pxTangentLength / earthRadius))
     const zoom = Math.log2(360 / pxDeg / tileSize)
     return zoom
+  }
+
+  /**
+   * 经纬度转化为 zoom
+   */
+  lngLatToZoom(lngLat: LngLat) {
+    const { earthRadius } = this.map
+    const distance = this.camera.position.distanceTo(lngLatToVector3(lngLat, earthRadius))
+    return this.distanceToZoom(distance + earthRadius)
   }
 
   isMoving() {
@@ -122,7 +142,8 @@ class EarthOrbitControls extends THREE.EventDispatcher<CameraEvent> {
    * 每 1 个像素对应的最小度数
    */
   getPxDeg(zoom = this.zoom) {
-    return 360 / (Math.pow(2, zoom) * this.tileSize)
+    const { tileSize } = this.map
+    return 360 / (Math.pow(2, zoom) * tileSize)
   }
 
   private updateCameraPosition() {
@@ -214,7 +235,7 @@ class EarthOrbitControls extends THREE.EventDispatcher<CameraEvent> {
       return
     }
 
-    const { camera, domElement } = this
+    const { domElement } = this
 
     const isMove = !e.ctrlKey
     if (isMove) {
@@ -230,7 +251,7 @@ class EarthOrbitControls extends THREE.EventDispatcher<CameraEvent> {
         -movementXDeg * Math.sin(degToRad(this.bearing)) +
         movementYDeg * Math.cos(degToRad(this.bearing))
       this.center[1] = clamp(this.center[1], -85, 85)
-      camera.position.copy(lngLatToVector3(this.center, this.distance))
+      this.updateCameraPosition()
       this.lookAt()
 
       this.onMoveStart()
@@ -264,6 +285,18 @@ class EarthOrbitControls extends THREE.EventDispatcher<CameraEvent> {
     e.preventDefault()
   }
 
+  getCameraAspect() {
+    return this.camera.aspect
+  }
+
+  setCameraAspect(value: number) {
+    this.camera.aspect = value
+  }
+
+  getCameraPosition() {
+    return this.camera.position.clone()
+  }
+
   /**
    * 获取对应的圆心角
    * @param distance 摄像机到圆心的距离
@@ -271,13 +304,14 @@ class EarthOrbitControls extends THREE.EventDispatcher<CameraEvent> {
    * @returns
    */
   getCentralAngle(distance: number, fov: number) {
-    const tangentFov = Math.asin(this.earthRadius / distance)
+    const { earthRadius } = this.map
+    const tangentFov = Math.asin(earthRadius / distance)
     if (fov >= tangentFov) return Math.PI / 2 - tangentFov
 
     // 正弦定理
     // 已知三角形两条边 earthRadius、distance，以及一个角 fov(即 earthRadius 边对应的角度)
     // 如果该点位于可视范围内，distanceRad 一定大于 90
-    const distanceRad = Math.PI - Math.asin(distance / (this.earthRadius / Math.sin(fov)))
+    const distanceRad = Math.PI - Math.asin(distance / (earthRadius / Math.sin(fov)))
     return Math.PI - fov - distanceRad
   }
 

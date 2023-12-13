@@ -59,7 +59,6 @@ export interface AnimationOptions {
 export interface EarthOrbitControlsOptions extends CameraOptions {
   map: Map
   domElement?: HTMLElement
-  earthRadius: number
 }
 
 export interface Size {
@@ -79,6 +78,9 @@ export interface TileBox {
   endY: number
 }
 
+/**
+ * 附加了 z 的 TileBox
+ */
 export interface TileBoxWithZ extends TileBox {
   z: number
 }

@@ -10,10 +10,9 @@ import {
 import TileGeometryWorker, { OnMessageEventData, getGeometryAttribute } from './TileGeometryWorker'
 import { isNil } from './utils'
 import TileGroup from './TileGroup'
-import TileMesh from './TileMesh'
 
 class TileGeometry extends THREE.BufferGeometry {
-  private readonly tileMesh: TileMesh
+  private readonly xyz: XYZ
   private readonly tileGroup: TileGroup
   private updateTerrainPromise: Promise<THREE.Float32BufferAttribute> | undefined
 
@@ -22,7 +21,7 @@ class TileGeometry extends THREE.BufferGeometry {
 
   private widthPositionCount = 0
 
-  constructor(options: { tileGroup: TileGroup; tileMesh: TileMesh }) {
+  constructor(options: { tileGroup: TileGroup; xyz: XYZ }) {
     super()
 
     Object.assign(this, options)
@@ -71,7 +70,7 @@ class TileGeometry extends THREE.BufferGeometry {
   }
 
   private getTerrainXYZ(): XYZ {
-    const [x, y, z] = this.tileMesh.xyz
+    const [x, y, z] = this.xyz
     //  高程的 z 比正常的 z 缩小 3 倍
     const scaleZ = 3
     const terrainZ = Math.max(0, z - scaleZ)
@@ -81,7 +80,7 @@ class TileGeometry extends THREE.BufferGeometry {
   }
 
   private update() {
-    const { xyz } = this.tileMesh
+    const { xyz } = this
     const { earthRadius } = this.tileGroup.map
     const [, , z] = xyz
 
@@ -109,7 +108,7 @@ class TileGeometry extends THREE.BufferGeometry {
     if (!isNil(this.updateTerrainPromise)) return
 
     const tileGeometryWorker = new TileGeometryWorker()
-    const { xyz } = this.tileMesh
+    const { xyz } = this
     const { earthRadius, tileSize } = this.tileGroup.map
     const terrainXYZ = this.getTerrainXYZ()
     const [, , terrainZ] = terrainXYZ
@@ -170,7 +169,7 @@ class TileGeometry extends THREE.BufferGeometry {
    * @returns
    */
   private async updateSideTerrain(side: 'right' | 'bottom' | 'rightBottom') {
-    const { xyz } = this.tileMesh
+    const { xyz } = this
     // 更新底边时，如果 y 是最后一个，则无需更新
     if (side === 'bottom' || side === 'rightBottom') {
       const [, y, z] = xyz

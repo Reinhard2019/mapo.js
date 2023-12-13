@@ -1,5 +1,5 @@
 interface Queue {
-  cb: () => void
+  cb: () => unknown
 }
 
 class TaskQueue {
@@ -8,6 +8,18 @@ class TaskQueue {
   add(cb: Queue['cb']) {
     this.queue.push({
       cb,
+    })
+  }
+
+  /**
+   * 会返回 promise 的 add
+   * @param cb
+   */
+  async addWithPromise<T>(cb: () => T) {
+    return await new Promise<T>(resolve => {
+      this.add(() => {
+        resolve(cb())
+      })
     })
   }
 

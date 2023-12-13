@@ -24,7 +24,6 @@ class CanvasLayerManager extends THREE.EventDispatcher<CanvasLayerManagerEvent> 
   private bboxes: BBox[] = []
   canvasOptions: CanvasOption[] = []
   sortedLayers: CanvasLayer[] = []
-  needsUpdate = true
   updating = false
 
   constructor(map: Map) {
@@ -33,16 +32,18 @@ class CanvasLayerManager extends THREE.EventDispatcher<CanvasLayerManagerEvent> 
     this.map = map
   }
 
-  updateTileBox(tileBox: TileBoxWithZ) {
-    const { tileSize, earthOrbitControls } = this.map
+  private updateTileBox() {
+    const { tileSize, earthOrbitControls, displayTileBoxChange, displayTileBox } = this.map
+    if (!displayTileBoxChange) return
+
     const { center } = earthOrbitControls
-    const [centerX, centerY] = MercatorTile.pointToTile(center[0], center[1], tileBox.z)
+    const [centerX, centerY] = MercatorTile.pointToTile(center[0], center[1], displayTileBox.z)
     const maxTileCount = 8192 / tileSize
 
     const tileBoxes: TileBoxWithZ[] = []
     let overlapTileBox: TileBoxWithZ | null = null
     let i = 0
-    while (!isEqual(overlapTileBox, tileBox) && i < 10) {
+    while (!isEqual(overlapTileBox, displayTileBox) && i < 10) {
       const splitMaxTileCount = maxTileCount * Math.pow(2, i)
       i++
 
@@ -51,9 +52,9 @@ class CanvasLayerManager extends THREE.EventDispatcher<CanvasLayerManagerEvent> 
         startY: centerY - splitMaxTileCount,
         endX: centerX + splitMaxTileCount,
         endY: centerY + splitMaxTileCount,
-        z: tileBox.z,
+        z: displayTileBox.z,
       }
-      overlapTileBox = getOverlapTileBox(splitTileBox, tileBox)
+      overlapTileBox = getOverlapTileBox(splitTileBox, displayTileBox)
       if (overlapTileBox) tileBoxes.push(overlapTileBox)
     }
 
@@ -65,8 +66,9 @@ class CanvasLayerManager extends THREE.EventDispatcher<CanvasLayerManagerEvent> 
   }
 
   update() {
-    if (!this.needsUpdate || this.updating) return
+    this.updateTileBox()
 
+    if (this.updating) return
     this.updating = true
 
     const { earthOrbitControls } = this.map
@@ -85,12 +87,9 @@ class CanvasLayerManager extends THREE.EventDispatcher<CanvasLayerManagerEvent> 
       }
     })
 
-    this.sortedLayers.forEach(layer => {
-      layer.update()
-    })
+    const promises = this.sortedLayers.map(async layer => await layer.update())
 
-    this.needsUpdate = false
-    this.map.taskQueue.add(() => {
+    Promise.allSettled(promises).finally(() => {
       this.updating = false
     })
   }
@@ -107,7 +106,7 @@ class CanvasLayerManager extends THREE.EventDispatcher<CanvasLayerManagerEvent> 
   addLayer(layer: CanvasLayer) {
     layer.layerManager = this
     layer.updateCanvasLayerMaterials(this.bboxes)
-    layer.update()
+    layer.needsUpdate = true
     this.layers.push(layer)
     this.sortLayers()
   }

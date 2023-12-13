@@ -60,36 +60,38 @@ abstract class CanvasLayer<Source extends Features = Features, Style extends {} 
     })
   }
 
-  update() {
+  async update() {
     const { layerManager } = this
     if (!layerManager) return
 
-    if (!layerManager.needsUpdate && !this.needsUpdate) return
+    if (!this.needsUpdate) return
     this.needsUpdate = false
 
     const { canvasOptions } = layerManager
     const { taskQueue } = layerManager.map
 
-    canvasOptions.forEach((canvasOption, i) => {
-      taskQueue.add(() => {
-        console.time(this.constructor.name + i)
-        const canvasLayerMaterial = this.canvasLayerMaterials[i]
-        if (!canvasLayerMaterial) return
+    const promises = canvasOptions.map(
+      async (canvasOption, i) =>
+        await taskQueue.addWithPromise(() => {
+          console.time(this.constructor.name + i)
+          const canvasLayerMaterial = this.canvasLayerMaterials[i]
+          if (!canvasLayerMaterial) return
 
-        canvasLayerMaterial.updateCanvasOption(canvasOption)
-        const { canvas, ctx } = canvasLayerMaterial
-        ctx.clearRect(0, 0, canvas.width, canvas.height)
+          canvasLayerMaterial.updateCanvasOption(canvasOption)
+          const { canvas, ctx } = canvasLayerMaterial
+          ctx.clearRect(0, 0, canvas.width, canvas.height)
 
-        const drawOption: DrawOption = {
-          ...canvasOption,
-          ctx,
-        }
-        this.draw(drawOption)
+          const drawOption: DrawOption = {
+            ...canvasOption,
+            ctx,
+          }
+          this.draw(drawOption)
 
-        canvasLayerMaterial.update()
-        console.timeEnd(this.constructor.name + i)
-      })
-    })
+          canvasLayerMaterial.update()
+          console.timeEnd(this.constructor.name + i)
+        }),
+    )
+    return await Promise.allSettled(promises)
   }
 
   abstract draw(options: DrawOption): void

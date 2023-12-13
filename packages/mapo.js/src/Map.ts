@@ -9,9 +9,10 @@ import {
   MapOptions,
   Point2,
   Terrain,
+  TileBoxWithZ,
 } from './types'
 import EarthOrbitControls from './EarthOrbitControls'
-import { floor, isNil, last, pick, pickBy, remove } from 'lodash-es'
+import { floor, isEqual, isNil, last, pick, pickBy, remove } from 'lodash-es'
 import { unwrapHTMLElement } from './utils/dom'
 import { lngLatToVector3, vector3ToLngLat } from './utils/map'
 import { radToDeg, rectangleIntersect } from './utils/math'
@@ -26,9 +27,11 @@ import PointLayerManager from './layers/PointLayerManager'
 import Layer from './layers/Layer'
 import CanvasLayer from './layers/CanvasLayer'
 import TaskQueue from './utils/TaskQueue'
+import MercatorTile from './utils/MercatorTile'
+import CanvasLayerManager from './layers/CanvasLayerManager'
 
 class Map extends THREE.EventDispatcher<MapEvent> {
-  tileSize = 512
+  readonly tileSize = 512
   // 地球半径 6371km
   readonly earthRadius = 6371
 
@@ -43,6 +46,7 @@ class Map extends THREE.EventDispatcher<MapEvent> {
 
   readonly tileGroup: TileGroup
 
+  readonly canvasLayerManager = new CanvasLayerManager(this)
   private readonly pointLayerManager = new PointLayerManager(this)
 
   private readonly disposeFuncList: Array<() => void> = []
@@ -51,6 +55,8 @@ class Map extends THREE.EventDispatcher<MapEvent> {
   private displayPolygonUpdate = true
   private displayPolygon: Polygon
   displayBBox: BBox
+  displayTileBox: TileBoxWithZ
+  displayTileBoxChange = true
 
   constructor(options: MapOptions) {
     super()
@@ -89,7 +95,6 @@ class Map extends THREE.EventDispatcher<MapEvent> {
     this.earthOrbitControls = new EarthOrbitControls({
       map: this,
       domElement: container,
-      earthRadius: this.earthRadius,
       center: options.center,
       zoom: options.zoom,
       bearing: options.bearing,
@@ -109,13 +114,16 @@ class Map extends THREE.EventDispatcher<MapEvent> {
 
     // 页面重绘动画
     const tick = (time: DOMHighResTimeStamp) => {
-      // 更新渲染器
-      this.renderer.render(this.scene, this.earthOrbitControls.camera)
+      this.earthOrbitControls.camera.updateMatrixWorld()
 
       this.computeDisplayPolygon()
       this.tileGroup.update()
-      this.tileGroup.canvasLayerManager.update()
+      this.canvasLayerManager.update()
       this.pointLayerManager.update()
+      this.displayTileBoxChange = false
+
+      // 更新渲染器
+      this.renderer.render(this.scene, this.earthOrbitControls.camera)
 
       this.taskQueue.run(time)
 
@@ -135,9 +143,8 @@ class Map extends THREE.EventDispatcher<MapEvent> {
         this.renderer.setPixelRatio(_pixelRatio)
         this.renderer.setSize(container.clientWidth, container.clientHeight)
 
-        const { camera } = this.earthOrbitControls
-        camera.aspect = _pixelRatio
-        camera.updateProjectionMatrix()
+        this.earthOrbitControls.setCameraAspect(_pixelRatio)
+        this.earthOrbitControls.camera.updateProjectionMatrix()
       })
       ro.observe(container)
       this.disposeFuncList.push(() => ro.disconnect())
@@ -188,16 +195,9 @@ class Map extends THREE.EventDispatcher<MapEvent> {
 
   private initEarthOrbitControls() {
     const onMove = () => {
-      // camera move、rotate、zoom、pitch 时，需要立刻调用 render，以避免 new THREE.Vector3.project(camera) 方法返回错误的结果
-      // this.renderer.render(this.scene, this.earthOrbitControls.camera)
-
       this.updateHash()
 
       this.displayPolygonUpdate = true
-
-      this.tileGroup.needsUpdate = true
-
-      this.pointLayerManager.update()
     }
     this.earthOrbitControls.addEventListener('move', () => {
       this.dispatchEvent({ type: 'move' })
@@ -292,7 +292,7 @@ class Map extends THREE.EventDispatcher<MapEvent> {
 
     const { earthRadius } = this
     const { distance } = this.earthOrbitControls
-    const { position } = this.earthOrbitControls.camera
+    const position = this.earthOrbitControls.getCameraPosition()
     const { direction } = raycaster.ray
     const origin = new THREE.Vector3(0, 0, 0)
 
@@ -301,7 +301,7 @@ class Map extends THREE.EventDispatcher<MapEvent> {
     if (fov >= tangentFov) {
       const centralAngle = Math.PI / 2 - tangentFov
       const plane = new THREE.Plane().setFromCoplanarPoints(position, origin, direction)
-      return vector3ToLngLat(position.clone().applyAxisAngle(plane.normal, -centralAngle))
+      return vector3ToLngLat(position.applyAxisAngle(plane.normal, -centralAngle))
     }
 
     const centralAngle = this.earthOrbitControls.getCentralAngle(distance, fov)
@@ -316,7 +316,7 @@ class Map extends THREE.EventDispatcher<MapEvent> {
   /**
    * 将像素位置转化为 LngLat
    *
-   * 为什么不使用 THREE.Raycaster: https://github.com/mrdoob/three.js/issues/11449
+   * https://github.com/mrdoob/three.js/issues/11449
    * @param point
    * @returns
    */
@@ -336,13 +336,21 @@ class Map extends THREE.EventDispatcher<MapEvent> {
 
     this.displayPolygon = this.getDisplayPolygon()
     this.displayBBox = bbox(this.displayPolygon) as BBox
+
+    const z = Math.ceil(this.earthOrbitControls.zoom)
+    const displayTileBox = {
+      ...MercatorTile.bboxToTileBox(this.displayBBox, z),
+      z,
+    }
+    this.displayTileBoxChange = !isEqual(this.displayTileBox, displayTileBox)
+    this.displayTileBox = displayTileBox
   }
 
   private getDisplayPolygon() {
     let bearing = this.earthOrbitControls.bearing
     bearing %= 180
     bearing = bearing >= 0 ? bearing : 180 + bearing
-    const diagonalDeg = radToDeg(Math.atan(this.earthOrbitControls.camera.aspect))
+    const diagonalDeg = radToDeg(Math.atan(this.earthOrbitControls.getCameraAspect()))
     let arr = [0, diagonalDeg, 90, 180 - diagonalDeg]
     const removeWhenEqBearing = (i: number) => {
       if (Math.round(arr[i]) === Math.round(bearing)) {
@@ -435,7 +443,7 @@ class Map extends THREE.EventDispatcher<MapEvent> {
     if (layer instanceof PointLayer) {
       this.pointLayerManager.addLayer(layer)
     } else {
-      this.tileGroup.canvasLayerManager.addLayer(layer as CanvasLayer)
+      this.canvasLayerManager.addLayer(layer as CanvasLayer)
     }
   }
 
@@ -443,7 +451,7 @@ class Map extends THREE.EventDispatcher<MapEvent> {
     if (layer instanceof PointLayer) {
       this.pointLayerManager.removeLayer(layer)
     } else {
-      this.tileGroup.canvasLayerManager.removeLayer(layer as CanvasLayer)
+      this.canvasLayerManager.removeLayer(layer as CanvasLayer)
     }
   }
 

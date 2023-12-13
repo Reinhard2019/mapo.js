@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 import { XYZ } from './types'
 import MercatorTile from './utils/MercatorTile'
+import { getSatelliteUrl } from './utils/map'
 
 const vertexShader = `
 varying vec2 vUv;
@@ -40,6 +41,7 @@ const fragmentShader = `
 varying vec2 vUv;
 varying vec2 vLngLat;
 uniform sampler2D canvasTexture;
+uniform bool loaded;
 uniform vec3 xyz;
 
 ${lngToX}
@@ -51,15 +53,25 @@ void main() {
   if (xyz.z <= 15.0) {
     uvY = 1.0 - (latToY(vLngLat.y, xyz.z) - xyz.y);
   }
-  gl_FragColor = texture2D(canvasTexture, vec2(vUv.x, uvY));
+  if (loaded) {
+    gl_FragColor = texture2D(canvasTexture, vec2(vUv.x, uvY));
+  } else {
+    gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
+  }
 }
 `
 
-const openDebugUI = false
-function addDebugUI(ctx: OffscreenCanvasRenderingContext2D, xyz: XYZ, tileSize: number) {
-  if (!openDebugUI) return
+const openDebugUI = true
+function addDebugUI(texture: THREE.Texture, xyz: XYZ): THREE.Texture {
+  if (!openDebugUI) return texture
 
-  const rect = [0, 0, tileSize, tileSize] as const
+  const img = texture.image
+  const canvas = new OffscreenCanvas(img.width, img.height)
+  const ctx = canvas.getContext('2d') as OffscreenCanvasRenderingContext2D
+
+  const rect = [0, 0, canvas.width, canvas.height] as const
+
+  ctx.drawImage(img, ...rect)
 
   ctx.strokeStyle = 'red'
   ctx.lineWidth = 1
@@ -69,21 +81,16 @@ function addDebugUI(ctx: OffscreenCanvasRenderingContext2D, xyz: XYZ, tileSize: 
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
   ctx.fillStyle = 'red'
-  ctx.fillText(xyz.toString(), tileSize / 2, tileSize / 2)
+  ctx.fillText(xyz.toString(), canvas.width / 2, canvas.height / 2)
+  return new THREE.CanvasTexture(canvas)
 }
 
 class TileMaterial extends THREE.ShaderMaterial {
-  constructor(options: { xyz: XYZ; tileSize: number; image: CanvasImageSource }) {
-    const { xyz, tileSize, image } = options
+  private readonly xyz: XYZ
+  private loadPromise?: Promise<THREE.Texture> | undefined
 
-    const canvas = new OffscreenCanvas(tileSize, tileSize)
-    const ctx = canvas.getContext('2d') as OffscreenCanvasRenderingContext2D
-
-    ctx.drawImage(image, 0, 0, tileSize, tileSize)
-
-    addDebugUI(ctx, xyz, tileSize)
-
-    const texture = new THREE.CanvasTexture(canvas)
+  constructor(options: { xyz: XYZ }) {
+    const { xyz } = options
 
     super({
       uniforms: {
@@ -91,16 +98,40 @@ class TileMaterial extends THREE.ShaderMaterial {
           value: xyz,
         },
         canvasTexture: {
-          value: texture,
+          value: null,
+        },
+        loaded: {
+          value: false,
         },
       },
       vertexShader,
       fragmentShader,
     })
+
+    this.xyz = xyz
+    void this.load()
+  }
+
+  async load() {
+    if (!this.loadPromise) {
+      const { xyz } = this
+      const url = getSatelliteUrl(xyz)
+      this.loadPromise = new THREE.TextureLoader().loadAsync(url)
+
+      this.loadPromise
+        .then(texture => {
+          this.uniforms.canvasTexture.value = addDebugUI(texture, xyz)
+          this.uniforms.loaded.value = true
+        })
+        .catch(() => {
+          delete this.loadPromise
+        })
+    }
+    return await this.loadPromise
   }
 
   dispose() {
-    this.uniforms.canvasTexture.value.dispose()
+    this.uniforms.canvasTexture.value?.dispose()
     super.dispose()
   }
 }

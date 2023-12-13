@@ -2,11 +2,9 @@ import * as THREE from 'three'
 import { LngLat, Terrain, TileBoxWithZ, XYZ } from './types'
 import TileCache from './utils/TileCache'
 import _Map from './Map'
-import { getSatelliteUrl, lngLatToVector3 } from './utils/map'
 import MercatorTile from './utils/MercatorTile'
-import { isEqual, isNumber, uniq, uniqBy } from 'lodash-es'
+import { isNumber, uniq } from 'lodash-es'
 import TileMesh from './TileMesh'
-import CanvasLayerManager from './layers/CanvasLayerManager'
 import {
   getNextZoomXYZList,
   getOverlapTileBox,
@@ -35,6 +33,11 @@ class TileLoader {
     this.tileBox = tileBox
     this.prevTileLoader = prevTileLoader
 
+    // 裁剪时可能会调用 tileGroup.resetChildren，在初始化完成前不能 resetChildren，因此使用 promise
+    Promise.resolve().finally(() => {
+      prevTileLoader?.clipTileBox(this)
+    })
+
     const promises: Array<Promise<unknown>> = []
     if (this.prevTileLoader) {
       promises.push(
@@ -45,24 +48,15 @@ class TileLoader {
       )
     }
     const previewZ = this.getPreviewZ()
-    uniqBy(
-      tileBox2xyzList(updateTileBoxZ(tileBox, previewZ))
-        .filter(xyz => !this.prevTileLoaderContain(xyz))
-        .map(xyz => this.getPlaceholderXYZ(xyz)),
-      isEqual,
-    ).forEach(xyz => {
-      const promise = (async () => {
-        const imageBitmap = await this.getTilePromise(xyz)
-        const tileMesh = await this.addChild(xyz, imageBitmap)
-        if (tileMesh) {
-          await this.splitTileMesh(tileMesh, previewZ)
-        }
-      })()
-      promises.push(promise)
-    })
+    tileBox2xyzList(updateTileBoxZ(tileBox, previewZ))
+      .filter(xyz => !this.prevTileLoaderContain(xyz))
+      .forEach(xyz => {
+        const tileMesh = this.getTileMesh(xyz)
+        this.addChild(tileMesh)
+        promises.push(this.splitTileMesh(tileMesh))
+      })
     this.promise = Promise.allSettled(promises)
 
-    this.prevTileLoader?.clipTileBox(this)
     if (this.prevTileLoader) {
       // 合并两个 TileLoader
       this.promise.finally(() => {
@@ -77,87 +71,43 @@ class TileLoader {
   }
 
   /**
-   * TileMesh 是否加载完毕
-   * @param _xyz
-   * @returns
-   */
-  isLoadedXYZ(xyz: XYZ) {
-    const { tileMeshCache } = this.tileGroup
-    const tileMesh = tileMeshCache.get(xyz)
-    return !!tileMesh?.tileMaterialLoaded
-  }
-
-  getPlaceholderXYZ(xyz: XYZ) {
-    while (!this.isLoadedXYZ(xyz)) {
-      const newXYZ = getPrevZoomXYZ(xyz)
-      if (!newXYZ) break
-      xyz = newXYZ
-    }
-    return xyz
-  }
-
-  /**
    * 获取初始化时的预览 z
    * @returns
    */
-  getPreviewZ() {
+  private getPreviewZ() {
     const { tileBox } = this
     const maxGap = Math.max(tileBox.endX - tileBox.startX, tileBox.endY - tileBox.startY)
     const previewZ = tileBox.z - Math.ceil(Math.log2(maxGap))
     return Math.max(previewZ, 0)
   }
 
-  getTileZoom([x, y, z]: XYZ) {
-    const { map } = this.tileGroup
-    const { earthRadius } = map
+  private getTileZoom([x, y, z]: XYZ) {
+    const { earthOrbitControls } = this.tileGroup.map
     const lngLat: LngLat = [MercatorTile.xToLng(x + 0.5, z), MercatorTile.yToLat(y + 0.5, z)]
-    const distance = map.earthOrbitControls.camera.position.distanceTo(
-      lngLatToVector3(lngLat, earthRadius),
-    )
-    return map.earthOrbitControls.distanceToZoom(distance + earthRadius)
+    return earthOrbitControls.lngLatToZoom(lngLat)
   }
 
-  async getTilePromise(xyz: XYZ) {
-    const { tileCache } = this.tileGroup
-    const url = getSatelliteUrl(xyz)
-    let promise = tileCache.get(xyz)
-    if (!promise) {
-      promise = new THREE.ImageBitmapLoader().loadAsync(url)
-      tileCache.set(xyz, promise)
-      promise.catch(() => {
-        tileCache.delete(xyz)
-      })
+  private getTileMesh(xyz: XYZ) {
+    const { tileMeshCache } = this.tileGroup
+    let tileMesh = tileMeshCache.get(xyz)
+    if (!tileMesh) {
+      tileMesh = new TileMesh(xyz, this.tileGroup)
+      tileMeshCache.set(xyz, tileMesh)
     }
-    return await promise
+    return tileMesh
   }
 
-  async addChild(xyz: XYZ, imageBitmap: ImageBitmap): Promise<TileMesh> {
-    return await new Promise((resolve, reject) => {
-      this.tileGroup.map.taskQueue.add(() => {
-        if (this.destroyed || !this.isBelongTileBox(xyz)) {
-          reject(new Error(''))
-          return
-        }
+  private addChild(tileMesh: TileMesh) {
+    if (this.destroyed) return
 
-        const { tileMeshCache } = this.tileGroup
-        let tileMesh = tileMeshCache.get(xyz)
-        if (!tileMesh) {
-          tileMesh = new TileMesh(xyz, this.tileGroup, imageBitmap)
-          tileMeshCache.set(xyz, tileMesh)
-        }
+    this.children.push(tileMesh)
 
-        this.children.push(tileMesh)
+    this.tileGroup.children.push(tileMesh)
 
-        this.tileGroup.children.push(tileMesh)
-
-        tileMesh.show()
-
-        resolve(tileMesh)
-      })
-    })
+    tileMesh.show()
   }
 
-  removeChild(tileMesh: TileMesh) {
+  private removeChild(tileMesh: TileMesh) {
     if (this.destroyed) return
 
     const index = this.children.findIndex(c => c === tileMesh)
@@ -167,7 +117,12 @@ class TileLoader {
     this.tileGroup.resetChildren()
   }
 
-  prevTileLoaderContain(xyz: XYZ) {
+  /**
+   * tile 是否完全包含于上一个 TileLoader
+   * @param xyz
+   * @returns
+   */
+  private prevTileLoaderContain(xyz: XYZ) {
     if (!this.prevTileLoader?.tileBox) return false
 
     const prevOverlapTileBox = getOverlapTileBox(this.prevTileLoader?.tileBox, xyzToTileBox(xyz))
@@ -177,7 +132,12 @@ class TileLoader {
     return !!overlapTileBox && tileBoxContain(prevOverlapTileBox, overlapTileBox)
   }
 
-  isBelongTileBox(xyz: XYZ) {
+  /**
+   * 是否与当前瓦片范围重叠
+   * @param xyz
+   * @returns
+   */
+  private tileBoxOverlap(xyz: XYZ) {
     return !this.prevTileLoaderContain(xyz) && tileBoxOverlap(this.tileBox, xyzToTileBox(xyz))
   }
 
@@ -196,7 +156,7 @@ class TileLoader {
    * @param nextTileLoader
    * @returns
    */
-  clipTileBox(nextTileLoader?: TileLoader) {
+  private clipTileBox(nextTileLoader?: TileLoader) {
     if (nextTileLoader) {
       const newTileBox = getOverlapTileBox(this.tileBox, nextTileLoader.tileBox)
       if (!newTileBox) {
@@ -221,7 +181,7 @@ class TileLoader {
   /**
    * 重置 children，合并 tileMesh 或者拆分 tileMesh
    */
-  async replaceChildren() {
+  private async replaceChildren() {
     const previewZ = this.getPreviewZ()
     const promises = this.children.map(async child => {
       if (child.xyz[2] < this.getTileZoom(child.xyz)) {
@@ -248,11 +208,12 @@ class TileLoader {
     await Promise.allSettled(promises)
   }
 
-  async mergeTileMesh(tileMesh: TileMesh, prevZoomXYZ: XYZ) {
-    const imageBitmap = await this.getTilePromise(prevZoomXYZ)
-    await this.addChild(prevZoomXYZ, imageBitmap).then(() => {
-      this.removeChild(tileMesh)
-    })
+  private async mergeTileMesh(tileMesh: TileMesh, mergeXYZ: XYZ) {
+    const { taskQueue } = this.tileGroup.map
+    const mergeTileMesh = await taskQueue.addWithPromise(() => this.getTileMesh(mergeXYZ))
+    await mergeTileMesh.load()
+    if (this.tileBoxOverlap(mergeTileMesh.xyz)) this.addChild(mergeTileMesh)
+    this.removeChild(tileMesh)
   }
 
   /**
@@ -261,7 +222,7 @@ class TileLoader {
    * @param previewZ 存在时，将直接拆分至 previewZ 级别
    * @returns
    */
-  async splitTileMesh(tileMesh: TileMesh, previewZ?: number) {
+  private async splitTileMesh(tileMesh: TileMesh, previewZ?: number) {
     if (tileMesh.xyz[2] >= this.getTileZoom(tileMesh.xyz)) return
 
     let splitXYZList: XYZ[] = []
@@ -273,28 +234,23 @@ class TileLoader {
     } else {
       splitXYZList = getNextZoomXYZList(tileMesh.xyz)
     }
-    splitXYZList = splitXYZList.filter(xyz => this.isBelongTileBox(xyz))
+    splitXYZList = splitXYZList.filter(xyz => this.tileBoxOverlap(xyz))
+
+    const { taskQueue } = this.tileGroup.map
 
     const promiseSettledResultList = await Promise.allSettled(
-      splitXYZList.map(async xyz => await this.getTilePromise(xyz)),
+      splitXYZList.map(async xyz => {
+        const splitTileMesh = await taskQueue.addWithPromise(() => this.getTileMesh(xyz))
+        await splitTileMesh.load()
+        if (this.tileBoxOverlap(splitTileMesh.xyz)) this.addChild(splitTileMesh)
+        return splitTileMesh
+      }),
     )
-
-    const addChildPromises: Array<Promise<TileMesh>> = []
-    for (let i = 0; i < promiseSettledResultList.length; i++) {
-      const promiseSettledResult = promiseSettledResultList[i]
-      if (promiseSettledResult.status === 'fulfilled') {
-        const imageBitmap = promiseSettledResult.value
-        const promise = this.addChild(splitXYZList[i], imageBitmap)
-        addChildPromises.push(promise)
-      }
-    }
-
-    const addChildPromiseSettledResultList = await Promise.allSettled(addChildPromises)
 
     this.removeChild(tileMesh)
 
     await Promise.allSettled(
-      addChildPromiseSettledResultList.flatMap(v =>
+      promiseSettledResultList.flatMap(v =>
         v.status === 'fulfilled' ? [this.splitTileMesh(v.value)] : [],
       ),
     )
@@ -310,19 +266,15 @@ class TileGroup extends THREE.Group {
   declare children: TileMesh[]
 
   readonly map: _Map
-  readonly canvasLayerManager: CanvasLayerManager
   readonly tileMeshCache = new TileCache<TileMesh>()
-  readonly tileCache = new TileCache<Promise<ImageBitmap>>()
   readonly terrainTileCache = new TileCache<Promise<ImageData>>()
   terrain: Terrain | undefined
-  needsUpdate = true
   tileLoader?: TileLoader
 
   constructor(options: { map: _Map; terrain: Terrain | undefined }) {
     super()
 
     this.map = options.map
-    this.canvasLayerManager = new CanvasLayerManager(options.map)
     this.terrain = options.terrain
   }
 
@@ -354,36 +306,24 @@ class TileGroup extends THREE.Group {
   }
 
   update() {
-    if (!this.needsUpdate) return
-    this.needsUpdate = false
+    const { displayTileBoxChange, displayTileBox: tileBox } = this.map
+    if (!displayTileBoxChange) return
 
-    const { displayBBox } = this.map
-    const { zoom } = this.map.earthOrbitControls
-    const z = Math.ceil(zoom)
-
-    const tileBox: TileBoxWithZ = {
-      ...MercatorTile.bboxToTileBox(displayBBox, z),
-      z,
-    }
-    if (!isEqual(this.tileLoader?.tileBox, tileBox)) {
-      this.canvasLayerManager.updateTileBox(tileBox)
-
-      if (this.tileLoader?.tileBox && tileBoxContain(this.tileLoader?.tileBox, tileBox)) {
-        this.tileLoader.resetTileBox(tileBox)
-      } else {
-        this.tileLoader = new TileLoader(this, tileBox, this.tileLoader)
-      }
-
-      this.resetMaterial()
+    if (this.tileLoader?.tileBox && tileBoxContain(this.tileLoader?.tileBox, tileBox)) {
+      this.tileLoader.resetTileBox(tileBox)
+    } else {
+      this.tileLoader = new TileLoader(this, tileBox, this.tileLoader)
     }
 
-    this.canvasLayerManager.needsUpdate = true
+    this.resetMaterial()
   }
 
   dispose() {
     this.tileMeshCache.toArray().forEach(mesh => {
       mesh.dispose()
     })
+
+    this.tileLoader?.dispose()
   }
 }
 
