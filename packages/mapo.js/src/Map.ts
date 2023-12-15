@@ -113,7 +113,7 @@ class Map extends THREE.EventDispatcher<MapEvent> {
     this.disposeFuncList.push(() => this.tileGroup.dispose())
 
     // 页面重绘动画
-    const tick = (time: DOMHighResTimeStamp) => {
+    const render = (time: DOMHighResTimeStamp) => {
       this.earthOrbitControls.camera.updateMatrixWorld()
 
       this.computeDisplayPolygon()
@@ -130,9 +130,9 @@ class Map extends THREE.EventDispatcher<MapEvent> {
       this.dispatchEvent({ type: 'render' })
 
       // 页面重绘时调用自身
-      window.requestAnimationFrame(tick)
+      window.requestAnimationFrame(render)
     }
-    window.requestAnimationFrame(tick)
+    render(performance.now())
 
     if (!options.ssr) {
       this.scene.add(this.pointLayerManager)
