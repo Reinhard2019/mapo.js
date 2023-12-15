@@ -30,11 +30,11 @@ class TileMesh extends THREE.Mesh {
    * Mesh 出现在可视范围内调用
    */
   show() {
-    void this.load()
-
     this.resetMaterial()
 
-    this.geometry.resetTerrain()
+    void this.load().then(() => {
+      this.geometry.resetTerrain()
+    })
   }
 
   async load() {
