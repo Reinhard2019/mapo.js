@@ -64,7 +64,7 @@ abstract class CanvasLayer<Source extends Features = Features, Style extends {} 
     const { layerManager } = this
     if (!layerManager) return
 
-    if (!this.needsUpdate) return
+    if (!layerManager.needsUpdate && !this.needsUpdate) return
     this.needsUpdate = false
 
     const { canvasOptions } = layerManager

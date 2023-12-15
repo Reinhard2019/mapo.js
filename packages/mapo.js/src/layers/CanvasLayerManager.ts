@@ -25,6 +25,7 @@ class CanvasLayerManager extends THREE.EventDispatcher<CanvasLayerManagerEvent> 
   canvasOptions: CanvasOption[] = []
   sortedLayers: CanvasLayer[] = []
   updating = false
+  needsUpdate = true
 
   constructor(map: Map) {
     super()
@@ -63,6 +64,8 @@ class CanvasLayerManager extends THREE.EventDispatcher<CanvasLayerManagerEvent> 
     this.sortedLayers.forEach(layer => {
       layer.updateCanvasLayerMaterials(this.bboxes)
     })
+
+    this.needsUpdate = true
   }
 
   update() {
@@ -92,6 +95,7 @@ class CanvasLayerManager extends THREE.EventDispatcher<CanvasLayerManagerEvent> 
     Promise.allSettled(promises).finally(() => {
       this.updating = false
     })
+    this.needsUpdate = false
   }
 
   private onLayersChange() {
