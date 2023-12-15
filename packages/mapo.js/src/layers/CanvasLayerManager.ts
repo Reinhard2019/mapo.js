@@ -1,10 +1,11 @@
-import { BBox, TileBoxWithZ } from '../types'
+import { BBox, TileBoxWithZ, XYZ } from '../types'
 import CanvasLayer from './CanvasLayer'
 import * as THREE from 'three'
 import Map from '../Map'
 import MercatorTile from '../utils/MercatorTile'
-import { getOverlapTileBox } from '../utils/tile'
+import { getOverlapTileBox, tileBoxContain, tileBoxOverlap, xyzToTileBox } from '../utils/tile'
 import { isEqual } from 'lodash-es'
+import { last } from '../utils/array'
 
 interface CanvasOption {
   pxDeg: number
@@ -96,6 +97,31 @@ class CanvasLayerManager extends THREE.EventDispatcher<CanvasLayerManagerEvent> 
       this.updating = false
     })
     this.needsUpdate = false
+  }
+
+  getCanvasLayerMaterialsOfTile(xyz: XYZ) {
+    const { tileBoxes } = this
+
+    let start = 0
+    let end = 1
+    if (tileBoxes.length > 1) {
+      const maxTileBox = last(tileBoxes)!
+      const xyzTileBox = xyzToTileBox(xyz)
+      const overlapTileBox = getOverlapTileBox(xyzTileBox, maxTileBox)!
+      if (!overlapTileBox) return []
+
+      for (let i = 0; i < tileBoxes.length; i++) {
+        const tileBox = tileBoxes[i]
+        if (!tileBoxOverlap(tileBox, overlapTileBox)) {
+          start = i + 1
+        } else if (tileBoxContain(tileBox, overlapTileBox) || i === tileBoxes.length - 1) {
+          end = i + 1
+          break
+        }
+      }
+    }
+
+    return this.sortedLayers.flatMap(layer => layer.canvasLayerMaterials.slice(start, end))
   }
 
   private onLayersChange() {

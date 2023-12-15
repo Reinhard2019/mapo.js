@@ -100,11 +100,11 @@ class TileLoader {
   private addChild(tileMesh: TileMesh) {
     if (this.destroyed) return
 
+    tileMesh.show()
+
     this.children.push(tileMesh)
 
     this.tileGroup.children.push(tileMesh)
-
-    tileMesh.show()
   }
 
   private removeChild(tileMesh: TileMesh) {
@@ -306,13 +306,13 @@ class TileGroup extends THREE.Group {
   }
 
   update() {
-    const { displayTileBoxChange, displayTileBox: tileBox } = this.map
+    const { displayTileBoxChange, displayTileBox } = this.map
     if (!displayTileBoxChange) return
 
-    if (this.tileLoader?.tileBox && tileBoxContain(this.tileLoader?.tileBox, tileBox)) {
-      this.tileLoader.resetTileBox(tileBox)
+    if (this.tileLoader?.tileBox && tileBoxContain(this.tileLoader?.tileBox, displayTileBox)) {
+      this.tileLoader.resetTileBox(displayTileBox)
     } else {
-      this.tileLoader = new TileLoader(this, tileBox, this.tileLoader)
+      this.tileLoader = new TileLoader(this, displayTileBox, this.tileLoader)
     }
 
     this.resetMaterial()
