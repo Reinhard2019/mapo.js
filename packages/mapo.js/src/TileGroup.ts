@@ -53,7 +53,7 @@ class TileLoader {
       .forEach(xyz => {
         const tileMesh = this.getTileMesh(xyz)
         this.addChild(tileMesh)
-        promises.push(this.splitTileMesh(tileMesh))
+        promises.push(tileMesh.load().then(async () => await this.splitTileMesh(tileMesh)))
       })
     this.promise = Promise.allSettled(promises)
 
